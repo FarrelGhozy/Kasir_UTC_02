@@ -17,13 +17,12 @@ class Inventory {
                 <div class="card-header">
                     <div class="d-flex justify-content-between align-items-center">
                         <h5 class="mb-0"><i class="bi bi-box-seam me-2"></i>Inventory Management</h5>
-                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#itemModal" onclick="inventory.openItemModal()">
+                        <button class="btn btn-primary" onclick="inventory.openItemModal()">
                             <i class="bi bi-plus-circle me-2"></i>Add New Item
                         </button>
                     </div>
                 </div>
                 <div class="card-body">
-                    <!-- Search & Filter -->
                     <div class="row g-3 mb-4">
                         <div class="col-md-6">
                             <div class="search-bar">
@@ -48,7 +47,6 @@ class Inventory {
                         </div>
                     </div>
 
-                    <!-- Inventory Table -->
                     <div class="table-responsive">
                         <table class="table table-hover">
                             <thead>
@@ -75,7 +73,6 @@ class Inventory {
                 </div>
             </div>
 
-            <!-- Add/Edit Item Modal -->
             <div class="modal fade" id="itemModal" tabindex="-1">
                 <div class="modal-dialog modal-lg">
                     <div class="modal-content">
@@ -84,7 +81,7 @@ class Inventory {
                             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                         </div>
                         <div class="modal-body">
-                            <form id="item-form">
+                            <form id="item-form" novalidate>
                                 <input type="hidden" id="item-id">
                                 
                                 <div class="row g-3">
@@ -117,9 +114,10 @@ class Inventory {
                                                min="0" required>
                                     </div>
                                     <div class="col-md-6">
-                                        <label class="form-label">Initial Stock *</label>
+                                        <label class="form-label">Initial Stock</label>
                                         <input type="number" class="form-control" id="item-stock" 
-                                               min="0" value="0" required>
+                                               min="0" value="0">
+                                        <small class="text-muted d-none" id="stock-edit-hint">Use "Adjust Stock" button to change stock.</small>
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label">Min Stock Alert *</label>
@@ -143,7 +141,6 @@ class Inventory {
                 </div>
             </div>
 
-            <!-- Stock Adjustment Modal -->
             <div class="modal fade" id="stockModal" tabindex="-1">
                 <div class="modal-dialog">
                     <div class="modal-content">
@@ -281,8 +278,13 @@ class Inventory {
     }
 
     openItemModal(itemId = null) {
-        const modal = new bootstrap.Modal(document.getElementById('itemModal'));
+        // Use getOrCreateInstance to prevent multiple modal instances
+        const modalEl = document.getElementById('itemModal');
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        
         document.getElementById('item-form').reset();
+        const stockInput = document.getElementById('item-stock');
+        const stockHint = document.getElementById('stock-edit-hint');
         
         if (itemId) {
             document.getElementById('itemModalTitle').textContent = 'Edit Item';
@@ -294,30 +296,54 @@ class Inventory {
                 document.getElementById('item-category').value = item.category;
                 document.getElementById('item-purchase-price').value = item.purchase_price;
                 document.getElementById('item-selling-price').value = item.selling_price;
-                document.getElementById('item-stock').value = item.stock;
+                
+                // Disable stock editing in edit mode
+                stockInput.value = item.stock;
+                stockInput.disabled = true;
+                stockHint.classList.remove('d-none');
+                
                 document.getElementById('item-min-stock').value = item.min_stock_alert;
                 document.getElementById('item-description').value = item.description || '';
             }
         } else {
             document.getElementById('itemModalTitle').textContent = 'Add New Item';
+            document.getElementById('item-id').value = '';
+            
+            // Enable stock input for new items
+            stockInput.disabled = false;
+            stockInput.value = 0;
+            stockHint.classList.add('d-none');
         }
         
         modal.show();
     }
 
     async saveItem() {
+        const form = document.getElementById('item-form');
+
+        // 1. HTML5 Validation Check
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
+        const itemId = document.getElementById('item-id').value;
+
+        // 2. Safe Data Gathering with Fallbacks
         const itemData = {
-            sku: document.getElementById('item-sku').value,
-            name: document.getElementById('item-name').value,
+            sku: document.getElementById('item-sku').value.trim(),
+            name: document.getElementById('item-name').value.trim(),
             category: document.getElementById('item-category').value,
-            purchase_price: parseFloat(document.getElementById('item-purchase-price').value),
-            selling_price: parseFloat(document.getElementById('item-selling-price').value),
-            stock: parseInt(document.getElementById('item-stock').value),
-            min_stock_alert: parseInt(document.getElementById('item-min-stock').value),
+            purchase_price: parseFloat(document.getElementById('item-purchase-price').value) || 0,
+            selling_price: parseFloat(document.getElementById('item-selling-price').value) || 0,
+            min_stock_alert: parseInt(document.getElementById('item-min-stock').value) || 0,
             description: document.getElementById('item-description').value
         };
 
-        const itemId = document.getElementById('item-id').value;
+        // Only include stock if creating new item
+        if (!itemId) {
+            itemData.stock = parseInt(document.getElementById('item-stock').value) || 0;
+        }
 
         try {
             if (itemId) {
@@ -328,7 +354,10 @@ class Inventory {
                 showToast('Item created successfully', 'success');
             }
 
-            bootstrap.Modal.getInstance(document.getElementById('itemModal')).hide();
+            // Close modal safely
+            const modalEl = document.getElementById('itemModal');
+            bootstrap.Modal.getInstance(modalEl).hide();
+            
             await this.loadItems();
         } catch (error) {
             showToast(error.message, 'error');
@@ -352,12 +381,14 @@ class Inventory {
     }
 
     openStockModal(itemId, itemName, currentStock) {
+        const modalEl = document.getElementById('stockModal');
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+
         document.getElementById('stock-item-id').value = itemId;
         document.getElementById('stock-item-name').textContent = itemName;
         document.getElementById('stock-current').textContent = currentStock;
         document.getElementById('stock-quantity').value = 1;
         
-        const modal = new bootstrap.Modal(document.getElementById('stockModal'));
         modal.show();
     }
 
@@ -374,7 +405,10 @@ class Inventory {
         try {
             await api.patch(`/inventory/${itemId}/stock`, { quantity, type });
             showToast(`Stock ${type === 'add' ? 'added' : 'deducted'} successfully`, 'success');
-            bootstrap.Modal.getInstance(document.getElementById('stockModal')).hide();
+            
+            const modalEl = document.getElementById('stockModal');
+            bootstrap.Modal.getInstance(modalEl).hide();
+            
             await this.loadItems();
         } catch (error) {
             showToast(error.message, 'error');

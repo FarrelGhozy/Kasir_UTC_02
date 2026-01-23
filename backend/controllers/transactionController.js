@@ -1,60 +1,54 @@
-// controllers/transactionController.js - POS Transaction with Atomic Stock Operations
+// controllers/transactionController.js - POS Transaction without Atomic Sessions (Localhost Friendly)
 const Transaction = require('../models/Transaction');
 const Item = require('../models/Item');
 const User = require('../models/User');
-const mongoose = require('mongoose');
 
 /**
- * @desc    Create retail transaction with automatic stock deduction
+ * @desc    Create retail transaction (FIXED: Removed Atomic Transactions for Local MongoDB)
  * @route   POST /api/transactions
  * @access  Private (Kasir, Admin)
  */
 exports.createRetailTransaction = async (req, res, next) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
+  // HAPUS: Session & Transaction start (agar jalan di localhost biasa)
+  
   try {
     const { items, payment_method, amount_paid, notes } = req.body;
 
     // Validation
     if (!items || items.length === 0) {
-      await session.abortTransaction();
       return res.status(400).json({
         success: false,
         message: 'Transaction must have at least one item'
       });
     }
 
-    // Get cashier info (from authenticated user - assumes req.user exists)
-    const cashier = await User.findById(req.user.id).session(session);
+    // Get cashier info
+    const cashier = await User.findById(req.user.id);
     if (!cashier) {
-      await session.abortTransaction();
       return res.status(404).json({
         success: false,
         message: 'Cashier not found'
       });
     }
 
-    // Process each item and validate stock
+    // Process each item
     const processedItems = [];
     let grandTotal = 0;
 
     for (const transactionItem of items) {
       const { item_id, qty } = transactionItem;
 
-      // Find item in database
-      const item = await Item.findById(item_id).session(session);
+      // Find item
+      const item = await Item.findById(item_id); // Hapus .session()
       if (!item) {
-        await session.abortTransaction();
         return res.status(404).json({
           success: false,
           message: `Item with ID ${item_id} not found`
         });
       }
 
-      // CRITICAL: Check stock availability
+      // Check stock
       if (item.stock < qty) {
-        await session.abortTransaction();
         return res.status(400).json({
           success: false,
           message: `Insufficient stock for ${item.name}. Available: ${item.stock}, Requested: ${qty}`
@@ -65,9 +59,9 @@ exports.createRetailTransaction = async (req, res, next) => {
       const subtotal = item.selling_price * qty;
       grandTotal += subtotal;
 
-      // CRITICAL: Deduct stock atomically
+      // Deduct stock (Direct Save)
       item.stock -= qty;
-      await item.save({ session });
+      await item.save(); // Hapus { session }
 
       // Add to processed items
       processedItems.push({
@@ -94,8 +88,7 @@ exports.createRetailTransaction = async (req, res, next) => {
       notes
     });
 
-    await transaction.save({ session });
-    await session.commitTransaction();
+    await transaction.save(); // Hapus { session }
 
     res.status(201).json({
       success: true,
@@ -103,10 +96,7 @@ exports.createRetailTransaction = async (req, res, next) => {
       data: transaction
     });
   } catch (error) {
-    await session.abortTransaction();
     next(error);
-  } finally {
-    session.endSession();
   }
 };
 
@@ -347,7 +337,6 @@ exports.deleteTransaction = async (req, res, next) => {
       });
     }
 
-    // Note: This does NOT restore stock - implement stock restoration if needed
     await Transaction.findByIdAndDelete(req.params.id);
 
     res.status(200).json({

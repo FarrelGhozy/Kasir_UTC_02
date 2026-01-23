@@ -157,35 +157,26 @@ const serviceTicketSchema = new mongoose.Schema({
 });
 
 // Indexes
-// serviceTicketSchema.index({ ticket_number: 1 }, { unique: true });
-// serviceTicketSchema.index({ status: 1 });
-// serviceTicketSchema.index({ 'technician.id': 1 });
-// serviceTicketSchema.index({ 'timestamps.created_at': -1 });
-// serviceTicketSchema.index({ 'customer.phone': 1 });
-// ✅ BENAR
 serviceTicketSchema.index({ status: 1 });
 serviceTicketSchema.index({ 'technician.id': 1 });
 serviceTicketSchema.index({ 'timestamps.created_at': -1 });
 serviceTicketSchema.index({ 'customer.phone': 1 });
-// ticket_number sudah unique: true di schema definition
 
-// Pre-save middleware to auto-calculate total_cost
-// ✅ KODE BARU (Copy & Paste ini)
+// ✅ FIX: Pre-save middleware without 'next' param (Async compatible)
 serviceTicketSchema.pre('save', async function() {
-  // 1. Hitung Total Biaya (Parts + Service Fee)
+  // 1. Calculate Total Cost
   let partsTotal = 0;
   if (this.parts_used && this.parts_used.length > 0) {
     partsTotal = this.parts_used.reduce((sum, part) => sum + part.subtotal, 0);
   }
   this.total_cost = partsTotal + (this.service_fee || 0);
 
-  // 2. Generate Nomor Tiket Otomatis (Hanya untuk data baru)
+  // 2. Generate Ticket Number
   if (this.isNew && !this.ticket_number) {
     try {
-      // Panggil fungsi static generateTicketNumber
       this.ticket_number = await this.constructor.generateTicketNumber();
     } catch (error) {
-      throw new Error('Gagal membuat nomor tiket: ' + error.message);
+      throw new Error('Failed to generate ticket number: ' + error.message);
     }
   }
 });
@@ -195,7 +186,6 @@ serviceTicketSchema.statics.generateTicketNumber = async function() {
   const year = new Date().getFullYear();
   const prefix = `SRV-${year}`;
   
-  // Find the latest ticket for this year
   const lastTicket = await this.findOne({
     ticket_number: new RegExp(`^${prefix}`)
   }).sort({ ticket_number: -1 });
@@ -209,11 +199,12 @@ serviceTicketSchema.statics.generateTicketNumber = async function() {
   return `${prefix}${String(nextNumber).padStart(3, '0')}`;
 };
 
-// Instance method to add parts with automatic stock deduction
-serviceTicketSchema.methods.addPart = async function(itemId, quantity, session = null) {
+// ✅ FIX: Instance method to add parts (Removed Session)
+serviceTicketSchema.methods.addPart = async function(itemId, quantity) {
   const Item = mongoose.model('Item');
   
-  const item = await Item.findById(itemId).session(session);
+  // No session here
+  const item = await Item.findById(itemId);
   if (!item) {
     throw new Error('Item not found');
   }
@@ -224,7 +215,7 @@ serviceTicketSchema.methods.addPart = async function(itemId, quantity, session =
   
   // Deduct stock
   item.stock -= quantity;
-  await item.save({ session });
+  await item.save(); // Save without session
   
   // Add to parts_used
   const subtotal = item.selling_price * quantity;
@@ -236,7 +227,7 @@ serviceTicketSchema.methods.addPart = async function(itemId, quantity, session =
     subtotal: subtotal
   });
   
-  await this.save({ session });
+  await this.save(); // Save without session
   return this;
 };
 
