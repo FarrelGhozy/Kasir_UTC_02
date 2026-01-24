@@ -1,4 +1,4 @@
-// models/Transaction.js
+// backend/models/Transaction.js
 const mongoose = require('mongoose');
 
 const transactionItemSchema = new mongoose.Schema({
@@ -73,32 +73,30 @@ const transactionSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Calculate change before saving
-// ✅ PERBAIKAN: Hapus parameter 'next' dan pemanggilan 'next()'
+// ✅ PERBAIKAN UTAMA: Menghapus parameter 'next'
 transactionSchema.pre('save', async function() {
-  // 1. Hitung Kembalian
+  // 1. Hitung Kembalian otomatis
   if (this.amount_paid >= this.grand_total) {
     this.change = this.amount_paid - this.grand_total;
   }
 
-  // 2. Generate Invoice Number Otomatis
+  // 2. Generate Nomor Invoice (INV-YYYYMM-XXXX)
   if (this.isNew && !this.invoice_no) {
     try {
         this.invoice_no = await this.constructor.generateInvoiceNumber();
     } catch (error) {
-        throw new Error('Failed to generate invoice number: ' + error.message);
+        throw new Error('Gagal membuat nomor invoice: ' + error.message);
     }
   }
 });
 
-// Static method to generate invoice number (INV-YYYYMM-XXXX)
+// Fungsi Static untuk membuat nomor urut invoice
 transactionSchema.statics.generateInvoiceNumber = async function() {
   const now = new Date();
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, '0');
   const prefix = `INV-${year}${month}`;
 
-  // Find last transaction with this prefix
   const lastTransaction = await this.findOne({
     invoice_no: new RegExp(`^${prefix}`)
   }).sort({ invoice_no: -1 });
