@@ -1,4 +1,4 @@
-// public/js/auth.js - Authentication & Token Management
+// public/js/auth.js - Autentikasi & Manajemen Token
 
 import api, { showToast } from './api.js';
 
@@ -10,7 +10,7 @@ class Auth {
     }
 
     init() {
-        // Check if user is already logged in
+        // Cek apakah user sudah login sebelumnya
         const token = localStorage.getItem('token');
         const user = localStorage.getItem('user');
 
@@ -22,10 +22,10 @@ class Auth {
             this.showLoginScreen();
         }
 
-        // Setup login form
+        // Setup form login
         this.setupLoginForm();
         
-        // Setup logout button
+        // Setup tombol logout
         this.setupLogoutButton();
     }
 
@@ -40,32 +40,32 @@ class Auth {
             const username = document.getElementById('login-username').value.trim();
             const password = document.getElementById('login-password').value;
 
-            // Disable button and show loading
+            // Nonaktifkan tombol dan tampilkan loading
             loginBtn.disabled = true;
-            loginBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Logging in...';
+            loginBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Sedang masuk...';
             loginError.classList.add('d-none');
 
             try {
                 const response = await api.login(username, password);
 
                 if (response.success) {
-                    // Store token and user data
+                    // Simpan token dan data user
                     localStorage.setItem('token', response.data.token);
                     localStorage.setItem('user', JSON.stringify(response.data.user));
 
                     this.token = response.data.token;
                     this.user = response.data.user;
 
-                    // Show main app
+                    // Tampilkan aplikasi utama
                     this.showMainApp();
-                    showToast(`Welcome, ${this.user.name}!`, 'success');
+                    showToast(`Selamat datang, ${this.user.name}!`, 'success');
                 }
             } catch (error) {
-                loginError.textContent = error.message || 'Login failed. Please check your credentials.';
+                loginError.textContent = error.message || 'Login gagal. Silakan periksa kredensial Anda.';
                 loginError.classList.remove('d-none');
             } finally {
                 loginBtn.disabled = false;
-                loginBtn.innerHTML = '<i class="bi bi-box-arrow-in-right me-2"></i>Login';
+                loginBtn.innerHTML = '<i class="bi bi-box-arrow-in-right me-2"></i>Masuk';
             }
         });
     }
@@ -74,7 +74,7 @@ class Auth {
         const logoutBtn = document.getElementById('logout-btn');
         
         logoutBtn.addEventListener('click', () => {
-            if (confirm('Are you sure you want to logout?')) {
+            if (confirm('Apakah Anda yakin ingin keluar?')) {
                 this.logout();
             }
         });
@@ -89,46 +89,46 @@ class Auth {
         document.getElementById('login-screen').classList.add('d-none');
         document.getElementById('main-app').classList.remove('d-none');
 
-        // Update user info in sidebar
+        // Update info user di sidebar
         if (this.user) {
             document.getElementById('user-name-display').textContent = this.user.name;
             document.getElementById('user-username-display').textContent = `@${this.user.username}`;
             document.getElementById('user-role-badge').textContent = this.getRoleName(this.user.role);
 
-            // Show/hide nav items based on role
+            // Tampilkan/sembunyikan navigasi berdasarkan peran
             this.updateNavigationByRole();
         }
 
-        // Update clock
+        // Update jam
         this.updateClock();
         setInterval(() => this.updateClock(), 1000);
 
-        // Trigger app initialization (app.js will handle this)
+        // Pemicu inisialisasi aplikasi (app.js akan menanganinya)
         window.dispatchEvent(new Event('app-ready'));
     }
 
     updateNavigationByRole() {
         const role = this.user.role;
 
-        // Hide/show navigation items based on role
+        // Sembunyikan/tampilkan item navigasi berdasarkan peran
         const navPos = document.getElementById('nav-pos');
         const navService = document.getElementById('nav-service');
 
         if (role === 'teknisi') {
-            // Technician can only see service, inventory, and dashboard
+            // Teknisi hanya bisa melihat servis, gudang, dan dasbor
             navPos.classList.add('d-none');
         } else if (role === 'kasir') {
-            // Cashier can see POS, inventory, and dashboard
+            // Kasir bisa melihat POS, gudang, dan dasbor
             navService.classList.add('d-none');
         }
-        // Admin can see everything (no changes needed)
+        // Admin bisa melihat semuanya (tidak ada perubahan diperlukan)
     }
 
     getRoleName(role) {
         const roleNames = {
             'admin': 'Administrator',
-            'teknisi': 'Technician',
-            'kasir': 'Cashier'
+            'teknisi': 'Teknisi',
+            'kasir': 'Kasir'
         };
         return roleNames[role] || role;
     }
@@ -157,16 +157,16 @@ class Auth {
     }
 
     logout() {
-        // Clear stored data
+        // Hapus data yang tersimpan
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         
         this.token = null;
         this.user = null;
 
-        // Show login screen
+        // Tampilkan layar login
         this.showLoginScreen();
-        showToast('Logged out successfully', 'info');
+        showToast('Berhasil keluar', 'info');
     }
 
     getUser() {
@@ -186,8 +186,8 @@ class Auth {
     }
 }
 
-// Initialize auth
+// Inisialisasi auth
 const auth = new Auth();
 
-// Export auth instance
+// Ekspor instance auth
 export default auth;

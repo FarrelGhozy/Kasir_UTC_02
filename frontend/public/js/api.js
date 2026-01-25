@@ -1,4 +1,4 @@
-// public/js/api.js - Global API Handler with Fetch Wrapper
+// public/js/api.js - Global API Handler dengan Fetch Wrapper
 
 const API_BASE_URL = 'http://localhost:5000/api';
 
@@ -8,14 +8,14 @@ class API {
     }
 
     /**
-     * Get JWT token from localStorage
+     * Ambil token JWT dari localStorage
      */
     getToken() {
         return localStorage.getItem('token');
     }
 
     /**
-     * Get headers with or without authentication
+     * Ambil headers dengan atau tanpa autentikasi
      */
     getHeaders(authenticated = true) {
         const headers = {
@@ -33,42 +33,42 @@ class API {
     }
 
     /**
-     * Handle API response
+     * Tangani respons API
      */
     async handleResponse(response) {
-    // Check content type
-    const contentType = response.headers.get('content-type');
-    
-    // If response is not JSON (might be HTML error page)
-    if (!contentType || !contentType.includes('application/json')) {
-        const text = await response.text();
+        // Cek tipe konten
+        const contentType = response.headers.get('content-type');
         
-        // Backend might be down or returning HTML
-        if (text.includes('<!DOCTYPE') || text.includes('<html')) {
-            throw new Error('Server is not responding correctly. Please ensure the backend API is running on http://localhost:5000');
-        }
-        
-        throw new Error('Server returned invalid response format');
-    }
-
-    const data = await response.json();
-
-    if (!response.ok) {
-        // Handle authentication errors
-        if (response.status === 401) {
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            window.location.reload();
+        // Jika respons bukan JSON (mungkin halaman error HTML dari server)
+        if (!contentType || !contentType.includes('application/json')) {
+            const text = await response.text();
+            
+            // Backend mungkin mati atau mengembalikan HTML
+            if (text.includes('<!DOCTYPE') || text.includes('<html')) {
+                throw new Error('Server tidak merespons dengan benar. Pastikan API backend berjalan di http://localhost:5000');
+            }
+            
+            throw new Error('Server mengembalikan format respons yang tidak valid');
         }
 
-        throw new Error(data.message || `HTTP Error: ${response.status}`);
-    }
+        const data = await response.json();
 
-    return data;
-}
+        if (!response.ok) {
+            // Tangani error autentikasi
+            if (response.status === 401) {
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                window.location.reload();
+            }
+
+            throw new Error(data.message || `Kesalahan HTTP: ${response.status}`);
+        }
+
+        return data;
+    }
 
     /**
-     * Generic request handler
+     * Penangan request generik
      */
     async request(endpoint, options = {}) {
         const url = `${this.baseURL}${endpoint}`;
@@ -80,7 +80,7 @@ class API {
             ...options
         };
 
-        // Add body if present
+        // Tambahkan body jika ada
         if (options.body) {
             config.body = JSON.stringify(options.body);
         }
@@ -89,47 +89,47 @@ class API {
             const response = await fetch(url, config);
             return await this.handleResponse(response);
         } catch (error) {
-            console.error('API Request Error:', error);
+            console.error('Kesalahan Permintaan API:', error);
             throw error;
         }
     }
 
     /**
-     * GET request
+     * Request GET
      */
     async get(endpoint, authenticated = true) {
         return this.request(endpoint, { method: 'GET', authenticated });
     }
 
     /**
-     * POST request
+     * Request POST
      */
     async post(endpoint, body, authenticated = true) {
         return this.request(endpoint, { method: 'POST', body, authenticated });
     }
 
     /**
-     * PUT request
+     * Request PUT
      */
     async put(endpoint, body, authenticated = true) {
         return this.request(endpoint, { method: 'PUT', body, authenticated });
     }
 
     /**
-     * PATCH request
+     * Request PATCH
      */
     async patch(endpoint, body, authenticated = true) {
         return this.request(endpoint, { method: 'PATCH', body, authenticated });
     }
 
     /**
-     * DELETE request
+     * Request DELETE
      */
     async delete(endpoint, authenticated = true) {
         return this.request(endpoint, { method: 'DELETE', authenticated });
     }
 
-    // ==================== AUTH ENDPOINTS ====================
+    // ==================== ENDPOINT OTENTIKASI ====================
 
     async login(username, password) {
         return this.post('/auth/login', { username, password }, false);
@@ -147,7 +147,7 @@ class API {
         return this.get('/auth/users');
     }
 
-    // ==================== INVENTORY ENDPOINTS ====================
+    // ==================== ENDPOINT GUDANG (INVENTORY) ====================
 
     async getInventory(params = {}) {
         const queryString = new URLSearchParams(params).toString();
@@ -182,7 +182,7 @@ class API {
         return this.get('/inventory/summary/by-category');
     }
 
-    // ==================== TRANSACTION ENDPOINTS ====================
+    // ==================== ENDPOINT TRANSAKSI ====================
 
     async createTransaction(data) {
         return this.post('/transactions', data);
@@ -201,7 +201,7 @@ class API {
         return this.get('/transactions/summary/today');
     }
 
-    // ==================== SERVICE TICKET ENDPOINTS ====================
+    // ==================== ENDPOINT TIKET SERVIS ====================
 
     async createServiceTicket(data) {
         return this.post('/services', data);
@@ -231,7 +231,7 @@ class API {
         return this.patch(`/services/${id}/service-fee`, { service_fee: serviceFee });
     }
 
-    // ==================== REPORT ENDPOINTS ====================
+    // ==================== ENDPOINT LAPORAN ====================
 
     async getDailyRevenue(date) {
         const params = date ? `?date=${date}` : '';
@@ -262,14 +262,14 @@ class API {
     }
 }
 
-// Export singleton instance
+// Ekspor instance singleton
 const api = new API(API_BASE_URL);
 export default api;
 
-// ==================== UTILITY FUNCTIONS ====================
+// ==================== FUNGSI UTILITAS ====================
 
 /**
- * Format currency in Indonesian Rupiah
+ * Format mata uang ke Rupiah Indonesia
  */
 export function formatCurrency(amount) {
     return new Intl.NumberFormat('id-ID', {
@@ -280,7 +280,7 @@ export function formatCurrency(amount) {
 }
 
 /**
- * Format date in Indonesian locale
+ * Format tanggal ke lokal Indonesia
  */
 export function formatDate(date) {
     return new Date(date).toLocaleDateString('id-ID', {
@@ -291,7 +291,7 @@ export function formatDate(date) {
 }
 
 /**
- * Format datetime in Indonesian locale
+ * Format tanggal dan waktu ke lokal Indonesia
  */
 export function formatDateTime(date) {
     return new Date(date).toLocaleString('id-ID', {
@@ -304,7 +304,7 @@ export function formatDateTime(date) {
 }
 
 /**
- * Show toast notification
+ * Tampilkan notifikasi toast
  */
 export function showToast(message, type = 'success') {
     const toastContainer = document.getElementById('toast-container');
@@ -335,14 +335,14 @@ export function showToast(message, type = 'success') {
     const toast = new bootstrap.Toast(toastElement, { delay: 3000 });
     toast.show();
     
-    // Remove from DOM after hidden
+    // Hapus dari DOM setelah tersembunyi
     toastElement.addEventListener('hidden.bs.toast', () => {
         toastElement.remove();
     });
 }
 
 /**
- * Show loading indicator
+ * Tampilkan indikator loading
  */
 export function showLoading(containerId) {
     const container = document.getElementById(containerId);
@@ -350,16 +350,16 @@ export function showLoading(containerId) {
         container.innerHTML = `
             <div class="text-center py-5">
                 <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">Loading...</span>
+                    <span class="visually-hidden">Memuat...</span>
                 </div>
-                <p class="mt-3 text-muted">Loading data...</p>
+                <p class="mt-3 text-muted">Sedang memuat data...</p>
             </div>
         `;
     }
 }
 
 /**
- * Show error message
+ * Tampilkan pesan error
  */
 export function showError(containerId, message) {
     const container = document.getElementById(containerId);
@@ -367,14 +367,14 @@ export function showError(containerId, message) {
         container.innerHTML = `
             <div class="alert alert-danger" role="alert">
                 <i class="bi bi-exclamation-triangle me-2"></i>
-                <strong>Error:</strong> ${message}
+                <strong>Kesalahan:</strong> ${message}
             </div>
         `;
     }
 }
 
 /**
- * Confirm dialog
+ * Dialog konfirmasi
  */
 export function confirmDialog(message) {
     return confirm(message);

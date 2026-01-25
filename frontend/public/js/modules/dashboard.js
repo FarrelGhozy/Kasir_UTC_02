@@ -1,4 +1,4 @@
-// public/js/modules/dashboard.js - Dashboard Overview Module
+// public/js/modules/dashboard.js - Modul Ringkasan Dasbor
 
 import api, { formatCurrency, showError } from '../api.js';
 
@@ -12,15 +12,16 @@ class Dashboard {
         
         content.innerHTML = `
             <div class="row g-4 mb-4">
-                <!-- Stats Cards -->
                 <div class="col-md-3">
-                    <div class="card stat-card">
+                    <div class="card stat-card border-0 shadow-sm h-100">
                         <div class="card-body">
                             <div class="d-flex align-items-center">
-                                <i class="bi bi-cash-coin fs-1 text-primary me-3"></i>
+                                <div class="bg-primary bg-opacity-10 p-3 rounded me-3">
+                                    <i class="bi bi-cash-coin fs-1 text-primary"></i>
+                                </div>
                                 <div>
-                                    <div class="stat-label">Today's Revenue</div>
-                                    <div class="stat-value" id="stat-revenue">Rp 0</div>
+                                    <div class="stat-label text-muted small text-uppercase fw-bold">Pendapatan Hari Ini</div>
+                                    <div class="stat-value fs-4 fw-bold" id="stat-revenue">Rp 0</div>
                                 </div>
                             </div>
                         </div>
@@ -28,13 +29,15 @@ class Dashboard {
                 </div>
 
                 <div class="col-md-3">
-                    <div class="card stat-card">
+                    <div class="card stat-card border-0 shadow-sm h-100">
                         <div class="card-body">
                             <div class="d-flex align-items-center">
-                                <i class="bi bi-cart3 fs-1 text-success me-3"></i>
+                                <div class="bg-success bg-opacity-10 p-3 rounded me-3">
+                                    <i class="bi bi-cart3 fs-1 text-success"></i>
+                                </div>
                                 <div>
-                                    <div class="stat-label">Transactions</div>
-                                    <div class="stat-value text-success" id="stat-transactions">0</div>
+                                    <div class="stat-label text-muted small text-uppercase fw-bold">Total Transaksi</div>
+                                    <div class="stat-value fs-4 fw-bold text-success" id="stat-transactions">0</div>
                                 </div>
                             </div>
                         </div>
@@ -42,13 +45,15 @@ class Dashboard {
                 </div>
 
                 <div class="col-md-3">
-                    <div class="card stat-card">
+                    <div class="card stat-card border-0 shadow-sm h-100">
                         <div class="card-body">
                             <div class="d-flex align-items-center">
-                                <i class="bi bi-wrench fs-1 text-warning me-3"></i>
+                                <div class="bg-warning bg-opacity-10 p-3 rounded me-3">
+                                    <i class="bi bi-wrench fs-1 text-warning"></i>
+                                </div>
                                 <div>
-                                    <div class="stat-label">Active Services</div>
-                                    <div class="stat-value text-warning" id="stat-services">0</div>
+                                    <div class="stat-label text-muted small text-uppercase fw-bold">Servis Aktif</div>
+                                    <div class="stat-value fs-4 fw-bold text-warning" id="stat-services">0</div>
                                 </div>
                             </div>
                         </div>
@@ -56,13 +61,15 @@ class Dashboard {
                 </div>
 
                 <div class="col-md-3">
-                    <div class="card stat-card">
+                    <div class="card stat-card border-0 shadow-sm h-100">
                         <div class="card-body">
                             <div class="d-flex align-items-center">
-                                <i class="bi bi-exclamation-triangle fs-1 text-danger me-3"></i>
+                                <div class="bg-danger bg-opacity-10 p-3 rounded me-3">
+                                    <i class="bi bi-exclamation-triangle fs-1 text-danger"></i>
+                                </div>
                                 <div>
-                                    <div class="stat-label">Low Stock Items</div>
-                                    <div class="stat-value text-danger" id="stat-low-stock">0</div>
+                                    <div class="stat-label text-muted small text-uppercase fw-bold">Stok Menipis</div>
+                                    <div class="stat-value fs-4 fw-bold text-danger" id="stat-low-stock">0</div>
                                 </div>
                             </div>
                         </div>
@@ -71,28 +78,26 @@ class Dashboard {
             </div>
 
             <div class="row g-4">
-                <!-- Low Stock Alerts -->
                 <div class="col-lg-6">
-                    <div class="card">
-                        <div class="card-header">
-                            <h5 class="mb-0"><i class="bi bi-exclamation-triangle-fill text-danger me-2"></i>Low Stock Alerts</h5>
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-header bg-white py-3">
+                            <h5 class="mb-0 fw-bold"><i class="bi bi-exclamation-triangle-fill text-danger me-2"></i>Peringatan Stok</h5>
                         </div>
-                        <div class="card-body" id="low-stock-container" style="max-height: 400px; overflow-y: auto;">
-                            <div class="text-center py-4">
+                        <div class="card-body p-0" id="low-stock-container" style="max-height: 400px; overflow-y: auto;">
+                            <div class="text-center py-5">
                                 <div class="spinner-border text-primary"></div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Recent Transactions -->
                 <div class="col-lg-6">
-                    <div class="card">
-                        <div class="card-header">
-                            <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Recent Activity</h5>
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-header bg-white py-3">
+                            <h5 class="mb-0 fw-bold"><i class="bi bi-clock-history me-2"></i>Aktivitas Terkini</h5>
                         </div>
-                        <div class="card-body" id="recent-activity-container" style="max-height: 400px; overflow-y: auto;">
-                            <div class="text-center py-4">
+                        <div class="card-body p-0" id="recent-activity-container" style="max-height: 400px; overflow-y: auto;">
+                            <div class="text-center py-5">
                                 <div class="spinner-border text-primary"></div>
                             </div>
                         </div>
@@ -106,25 +111,26 @@ class Dashboard {
 
     async loadDashboardData() {
         try {
-            // Load today's summary
+            // Memuat ringkasan hari ini
             const todaySummary = await api.getTodaySummary();
             document.getElementById('stat-revenue').textContent = formatCurrency(todaySummary.data.total_revenue);
             document.getElementById('stat-transactions').textContent = todaySummary.data.total_transactions;
 
-            // Load active service tickets
+            // Memuat tiket servis aktif (Parameter status dibiarkan bahasa Inggris sesuai API backend)
             const services = await api.getServiceTickets({ 
                 status: 'Queue,Diagnosing,Waiting_Part,In_Progress' 
             });
             document.getElementById('stat-services').textContent = services.data.length;
 
-            // Load low stock items
+            // Memuat barang stok menipis
             await this.loadLowStock();
 
-            // Load recent activity
+            // Memuat aktivitas terkini
             await this.loadRecentActivity();
 
         } catch (error) {
-            console.error('Dashboard load error:', error);
+            console.error('Gagal memuat data dasbor:', error);
+            showError('app-content', 'Gagal memuat data dasbor. Silakan coba muat ulang.');
         }
     }
 
@@ -139,9 +145,9 @@ class Dashboard {
 
             if (items.length === 0) {
                 container.innerHTML = `
-                    <div class="text-center text-muted py-4">
-                        <i class="bi bi-check-circle fs-1 text-success"></i>
-                        <p class="mt-2">All items have sufficient stock</p>
+                    <div class="text-center text-muted py-5">
+                        <i class="bi bi-check-circle fs-1 text-success opacity-50"></i>
+                        <p class="mt-3 fw-semibold">Semua stok barang aman</p>
                     </div>
                 `;
                 return;
@@ -150,16 +156,17 @@ class Dashboard {
             container.innerHTML = `
                 <div class="list-group list-group-flush">
                     ${items.map(item => `
-                        <div class="list-group-item">
+                        <div class="list-group-item px-4 py-3">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
-                                    <h6 class="mb-1">${item.name}</h6>
+                                    <h6 class="mb-1 fw-bold text-dark">${item.name}</h6>
                                     <small class="text-muted">SKU: ${item.sku}</small>
                                 </div>
                                 <div class="text-end">
-                                    <span class="badge bg-danger">${item.stock} units</span>
-                                    <br>
-                                    <small class="text-muted">Min: ${item.min_stock_alert}</small>
+                                    <span class="badge bg-danger rounded-pill">${item.stock} unit</span>
+                                    <div class="small text-danger mt-1" style="font-size: 0.75rem;">
+                                        Min: ${item.min_stock_alert}
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -167,7 +174,7 @@ class Dashboard {
                 </div>
             `;
         } catch (error) {
-            container.innerHTML = `<div class="alert alert-danger">${error.message}</div>`;
+            container.innerHTML = `<div class="p-4 text-center text-danger">${error.message}</div>`;
         }
     }
 
@@ -179,9 +186,9 @@ class Dashboard {
             
             if (transactions.data.length === 0) {
                 container.innerHTML = `
-                    <div class="text-center text-muted py-4">
-                        <i class="bi bi-inbox fs-1"></i>
-                        <p class="mt-2">No recent activity</p>
+                    <div class="text-center text-muted py-5">
+                        <i class="bi bi-inbox fs-1 opacity-50"></i>
+                        <p class="mt-3 fw-semibold">Belum ada aktivitas baru</p>
                     </div>
                 `;
                 return;
@@ -190,22 +197,21 @@ class Dashboard {
             container.innerHTML = `
                 <div class="list-group list-group-flush">
                     ${transactions.data.map(txn => `
-                        <div class="list-group-item">
+                        <div class="list-group-item px-4 py-3">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div>
-                                    <h6 class="mb-1">${txn.invoice_no}</h6>
-                                    <small class="text-muted">
-                                        <i class="bi bi-person me-1"></i>${txn.cashier_name}
+                                    <h6 class="mb-1 fw-bold text-primary">#${txn.invoice_no}</h6>
+                                    <small class="text-muted d-block">
+                                        <i class="bi bi-person-circle me-1"></i>${txn.cashier_name}
                                     </small>
-                                    <br>
                                     <small class="text-muted">
-                                        <i class="bi bi-calendar me-1"></i>${new Date(txn.date).toLocaleString('id-ID')}
+                                        <i class="bi bi-clock me-1"></i>${new Date(txn.date).toLocaleString('id-ID')}
                                     </small>
                                 </div>
                                 <div class="text-end">
-                                    <strong class="text-primary">${formatCurrency(txn.grand_total)}</strong>
+                                    <strong class="text-dark fs-6">${formatCurrency(txn.grand_total)}</strong>
                                     <br>
-                                    <span class="badge bg-info">${txn.payment_method}</span>
+                                    <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 mt-1">${txn.payment_method}</span>
                                 </div>
                             </div>
                         </div>
@@ -213,7 +219,7 @@ class Dashboard {
                 </div>
             `;
         } catch (error) {
-            container.innerHTML = `<div class="alert alert-danger">${error.message}</div>`;
+            container.innerHTML = `<div class="p-4 text-center text-danger">${error.message}</div>`;
         }
     }
 }

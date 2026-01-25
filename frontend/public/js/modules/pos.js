@@ -1,4 +1,4 @@
-// public/js/modules/pos.js - Point of Sale Module (Fixed Layout)
+// public/js/modules/pos.js - Modul Kasir / Point of Sale (POS)
 
 import api, { formatCurrency, showToast, showError } from '../api.js';
 import auth from '../auth.js';
@@ -17,11 +17,11 @@ class POS {
         content.innerHTML = `
             <div class="row g-4 h-100">
                 <div class="col-lg-7 d-flex flex-column">
-                    <div class="card flex-grow-1 shadow-sm">
+                    <div class="card flex-grow-1 shadow-sm border-0">
                         <div class="card-header bg-white py-3">
                             <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h5 class="mb-0 fw-bold"><i class="bi bi-grid me-2 text-primary"></i>Products</h5>
-                                <span class="badge bg-primary rounded-pill" id="total-products-badge">0 Items</span>
+                                <h5 class="mb-0 fw-bold"><i class="bi bi-grid me-2 text-primary"></i>Daftar Produk</h5>
+                                <span class="badge bg-primary rounded-pill" id="total-products-badge">0 Item</span>
                             </div>
                             
                             <div class="row g-2">
@@ -29,16 +29,16 @@ class POS {
                                     <div class="input-group">
                                         <span class="input-group-text bg-light border-end-0"><i class="bi bi-search"></i></span>
                                         <input type="text" class="form-control border-start-0 bg-light" id="product-search" 
-                                               placeholder="Scan SKU or search name...">
+                                               placeholder="Scan SKU atau cari nama...">
                                     </div>
                                 </div>
                                 <div class="col-md-4">
                                     <select class="form-select bg-light" id="category-filter">
-                                        <option value="all">All Categories</option>
-                                        <option value="Sparepart">Sparepart</option>
-                                        <option value="Accessory">Accessory</option>
+                                        <option value="all">Semua Kategori</option>
+                                        <option value="Sparepart">Suku Cadang</option>
+                                        <option value="Accessory">Aksesoris</option>
                                         <option value="Software">Software</option>
-                                        <option value="Other">Other</option>
+                                        <option value="Other">Lainnya</option>
                                     </select>
                                 </div>
                             </div>
@@ -53,15 +53,15 @@ class POS {
                 <div class="col-lg-5 d-flex flex-column">
                     <div class="card flex-grow-1 shadow-sm border-0">
                         <div class="card-header bg-primary text-white py-3">
-                            <h5 class="mb-0"><i class="bi bi-cart3 me-2"></i>Current Transaction</h5>
+                            <h5 class="mb-0"><i class="bi bi-cart3 me-2"></i>Transaksi Saat Ini</h5>
                         </div>
                         <div class="card-body d-flex flex-column p-0">
                             <div class="cart-container flex-grow-1 p-3" style="overflow-y: auto; max-height: 400px;">
                                 <table class="table table-hover align-middle mb-0">
                                     <thead class="table-light sticky-top">
                                         <tr>
-                                            <th>Item</th>
-                                            <th width="100" class="text-center">Qty</th>
+                                            <th>Barang</th>
+                                            <th width="100" class="text-center">Jml</th>
                                             <th class="text-end">Subtotal</th>
                                             <th width="40"></th>
                                         </tr>
@@ -70,7 +70,7 @@ class POS {
                                         <tr>
                                             <td colspan="4" class="text-center text-muted py-5">
                                                 <i class="bi bi-cart-x display-1 d-block mb-3 text-secondary opacity-25"></i>
-                                                <p>Select products to add</p>
+                                                <p>Pilih produk untuk ditambahkan</p>
                                             </td>
                                         </tr>
                                     </tbody>
@@ -79,33 +79,36 @@ class POS {
 
                             <div class="border-top p-4 bg-light">
                                 <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <span class="text-muted">Items:</span>
+                                    <span class="text-muted">Total Item:</span>
                                     <strong id="cart-count">0</strong>
                                 </div>
                                 <div class="d-flex justify-content-between align-items-center mb-4">
-                                    <h5 class="mb-0">Grand Total:</h5>
+                                    <h5 class="mb-0">Total Akhir:</h5>
                                     <h3 class="cart-total mb-0 text-primary fw-bold" id="cart-total">Rp 0</h3>
                                 </div>
 
                                 <div class="row g-2 mb-3">
                                     <div class="col-6">
-                                        <label class="form-label small text-muted">Method</label>
+                                        <label class="form-label small text-muted">Metode Pembayaran</label>
                                         <select class="form-select" id="payment-method">
-                                            <option value="Cash">Cash (Tunai)</option>
-                                            <option value="Transfer">Transfer</option>
+                                            <option value="Cash">Tunai (Cash)</option>
+                                            <option value="Transfer">Transfer Bank</option>
                                             <option value="QRIS">QRIS</option>
-                                            <option value="Card">Debit/Credit</option>
+                                            <option value="Card">Debit/Kredit</option>
                                         </select>
                                     </div>
                                     <div class="col-6" id="amount-paid-container">
-                                        <label class="form-label small text-muted">Cash Received</label>
-                                        <input type="number" class="form-control" id="amount-paid" 
-                                               placeholder="0" min="0">
+                                        <label class="form-label small text-muted">Uang Diterima</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text px-2">Rp</span>
+                                            <input type="number" class="form-control px-2" id="amount-paid" 
+                                                placeholder="0" min="0">
+                                        </div>
                                     </div>
                                 </div>
 
                                 <div class="d-flex justify-content-between align-items-center mb-3">
-                                    <span class="text-muted">Change:</span>
+                                    <span class="text-muted">Kembalian:</span>
                                     <strong id="change-display" class="fs-5">Rp 0</strong>
                                 </div>
 
@@ -114,7 +117,7 @@ class POS {
                                         <i class="bi bi-trash"></i>
                                     </button>
                                     <button class="btn btn-primary flex-grow-1 w-100 py-2 fw-bold" id="pay-btn" disabled>
-                                        <i class="bi bi-check-circle me-2"></i>COMPLETE PAYMENT
+                                        <i class="bi bi-check-circle me-2"></i>BAYAR SEKARANG
                                     </button>
                                 </div>
                             </div>
@@ -131,10 +134,11 @@ class POS {
     async loadItems() {
         try {
             const response = await api.getInventory({ limit: 100 });
+            // Hanya tampilkan item yang stoknya > 0
             this.items = response.data.filter(item => item.stock > 0);
             
             const badge = document.getElementById('total-products-badge');
-            if(badge) badge.textContent = `${this.items.length} Items`;
+            if(badge) badge.textContent = `${this.items.length} Item`;
 
             this.renderProductGrid();
         } catch (error) {
@@ -163,7 +167,7 @@ class POS {
         if (filtered.length === 0) {
             grid.innerHTML = `
                 <div class="col-12 text-center text-muted py-5">
-                    <p>No products found</p>
+                    <p>Produk tidak ditemukan</p>
                 </div>`;
             return;
         }
@@ -182,7 +186,7 @@ class POS {
                         <div class="mt-auto">
                             <h5 class="text-primary fw-bold mb-2">${formatCurrency(item.selling_price)}</h5>
                             <span class="badge ${this.getStockBadgeClass(item.stock, item.min_stock_alert)} rounded-pill">
-                                Stock: ${item.stock}
+                                Stok: ${item.stock}
                             </span>
                         </div>
                     </div>
@@ -193,7 +197,7 @@ class POS {
         document.querySelectorAll('.product-card').forEach(card => {
             card.addEventListener('click', () => {
                 const itemId = card.getAttribute('data-item-id');
-                // Simple animation
+                // Animasi sederhana
                 card.style.transform = 'scale(0.95)';
                 setTimeout(() => card.style.transform = 'scale(1)', 100);
                 this.addToCart(itemId);
@@ -215,7 +219,7 @@ class POS {
 
         if (existingItem) {
             if (existingItem.qty >= item.stock) {
-                showToast(`Max stock reached for ${item.name}`, 'warning');
+                showToast(`Stok maksimum tercapai untuk ${item.name}`, 'warning');
                 return;
             }
             existingItem.qty++;
@@ -243,7 +247,7 @@ class POS {
                 <tr>
                     <td colspan="4" class="text-center text-muted py-5">
                         <i class="bi bi-cart-x display-6 d-block mb-3"></i>
-                        <p class="small">Cart is empty</p>
+                        <p class="small">Keranjang kosong</p>
                     </td>
                 </tr>
             `;
@@ -298,7 +302,7 @@ class POS {
                     this.cart[index].qty++;
                     this.renderCart();
                 } else {
-                    showToast('Max stock reached', 'warning');
+                    showToast('Stok maksimum tercapai', 'warning');
                 }
             });
         });
@@ -367,7 +371,7 @@ class POS {
         const clearBtn = document.getElementById('clear-cart-btn');
         if(clearBtn) {
             clearBtn.addEventListener('click', () => {
-                if (this.cart.length > 0 && confirm('Empty the cart?')) {
+                if (this.cart.length > 0 && confirm('Kosongkan keranjang?')) {
                     this.cart = [];
                     this.renderCart();
                 }
@@ -398,7 +402,7 @@ class POS {
         const change = amountPaid - total;
 
         if (change < 0) {
-            changeDisplay.textContent = `Insufficient: ${formatCurrency(Math.abs(change))}`;
+            changeDisplay.textContent = `Kurang: ${formatCurrency(Math.abs(change))}`;
             changeDisplay.className = 'fs-5 text-danger fw-bold';
         } else {
             changeDisplay.textContent = formatCurrency(change);
@@ -419,17 +423,17 @@ class POS {
             amountPaid = parseFloat(inputVal);
             
             if (isNaN(amountPaid) || amountPaid < total) {
-                showToast('Payment amount is insufficient!', 'error');
+                showToast('Jumlah pembayaran kurang!', 'error');
                 return;
             }
         }
 
-        if (!confirm(`Process payment of ${formatCurrency(total)}?`)) return;
+        if (!confirm(`Proses pembayaran sebesar ${formatCurrency(total)}?`)) return;
 
         const payBtn = document.getElementById('pay-btn');
         const originalText = payBtn.innerHTML;
         payBtn.disabled = true;
-        payBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
+        payBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Memproses...';
 
         try {
             const transactionData = {
@@ -444,20 +448,20 @@ class POS {
             const response = await api.createTransaction(transactionData);
 
             if (response.success) {
-                showToast('Transaction success!', 'success');
+                showToast('Transaksi berhasil!', 'success');
                 this.showReceipt(response.data);
 
-                // Clear and Reload
+                // Bersihkan dan Muat Ulang
                 this.cart = [];
                 this.renderCart();
                 document.getElementById('amount-paid').value = '';
                 document.getElementById('change-display').textContent = 'Rp 0';
                 
-                await this.loadItems(); // Update stock visuals
+                await this.loadItems(); // Perbarui tampilan stok
             }
         } catch (error) {
             console.error(error);
-            showToast(error.message || 'Transaction failed', 'error');
+            showToast(error.message || 'Transaksi gagal', 'error');
         } finally {
             if(payBtn) {
                 payBtn.disabled = false;
@@ -468,13 +472,13 @@ class POS {
 
     showReceipt(transaction) {
         alert(
-`TRANSACTION SUCCESS!
+`TRANSAKSI BERHASIL!
 ================================
-Invoice: ${transaction.invoice_no}
-Date: ${new Date(transaction.date).toLocaleString()}
+Faktur: ${transaction.invoice_no}
+Tanggal: ${new Date(transaction.date).toLocaleString('id-ID')}
 Total: ${formatCurrency(transaction.grand_total)}
-Paid: ${formatCurrency(transaction.amount_paid)}
-Change: ${formatCurrency(transaction.change || 0)}
+Dibayar: ${formatCurrency(transaction.amount_paid)}
+Kembalian: ${formatCurrency(transaction.change || 0)}
 ================================`
         );
     }

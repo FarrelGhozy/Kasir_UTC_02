@@ -1,4 +1,4 @@
-// public/js/modules/inventory.js - Inventory Management Module
+// public/js/modules/inventory.js - Modul Manajemen Gudang (Inventaris)
 
 import api, { formatCurrency, showToast, confirmDialog } from '../api.js';
 
@@ -13,12 +13,12 @@ class Inventory {
         const content = document.getElementById('app-content');
         
         content.innerHTML = `
-            <div class="card">
-                <div class="card-header">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white py-3">
                     <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0"><i class="bi bi-box-seam me-2"></i>Inventory Management</h5>
+                        <h5 class="mb-0 fw-bold"><i class="bi bi-box-seam me-2"></i>Manajemen Gudang</h5>
                         <button class="btn btn-primary" onclick="inventory.openItemModal()">
-                            <i class="bi bi-plus-circle me-2"></i>Add New Item
+                            <i class="bi bi-plus-circle me-2"></i>Tambah Barang
                         </button>
                     </div>
                 </div>
@@ -26,45 +26,48 @@ class Inventory {
                     <div class="row g-3 mb-4">
                         <div class="col-md-6">
                             <div class="search-bar">
-                                <i class="bi bi-search"></i>
-                                <input type="text" class="form-control" id="inventory-search" 
-                                       placeholder="Search by name or SKU...">
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light border-end-0"><i class="bi bi-search"></i></span>
+                                    <input type="text" class="form-control border-start-0 ps-0" id="inventory-search" 
+                                           placeholder="Cari nama barang atau SKU...">
+                                </div>
                             </div>
                         </div>
                         <div class="col-md-3">
                             <select class="form-select" id="inventory-category-filter">
-                                <option value="all">All Categories</option>
-                                <option value="Sparepart">Sparepart</option>
-                                <option value="Accessory">Accessory</option>
+                                <option value="all">Semua Kategori</option>
+                                <option value="Sparepart">Suku Cadang</option>
+                                <option value="Accessory">Aksesoris</option>
                                 <option value="Software">Software</option>
-                                <option value="Other">Other</option>
+                                <option value="Other">Lainnya</option>
                             </select>
                         </div>
                         <div class="col-md-3">
                             <button class="btn btn-outline-primary w-100" id="refresh-inventory-btn">
-                                <i class="bi bi-arrow-clockwise me-2"></i>Refresh
+                                <i class="bi bi-arrow-clockwise me-2"></i>Muat Ulang
                             </button>
                         </div>
                     </div>
 
                     <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
                                 <tr>
                                     <th>SKU</th>
-                                    <th>Item Name</th>
-                                    <th>Category</th>
-                                    <th>Purchase Price</th>
-                                    <th>Selling Price</th>
-                                    <th>Stock</th>
+                                    <th>Nama Barang</th>
+                                    <th>Kategori</th>
+                                    <th>Harga Beli</th>
+                                    <th>Harga Jual</th>
+                                    <th>Stok</th>
                                     <th>Status</th>
-                                    <th>Actions</th>
+                                    <th>Aksi</th>
                                 </tr>
                             </thead>
                             <tbody id="inventory-table-body">
                                 <tr>
-                                    <td colspan="8" class="text-center py-4">
+                                    <td colspan="8" class="text-center py-5">
                                         <div class="spinner-border text-primary"></div>
+                                        <p class="mt-2 text-muted">Memuat data barang...</p>
                                     </td>
                                 </tr>
                             </tbody>
@@ -77,7 +80,7 @@ class Inventory {
                 <div class="modal-dialog modal-lg">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h5 class="modal-title" id="itemModalTitle">Add New Item</h5>
+                            <h5 class="modal-title" id="itemModalTitle">Tambah Barang Baru</h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                         </div>
                         <div class="modal-body">
@@ -87,54 +90,57 @@ class Inventory {
                                 <div class="row g-3">
                                     <div class="col-md-6">
                                         <label class="form-label">SKU *</label>
-                                        <input type="text" class="form-control" id="item-sku" required>
+                                        <input type="text" class="form-control" id="item-sku" placeholder="Kode unik barang" required>
                                     </div>
                                     <div class="col-md-6">
-                                        <label class="form-label">Category *</label>
+                                        <label class="form-label">Kategori *</label>
                                         <select class="form-select" id="item-category" required>
-                                            <option value="">Select Category</option>
-                                            <option value="Sparepart">Sparepart</option>
-                                            <option value="Accessory">Accessory</option>
+                                            <option value="">Pilih Kategori</option>
+                                            <option value="Sparepart">Suku Cadang</option>
+                                            <option value="Accessory">Aksesoris</option>
                                             <option value="Software">Software</option>
-                                            <option value="Other">Other</option>
+                                            <option value="Other">Lainnya</option>
                                         </select>
                                     </div>
                                     <div class="col-12">
-                                        <label class="form-label">Item Name *</label>
+                                        <label class="form-label">Nama Barang *</label>
                                         <input type="text" class="form-control" id="item-name" required>
                                     </div>
                                     <div class="col-md-6">
-                                        <label class="form-label">Purchase Price (HPP) *</label>
-                                        <input type="number" class="form-control" id="item-purchase-price" 
-                                               min="0" required>
+                                        <label class="form-label">Harga Beli (HPP) *</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">Rp</span>
+                                            <input type="number" class="form-control" id="item-purchase-price" min="0" required>
+                                        </div>
                                     </div>
                                     <div class="col-md-6">
-                                        <label class="form-label">Selling Price *</label>
-                                        <input type="number" class="form-control" id="item-selling-price" 
-                                               min="0" required>
+                                        <label class="form-label">Harga Jual *</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">Rp</span>
+                                            <input type="number" class="form-control" id="item-selling-price" min="0" required>
+                                        </div>
                                     </div>
                                     <div class="col-md-6">
-                                        <label class="form-label">Initial Stock</label>
-                                        <input type="number" class="form-control" id="item-stock" 
-                                               min="0" value="0">
-                                        <small class="text-muted d-none" id="stock-edit-hint">Use "Adjust Stock" button to change stock.</small>
+                                        <label class="form-label">Stok Awal</label>
+                                        <input type="number" class="form-control" id="item-stock" min="0" value="0">
+                                        <small class="text-muted d-none" id="stock-edit-hint">Gunakan tombol "Sesuaikan Stok" di tabel utama untuk mengubah stok.</small>
                                     </div>
                                     <div class="col-md-6">
-                                        <label class="form-label">Min Stock Alert *</label>
-                                        <input type="number" class="form-control" id="item-min-stock" 
-                                               min="0" value="5" required>
+                                        <label class="form-label">Peringatan Stok Minimum *</label>
+                                        <input type="number" class="form-control" id="item-min-stock" min="0" value="5" required>
+                                        <div class="form-text">Sistem akan memberi peringatan jika stok di bawah angka ini.</div>
                                     </div>
                                     <div class="col-12">
-                                        <label class="form-label">Description</label>
+                                        <label class="form-label">Deskripsi</label>
                                         <textarea class="form-control" id="item-description" rows="3"></textarea>
                                     </div>
                                 </div>
                             </form>
                         </div>
                         <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
                             <button type="button" class="btn btn-primary" id="save-item-btn">
-                                <i class="bi bi-save me-2"></i>Save Item
+                                <i class="bi bi-save me-2"></i>Simpan Barang
                             </button>
                         </div>
                     </div>
@@ -145,34 +151,34 @@ class Inventory {
                 <div class="modal-dialog">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h5 class="modal-title">Adjust Stock</h5>
+                            <h5 class="modal-title">Penyesuaian Stok</h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                         </div>
                         <div class="modal-body">
                             <input type="hidden" id="stock-item-id">
-                            <div class="alert alert-info">
-                                <strong id="stock-item-name"></strong><br>
-                                Current Stock: <strong id="stock-current">0</strong>
+                            <div class="alert alert-info border-0 bg-info bg-opacity-10">
+                                <strong id="stock-item-name" class="d-block mb-1"></strong>
+                                Stok Saat Ini: <strong id="stock-current">0</strong>
                             </div>
                             
                             <div class="mb-3">
-                                <label class="form-label">Adjustment Type</label>
+                                <label class="form-label">Jenis Penyesuaian</label>
                                 <select class="form-select" id="stock-type">
-                                    <option value="add">Add Stock (Restock)</option>
-                                    <option value="deduct">Deduct Stock (Correction)</option>
+                                    <option value="add">Tambah Stok (Restock)</option>
+                                    <option value="deduct">Kurangi Stok (Koreksi/Rusak)</option>
                                 </select>
                             </div>
                             
                             <div class="mb-3">
-                                <label class="form-label">Quantity</label>
+                                <label class="form-label">Jumlah</label>
                                 <input type="number" class="form-control" id="stock-quantity" 
                                        min="1" value="1" required>
                             </div>
                         </div>
                         <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
                             <button type="button" class="btn btn-primary" id="save-stock-btn">
-                                <i class="bi bi-check-circle me-2"></i>Adjust Stock
+                                <i class="bi bi-check-circle me-2"></i>Simpan Perubahan
                             </button>
                         </div>
                     </div>
@@ -208,7 +214,10 @@ class Inventory {
         if (this.items.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="8" class="text-center text-muted py-4">No items found</td>
+                    <td colspan="8" class="text-center text-muted py-5">
+                        <i class="bi bi-box-seam fs-1 d-block mb-2 opacity-50"></i>
+                        Barang tidak ditemukan
+                    </td>
                 </tr>
             `;
             return;
@@ -216,29 +225,38 @@ class Inventory {
 
         tbody.innerHTML = this.items.map(item => {
             const stockBadge = item.stock <= item.min_stock_alert 
-                ? '<span class="badge bg-danger">Low Stock</span>'
+                ? '<span class="badge bg-danger">Menipis</span>'
                 : item.stock <= item.min_stock_alert * 2
-                ? '<span class="badge bg-warning text-dark">Medium</span>'
-                : '<span class="badge bg-success">Good</span>';
+                ? '<span class="badge bg-warning text-dark">Sedang</span>'
+                : '<span class="badge bg-success">Aman</span>';
+
+            // Terjemahan Kategori untuk tampilan tabel
+            const categoryMap = {
+                'Sparepart': 'Suku Cadang',
+                'Accessory': 'Aksesoris',
+                'Software': 'Software',
+                'Other': 'Lainnya'
+            };
+            const displayCategory = categoryMap[item.category] || item.category;
 
             return `
                 <tr>
-                    <td><code>${item.sku}</code></td>
+                    <td><code class="text-primary fw-bold">${item.sku}</code></td>
                     <td><strong>${item.name}</strong></td>
-                    <td><span class="badge bg-secondary">${item.category}</span></td>
+                    <td><span class="badge bg-secondary bg-opacity-75">${displayCategory}</span></td>
                     <td>${formatCurrency(item.purchase_price)}</td>
                     <td>${formatCurrency(item.selling_price)}</td>
                     <td><strong>${item.stock}</strong></td>
                     <td>${stockBadge}</td>
                     <td>
                         <div class="btn-group btn-group-sm">
-                            <button class="btn btn-outline-primary" onclick="inventory.openStockModal('${item._id}', '${item.name}', ${item.stock})" title="Adjust Stock">
+                            <button class="btn btn-outline-primary" onclick="inventory.openStockModal('${item._id}', '${item.name}', ${item.stock})" title="Sesuaikan Stok">
                                 <i class="bi bi-arrow-left-right"></i>
                             </button>
                             <button class="btn btn-outline-secondary" onclick="inventory.editItem('${item._id}')" title="Edit">
                                 <i class="bi bi-pencil"></i>
                             </button>
-                            <button class="btn btn-outline-danger" onclick="inventory.deleteItem('${item._id}', '${item.name}')" title="Delete">
+                            <button class="btn btn-outline-danger" onclick="inventory.deleteItem('${item._id}', '${item.name}')" title="Hapus">
                                 <i class="bi bi-trash"></i>
                             </button>
                         </div>
@@ -249,36 +267,36 @@ class Inventory {
     }
 
     setupEventListeners() {
-        // Search
+        // Cari
         document.getElementById('inventory-search').addEventListener('input', (e) => {
             this.searchTerm = e.target.value;
             this.loadItems();
         });
 
-        // Category filter
+        // Filter Kategori
         document.getElementById('inventory-category-filter').addEventListener('change', (e) => {
             this.categoryFilter = e.target.value;
             this.loadItems();
         });
 
-        // Refresh button
+        // Tombol Muat Ulang
         document.getElementById('refresh-inventory-btn').addEventListener('click', () => {
             this.loadItems();
         });
 
-        // Save item
+        // Simpan Barang
         document.getElementById('save-item-btn').addEventListener('click', () => {
             this.saveItem();
         });
 
-        // Save stock adjustment
+        // Simpan Penyesuaian Stok
         document.getElementById('save-stock-btn').addEventListener('click', () => {
             this.adjustStock();
         });
     }
 
     openItemModal(itemId = null) {
-        // Use getOrCreateInstance to prevent multiple modal instances
+        // Gunakan getOrCreateInstance untuk mencegah instansi modal ganda
         const modalEl = document.getElementById('itemModal');
         const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
         
@@ -287,7 +305,7 @@ class Inventory {
         const stockHint = document.getElementById('stock-edit-hint');
         
         if (itemId) {
-            document.getElementById('itemModalTitle').textContent = 'Edit Item';
+            document.getElementById('itemModalTitle').textContent = 'Edit Barang';
             const item = this.items.find(i => i._id === itemId);
             if (item) {
                 document.getElementById('item-id').value = item._id;
@@ -297,7 +315,7 @@ class Inventory {
                 document.getElementById('item-purchase-price').value = item.purchase_price;
                 document.getElementById('item-selling-price').value = item.selling_price;
                 
-                // Disable stock editing in edit mode
+                // Nonaktifkan edit stok di mode edit
                 stockInput.value = item.stock;
                 stockInput.disabled = true;
                 stockHint.classList.remove('d-none');
@@ -306,10 +324,10 @@ class Inventory {
                 document.getElementById('item-description').value = item.description || '';
             }
         } else {
-            document.getElementById('itemModalTitle').textContent = 'Add New Item';
+            document.getElementById('itemModalTitle').textContent = 'Tambah Barang Baru';
             document.getElementById('item-id').value = '';
             
-            // Enable stock input for new items
+            // Aktifkan input stok untuk barang baru
             stockInput.disabled = false;
             stockInput.value = 0;
             stockHint.classList.add('d-none');
@@ -321,7 +339,7 @@ class Inventory {
     async saveItem() {
         const form = document.getElementById('item-form');
 
-        // 1. HTML5 Validation Check
+        // 1. Cek Validasi HTML5
         if (!form.checkValidity()) {
             form.reportValidity();
             return;
@@ -329,7 +347,7 @@ class Inventory {
 
         const itemId = document.getElementById('item-id').value;
 
-        // 2. Safe Data Gathering with Fallbacks
+        // 2. Pengumpulan Data Aman
         const itemData = {
             sku: document.getElementById('item-sku').value.trim(),
             name: document.getElementById('item-name').value.trim(),
@@ -340,7 +358,7 @@ class Inventory {
             description: document.getElementById('item-description').value
         };
 
-        // Only include stock if creating new item
+        // Hanya sertakan stok jika membuat barang baru
         if (!itemId) {
             itemData.stock = parseInt(document.getElementById('item-stock').value) || 0;
         }
@@ -348,13 +366,13 @@ class Inventory {
         try {
             if (itemId) {
                 await api.updateItem(itemId, itemData);
-                showToast('Item updated successfully', 'success');
+                showToast('Barang berhasil diperbarui', 'success');
             } else {
                 await api.createItem(itemData);
-                showToast('Item created successfully', 'success');
+                showToast('Barang baru berhasil ditambahkan', 'success');
             }
 
-            // Close modal safely
+            // Tutup modal dengan aman
             const modalEl = document.getElementById('itemModal');
             bootstrap.Modal.getInstance(modalEl).hide();
             
@@ -369,11 +387,11 @@ class Inventory {
     }
 
     async deleteItem(itemId, itemName) {
-        if (!confirmDialog(`Are you sure you want to delete "${itemName}"?`)) return;
+        if (!confirmDialog(`Apakah Anda yakin ingin menghapus "${itemName}"?`)) return;
 
         try {
             await api.deleteItem(itemId);
-            showToast('Item deleted successfully', 'success');
+            showToast('Barang berhasil dihapus', 'success');
             await this.loadItems();
         } catch (error) {
             showToast(error.message, 'error');
@@ -398,13 +416,13 @@ class Inventory {
         const quantity = parseInt(document.getElementById('stock-quantity').value);
 
         if (!quantity || quantity < 1) {
-            showToast('Please enter a valid quantity', 'error');
+            showToast('Mohon masukkan jumlah yang valid', 'error');
             return;
         }
 
         try {
             await api.patch(`/inventory/${itemId}/stock`, { quantity, type });
-            showToast(`Stock ${type === 'add' ? 'added' : 'deducted'} successfully`, 'success');
+            showToast(`Stok berhasil ${type === 'add' ? 'ditambahkan' : 'dikurangi'}`, 'success');
             
             const modalEl = document.getElementById('stockModal');
             bootstrap.Modal.getInstance(modalEl).hide();
@@ -416,7 +434,7 @@ class Inventory {
     }
 }
 
-// Make inventory globally accessible
+// Buat inventory dapat diakses secara global
 window.inventory = new Inventory();
 
 export default Inventory;

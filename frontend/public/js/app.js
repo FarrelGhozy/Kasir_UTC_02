@@ -1,9 +1,9 @@
-// public/js/app.js - Main Application Router & Navigation Logic
+// public/js/app.js - Router Aplikasi Utama & Logika Navigasi
 
 import auth from './auth.js';
 import { showLoading } from './api.js';
 
-// Import modules
+// Import modul-modul
 import Dashboard from './modules/dashboard.js';
 import POS from './modules/pos.js';
 import Service from './modules/service.js';
@@ -27,23 +27,23 @@ class App {
     init() {
         // 1. Listener Normal: Menunggu sinyal login dari auth.js
         window.addEventListener('app-ready', () => {
-            console.log('Event app-ready diterima, memuat dashboard...');
+            console.log('Event app-ready diterima, memuat dasbor...');
             this.setupNavigation();
             this.navigateTo('dashboard'); 
         });
 
         // 2. PERBAIKAN RACE CONDITION (Anti-Macet):
         // Jika auth.js sudah selesai duluan sebelum app.js siap,
-        // kita cek manual status loginnya. Jika sudah login, paksa masuk dashboard.
+        // kita cek manual status loginnya. Jika sudah login, paksa masuk dasbor.
         if (auth.isAuthenticated()) {
-            console.log('App telat loading, memaksa masuk dashboard secara manual...');
+            console.log('App telat memuat, memaksa masuk dasbor secara manual...');
             this.setupNavigation();
             this.navigateTo('dashboard');
         }
     }
 
     setupNavigation() {
-        // Get all navigation links
+        // Ambil semua link navigasi
         const navLinks = document.querySelectorAll('#main-nav .nav-link');
 
         navLinks.forEach(link => {
@@ -52,11 +52,11 @@ class App {
                 
                 const page = link.getAttribute('data-page');
                 
-                // Update active state
+                // Update status aktif (highlight menu)
                 navLinks.forEach(l => l.classList.remove('active'));
                 link.classList.add('active');
 
-                // Navigate to page
+                // Navigasi ke halaman
                 this.navigateTo(page);
             });
         });
@@ -67,28 +67,28 @@ class App {
 
         this.currentPage = page;
 
-        // Update page title
+        // Update judul halaman
         const pageTitles = {
-            dashboard: 'Dashboard',
-            pos: 'Kasir (Point of Sale)',
+            dashboard: 'Dasbor',
+            pos: 'Kasir (POS)',
             service: 'Servis (Workshop)',
-            inventory: 'Gudang (Inventory)',
-            reports: 'Laporan (Reports)'
+            inventory: 'Gudang (Inventaris)',
+            reports: 'Laporan'
         };
 
         const pageTitle = document.getElementById('page-title');
         if (pageTitle) {
-            pageTitle.textContent = pageTitles[page] || 'Dashboard';
+            pageTitle.textContent = pageTitles[page] || 'Dasbor';
         }
 
-        // Show loading
+        // Tampilkan loading
         showLoading('app-content');
 
-        // Load module content
+        // Muat konten modul
         if (this.modules[page]) {
             setTimeout(() => {
                 this.modules[page].render();
-            }, 300); // Small delay for smooth transition
+            }, 300); // Penundaan kecil untuk transisi yang halus
         } else {
             this.show404();
         }
@@ -99,20 +99,20 @@ class App {
         content.innerHTML = `
             <div class="text-center py-5">
                 <i class="bi bi-exclamation-triangle text-warning" style="font-size: 5rem;"></i>
-                <h2 class="mt-4">Page Not Found</h2>
-                <p class="text-muted">The page you're looking for doesn't exist.</p>
+                <h2 class="mt-4">Halaman Tidak Ditemukan</h2>
+                <p class="text-muted">Halaman yang Anda cari tidak tersedia.</p>
                 <button class="btn btn-primary mt-3" onclick="app.navigateTo('dashboard')">
-                    <i class="bi bi-house me-2"></i>Go to Dashboard
+                    <i class="bi bi-house me-2"></i>Kembali ke Dasbor
                 </button>
             </div>
         `;
     }
 }
 
-// Initialize app
+// Inisialisasi aplikasi
 const app = new App();
 
-// Make app globally accessible for debugging
+// Membuat app dapat diakses secara global untuk keperluan debugging/onclick
 window.app = app;
 
 export default app;
