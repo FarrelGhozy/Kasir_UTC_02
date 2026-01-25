@@ -5,26 +5,26 @@ const transactionItemSchema = new mongoose.Schema({
   item_id: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Item',
-    required: true
+    required: [true, 'ID Barang wajib diisi']
   },
   name: {
     type: String,
-    required: true
+    required: [true, 'Nama barang wajib diisi']
   },
   qty: {
     type: Number,
-    required: true,
-    min: 1
+    required: [true, 'Jumlah barang wajib diisi'],
+    min: [1, 'Jumlah barang minimal 1']
   },
   price: {
     type: Number,
-    required: true,
-    min: 0
+    required: [true, 'Harga barang wajib diisi'],
+    min: [0, 'Harga tidak boleh negatif']
   },
   subtotal: {
     type: Number,
-    required: true,
-    min: 0
+    required: [true, 'Subtotal wajib diisi'],
+    min: [0, 'Subtotal tidak boleh negatif']
   }
 }, { _id: false });
 
@@ -36,27 +36,38 @@ const transactionSchema = new mongoose.Schema({
   cashier_id: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: [true, 'ID Kasir wajib diisi']
   },
   cashier_name: {
     type: String,
-    required: true
+    required: [true, 'Nama Kasir wajib diisi']
   },
-  items: [transactionItemSchema],
+  items: {
+    type: [transactionItemSchema],
+    validate: {
+      validator: function(v) {
+        return v && v.length > 0;
+      },
+      message: 'Transaksi harus memiliki setidaknya satu barang'
+    }
+  },
   grand_total: {
     type: Number,
-    required: true,
-    min: 0
+    required: [true, 'Total akhir wajib diisi'],
+    min: [0, 'Total akhir tidak boleh negatif']
   },
   payment_method: {
     type: String,
-    enum: ['Cash', 'Transfer', 'QRIS', 'Card'],
-    required: true
+    enum: {
+      values: ['Cash', 'Transfer', 'QRIS', 'Card'],
+      message: '{VALUE} bukan metode pembayaran yang valid'
+    },
+    required: [true, 'Metode pembayaran wajib dipilih']
   },
   amount_paid: {
     type: Number,
-    required: true,
-    min: 0
+    required: [true, 'Jumlah bayar wajib diisi'],
+    min: [0, 'Jumlah bayar tidak boleh negatif']
   },
   change: {
     type: Number,
@@ -73,7 +84,7 @@ const transactionSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// ✅ PERBAIKAN UTAMA: Menghapus parameter 'next'
+// ✅ PERBAIKAN UTAMA: Menghapus parameter 'next' (Async compatible)
 transactionSchema.pre('save', async function() {
   // 1. Hitung Kembalian otomatis
   if (this.amount_paid >= this.grand_total) {

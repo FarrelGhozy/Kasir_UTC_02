@@ -1,34 +1,34 @@
-// config/db.js - MongoDB Connection Configuration
+// config/db.js - Konfigurasi Koneksi MongoDB
 const mongoose = require('mongoose');
 
 const connectDB = async () => {
   try {
     const conn = await mongoose.connect(process.env.MONGODB_URI, {
-      // Remove deprecated options (no longer needed in Mongoose 6+)
-      // useNewUrlParser and useUnifiedTopology are default in v6
+      // Opsi usang (deprecated) telah dihapus karena tidak lagi diperlukan di Mongoose 6+
+      // useNewUrlParser dan useUnifiedTopology sudah menjadi default
     });
 
-    console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+    console.log(`✅ MongoDB Terhubung: ${conn.connection.host}`);
     console.log(`📊 Database: ${conn.connection.name}`);
 
-    // Connection event listeners
+    // Pendengar event koneksi (Event listeners)
     mongoose.connection.on('error', (err) => {
-      console.error('❌ MongoDB connection error:', err);
+      console.error('❌ Kesalahan koneksi MongoDB:', err);
     });
 
     mongoose.connection.on('disconnected', () => {
-      console.warn('⚠️  MongoDB disconnected');
+      console.warn('⚠️  Koneksi MongoDB terputus');
     });
 
-    // Graceful shutdown
+    // Penutupan yang aman (Graceful shutdown) saat aplikasi dimatikan
     process.on('SIGINT', async () => {
       await mongoose.connection.close();
-      console.log('MongoDB connection closed through app termination');
+      console.log('Koneksi MongoDB ditutup melalui penghentian aplikasi');
       process.exit(0);
     });
 
   } catch (error) {
-    console.error('❌ MongoDB Connection Failed:', error.message);
+    console.error('❌ Koneksi MongoDB Gagal:', error.message);
     process.exit(1);
   }
 };

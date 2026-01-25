@@ -1,39 +1,39 @@
-// routes/api.js - Unified API Routes with Authentication
+// routes/api.js - Rute API Terpadu dengan Autentikasi
 const express = require('express');
 const router = express.Router();
 
-// Import controllers
+// Impor controller
 const authController = require('../controllers/authController');
 const inventoryController = require('../controllers/inventoryController');
 const serviceController = require('../controllers/serviceController');
 const transactionController = require('../controllers/transactionController');
 const reportController = require('../controllers/reportController');
 
-// Import middleware
+// Impor middleware
 const { protect, authorize } = require('../middleware/auth');
 
 // ============================================
-// PUBLIC ROUTES
+// RUTE PUBLIK (Tanpa Login)
 // ============================================
 router.post('/auth/login', authController.login);
 
 // ============================================
-// PROTECTED ROUTES (ALL AUTHENTICATED USERS)
+// RUTE TERLINDUNGI (PERLU LOGIN)
 // ============================================
 
-// Auth & User Management
+// --- Manajemen Autentikasi & Pengguna ---
 router.get('/auth/me', protect, authController.getMe);
 router.get('/auth/technicians', protect, authController.getTechnicians);
 router.patch('/auth/change-password', protect, authController.changePassword);
 
-// Admin-only user management
+// Manajemen pengguna khusus Admin
 router.post('/auth/register', protect, authorize('admin'), authController.register);
 router.get('/auth/users', protect, authorize('admin'), authController.getAllUsers);
 router.put('/auth/users/:id', protect, authorize('admin'), authController.updateUser);
 router.delete('/auth/users/:id', protect, authorize('admin'), authController.deleteUser);
 
 // ============================================
-// INVENTORY ROUTES
+// RUTE INVENTARIS / GUDANG
 // ============================================
 router.get('/inventory', protect, inventoryController.getAllItems);
 router.get('/inventory/alerts/low-stock', protect, inventoryController.getLowStockItems);
@@ -41,20 +41,20 @@ router.get('/inventory/summary/value', protect, authorize('admin'), inventoryCon
 router.get('/inventory/summary/by-category', protect, inventoryController.getItemsByCategory);
 router.get('/inventory/:id', protect, inventoryController.getItemById);
 
-// Admin & Kasir can manage inventory
+// Admin & Kasir dapat mengelola inventaris (Tambah/Edit)
 router.post('/inventory', protect, authorize('admin', 'kasir'), inventoryController.createItem);
 router.put('/inventory/:id', protect, authorize('admin', 'kasir'), inventoryController.updateItem);
 router.patch('/inventory/:id/stock', protect, authorize('admin'), inventoryController.adjustStock);
 router.delete('/inventory/:id', protect, authorize('admin'), inventoryController.deleteItem);
 
 // ============================================
-// SERVICE TICKET ROUTES
+// RUTE TIKET SERVIS
 // ============================================
 router.get('/services', protect, serviceController.getAllTickets);
 router.get('/services/:id', protect, serviceController.getTicketById);
 router.get('/services/technician/:id/workload', protect, serviceController.getTechnicianWorkload);
 
-// Teknisi & Admin can manage services
+// Teknisi & Admin dapat mengelola servis
 router.post('/services', protect, authorize('teknisi', 'admin'), serviceController.createTicket);
 router.patch('/services/:id/status', protect, authorize('teknisi', 'admin'), serviceController.updateStatus);
 router.post('/services/:id/parts', protect, authorize('teknisi', 'admin'), serviceController.addPartToService);
@@ -62,19 +62,19 @@ router.patch('/services/:id/service-fee', protect, authorize('teknisi', 'admin')
 router.delete('/services/:id', protect, authorize('admin'), serviceController.deleteTicket);
 
 // ============================================
-// TRANSACTION/POS ROUTES
+// RUTE TRANSAKSI / KASIR (POS)
 // ============================================
 router.get('/transactions', protect, transactionController.getAllTransactions);
 router.get('/transactions/summary/today', protect, transactionController.getTodaySummary);
 router.get('/transactions/invoice/:invoice_no', protect, transactionController.getTransactionByInvoice);
 router.get('/transactions/:id', protect, transactionController.getTransactionById);
 
-// Kasir & Admin can create transactions
+// Kasir & Admin dapat membuat transaksi
 router.post('/transactions', protect, authorize('kasir', 'admin'), transactionController.createRetailTransaction);
 router.delete('/transactions/:id', protect, authorize('admin'), transactionController.deleteTransaction);
 
 // ============================================
-// REPORT ROUTES (Admin & Kasir)
+// RUTE LAPORAN (Admin & Kasir)
 // ============================================
 router.get('/reports/revenue/daily', protect, authorize('admin', 'kasir'), reportController.getDailyRevenue);
 router.get('/reports/revenue/monthly', protect, authorize('admin', 'kasir'), reportController.getMonthlyRevenue);

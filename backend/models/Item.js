@@ -1,71 +1,71 @@
-// models/Item.js - Inventory/Gudang Schema
+// models/Item.js - Skema Inventaris/Gudang
 const mongoose = require('mongoose');
 
 const itemSchema = new mongoose.Schema({
   sku: {
     type: String,
-    required: [true, 'SKU is required'],
+    required: [true, 'SKU wajib diisi'],
     unique: true,
     uppercase: true,
     trim: true,
-    maxlength: [50, 'SKU cannot exceed 50 characters']
+    maxlength: [50, 'SKU tidak boleh lebih dari 50 karakter']
   },
   name: {
     type: String,
-    required: [true, 'Item name is required'],
+    required: [true, 'Nama barang wajib diisi'],
     trim: true,
-    maxlength: [200, 'Item name cannot exceed 200 characters']
+    maxlength: [200, 'Nama barang tidak boleh lebih dari 200 karakter']
   },
   category: {
     type: String,
-    required: [true, 'Category is required'],
+    required: [true, 'Kategori wajib dipilih'],
     enum: {
       values: ['Sparepart', 'Accessory', 'Software', 'Service', 'Other'],
-      message: '{VALUE} is not a valid category'
+      message: '{VALUE} bukan kategori yang valid'
     },
     default: 'Sparepart'
   },
   purchase_price: {
     type: Number,
-    required: [true, 'Purchase price (HPP) is required'],
-    min: [0, 'Purchase price cannot be negative'],
+    required: [true, 'Harga beli (HPP) wajib diisi'],
+    min: [0, 'Harga beli tidak boleh negatif'],
     default: 0
   },
   selling_price: {
     type: Number,
-    required: [true, 'Selling price is required'],
-    min: [0, 'Selling price cannot be negative'],
+    required: [true, 'Harga jual wajib diisi'],
+    min: [0, 'Harga jual tidak boleh negatif'],
     validate: {
       validator: function(value) {
         return value >= this.purchase_price;
       },
-      message: 'Selling price must be greater than or equal to purchase price'
+      message: 'Harga jual harus lebih besar atau sama dengan harga beli'
     }
   },
   stock: {
     type: Number,
-    required: [true, 'Stock quantity is required'],
-    min: [0, 'Stock cannot be negative'],
+    required: [true, 'Jumlah stok wajib diisi'],
+    min: [0, 'Stok tidak boleh negatif'],
     default: 0,
     validate: {
       validator: Number.isInteger,
-      message: 'Stock must be an integer'
+      message: 'Stok harus berupa bilangan bulat'
     }
   },
   min_stock_alert: {
     type: Number,
-    required: [true, 'Minimum stock alert threshold is required'],
-    min: [0, 'Minimum stock alert cannot be negative'],
+    required: [true, 'Batas peringatan stok minimum wajib diisi'],
+    min: [0, 'Batas stok minimum tidak boleh negatif'],
     default: 5,
     validate: {
       validator: Number.isInteger,
-      message: 'Minimum stock alert must be an integer'
+      message: 'Batas stok minimum harus berupa bilangan bulat'
     }
   },
   description: {
     type: String,
     trim: true,
-    maxlength: [500, 'Description cannot exceed 500 characters']
+    maxlength: [500, 'Deskripsi tidak boleh lebih dari 500 karakter']
   },
   isActive: {
     type: Boolean,
@@ -83,32 +83,27 @@ const itemSchema = new mongoose.Schema({
   timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
 });
 
-// Indexes for performance
-// itemSchema.index({ sku: 1 }, { unique: true });
-// itemSchema.index({ category: 1 });
-// itemSchema.index({ stock: 1 });
-// itemSchema.index({ name: 'text' }); // Text search index
-// ✅ BENAR - Tambahkan hanya yang belum ada
+// Indexes untuk performa
 itemSchema.index({ category: 1 });
 itemSchema.index({ stock: 1 });
 itemSchema.index({ name: 'text' });
-// SKU sudah unique: true di schema definition
+// SKU sudah unique: true di definisi schema
 
-// Virtual for profit margin
+// Virtual untuk margin keuntungan
 itemSchema.virtual('profit_margin').get(function() {
   if (this.purchase_price === 0) return 0;
   return ((this.selling_price - this.purchase_price) / this.purchase_price * 100).toFixed(2);
 });
 
-// Virtual to check if stock is low
+// Virtual untuk cek apakah stok menipis
 itemSchema.virtual('is_low_stock').get(function() {
   return this.stock <= this.min_stock_alert;
 });
 
-// Instance method to deduct stock (with validation)
+// Method instance untuk mengurangi stok (dengan validasi)
 itemSchema.methods.deductStock = async function(quantity) {
   if (this.stock < quantity) {
-    throw new Error(`Insufficient stock for ${this.name}. Available: ${this.stock}, Requested: ${quantity}`);
+    throw new Error(`Stok tidak cukup untuk ${this.name}. Tersedia: ${this.stock}, Diminta: ${quantity}`);
   }
   
   this.stock -= quantity;
@@ -117,7 +112,7 @@ itemSchema.methods.deductStock = async function(quantity) {
   return this;
 };
 
-// Instance method to add stock
+// Method instance untuk menambah stok
 itemSchema.methods.addStock = async function(quantity) {
   this.stock += quantity;
   this.updated_at = new Date();
@@ -125,7 +120,7 @@ itemSchema.methods.addStock = async function(quantity) {
   return this;
 };
 
-// Static method to get low stock items
+// Method static untuk mengambil item dengan stok menipis
 itemSchema.statics.getLowStockItems = function() {
   return this.find({
     $expr: { $lte: ['$stock', '$min_stock_alert'] },
@@ -133,12 +128,12 @@ itemSchema.statics.getLowStockItems = function() {
   }).sort({ stock: 1 });
 };
 
-// Pre-save middleware to update timestamp
+// Middleware pre-save untuk update timestamp
 itemSchema.pre('save', function() {
   this.updated_at = new Date();
 });
 
-// Ensure virtuals are included in JSON
+// Pastikan virtuals disertakan dalam JSON
 itemSchema.set('toJSON', { virtuals: true });
 itemSchema.set('toObject', { virtuals: true });
 

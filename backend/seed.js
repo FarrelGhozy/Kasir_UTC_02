@@ -1,4 +1,4 @@
-// seed.js - Database Seeder for Initial Data
+// seed.js - Pengisi Database (Seeder) untuk Data Awal
 require('dotenv').config();
 const mongoose = require('mongoose');
 const User = require('./models/User');
@@ -7,14 +7,14 @@ const Item = require('./models/Item');
 const connectDB = async () => {
   try {
     await mongoose.connect(process.env.MONGODB_URI);
-    console.log('✅ MongoDB Connected');
+    console.log('✅ MongoDB Terhubung');
   } catch (error) {
-    console.error('❌ MongoDB Connection Failed:', error.message);
+    console.error('❌ Koneksi MongoDB Gagal:', error.message);
     process.exit(1);
   }
 };
 
-// MANDATORY: Technician names as specified
+// WAJIB: Nama teknisi sesuai spesifikasi
 const TECHNICIANS = [
   'Farrel',
   'Wildan',
@@ -26,7 +26,7 @@ const TECHNICIANS = [
 ];
 
 const seedTechnicians = async () => {
-  console.log('\n🔧 Seeding Technicians...');
+  console.log('\n🔧 Menambahkan Data Teknisi...');
   
   let createdCount = 0;
   let skippedCount = 0;
@@ -34,32 +34,32 @@ const seedTechnicians = async () => {
   for (const techName of TECHNICIANS) {
     const username = techName.toLowerCase().replace(/\s+/g, '_');
     
-    // Check if technician already exists
+    // Cek apakah teknisi sudah ada
     const existingTech = await User.findOne({ username });
     
     if (existingTech) {
-      console.log(`   ⏭️  Skipped: ${techName} (already exists)`);
+      console.log(`   ⏭️  Dilewati: ${techName} (sudah ada)`);
       skippedCount++;
     } else {
       await User.create({
         name: techName,
         username: username,
-        password: 'password123', // Default password - CHANGE IN PRODUCTION!
+        password: 'password123', // Password default - GANTI SAAT PRODUKSI!
         role: 'teknisi'
       });
-      console.log(`   ✅ Created: ${techName} (username: ${username})`);
+      console.log(`   ✅ Dibuat: ${techName} (username: ${username})`);
       createdCount++;
     }
   }
 
-  console.log(`\n📊 Technician Seeding Summary:`);
-  console.log(`   - Created: ${createdCount}`);
-  console.log(`   - Skipped: ${skippedCount}`);
-  console.log(`   - Total: ${TECHNICIANS.length}`);
+  console.log(`\n📊 Ringkasan Penambahan Teknisi:`);
+  console.log(`   - Dibuat   : ${createdCount}`);
+  console.log(`   - Dilewati : ${skippedCount}`);
+  console.log(`   - Total    : ${TECHNICIANS.length}`);
 };
 
 const seedDefaultUsers = async () => {
-  console.log('\n👤 Seeding Default Users...');
+  console.log('\n👤 Menambahkan Pengguna Default...');
 
   const defaultUsers = [
     {
@@ -80,16 +80,16 @@ const seedDefaultUsers = async () => {
     const existingUser = await User.findOne({ username: userData.username });
     
     if (existingUser) {
-      console.log(`   ⏭️  Skipped: ${userData.name} (already exists)`);
+      console.log(`   ⏭️  Dilewati: ${userData.name} (sudah ada)`);
     } else {
       await User.create(userData);
-      console.log(`   ✅ Created: ${userData.name} (${userData.role})`);
+      console.log(`   ✅ Dibuat: ${userData.name} (${userData.role})`);
     }
   }
 };
 
 const seedSampleItems = async () => {
-  console.log('\n📦 Seeding Sample Inventory Items...');
+  console.log('\n📦 Menambahkan Contoh Barang Gudang...');
 
   const sampleItems = [
     {
@@ -112,7 +112,7 @@ const seedSampleItems = async () => {
     },
     {
       sku: 'KB-MECH-001',
-      name: 'Mechanical Keyboard RGB',
+      name: 'Keyboard Mekanikal RGB',
       category: 'Accessory',
       purchase_price: 300000,
       selling_price: 450000,
@@ -121,7 +121,7 @@ const seedSampleItems = async () => {
     },
     {
       sku: 'MOUSE-001',
-      name: 'Gaming Mouse Logitech',
+      name: 'Mouse Gaming Logitech',
       category: 'Accessory',
       purchase_price: 200000,
       selling_price: 300000,
@@ -130,7 +130,7 @@ const seedSampleItems = async () => {
     },
     {
       sku: 'HDMI-001',
-      name: 'HDMI Cable 2M',
+      name: 'Kabel HDMI 2M',
       category: 'Accessory',
       purchase_price: 50000,
       selling_price: 75000,
@@ -157,7 +157,7 @@ const seedSampleItems = async () => {
     },
     {
       sku: 'COOL-FAN-001',
-      name: 'CPU Cooler Fan',
+      name: 'Kipas Pendingin CPU',
       category: 'Sparepart',
       purchase_price: 150000,
       selling_price: 225000,
@@ -175,7 +175,7 @@ const seedSampleItems = async () => {
     },
     {
       sku: 'THERMAL-001',
-      name: 'Thermal Paste Arctic',
+      name: 'Pasta Termal Arctic',
       category: 'Sparepart',
       purchase_price: 40000,
       selling_price: 60000,
@@ -191,50 +191,50 @@ const seedSampleItems = async () => {
     const existingItem = await Item.findOne({ sku: itemData.sku });
     
     if (existingItem) {
-      console.log(`   ⏭️  Skipped: ${itemData.name} (SKU exists)`);
+      console.log(`   ⏭️  Dilewati: ${itemData.name} (SKU ada)`);
       skippedCount++;
     } else {
       await Item.create(itemData);
-      console.log(`   ✅ Created: ${itemData.name}`);
+      console.log(`   ✅ Dibuat: ${itemData.name}`);
       createdCount++;
     }
   }
 
-  console.log(`\n📊 Inventory Seeding Summary:`);
-  console.log(`   - Created: ${createdCount}`);
-  console.log(`   - Skipped: ${skippedCount}`);
-  console.log(`   - Total: ${sampleItems.length}`);
+  console.log(`\n📊 Ringkasan Penambahan Barang:`);
+  console.log(`   - Dibuat   : ${createdCount}`);
+  console.log(`   - Dilewati : ${skippedCount}`);
+  console.log(`   - Total    : ${sampleItems.length}`);
 };
 
 const runSeeder = async () => {
   try {
     console.log('='.repeat(60));
-    console.log('🌱 BENGKEL UTC - DATABASE SEEDER');
+    console.log('🌱 BENGKEL UTC - DATABASE SEEDER (PENGISI DATA)');
     console.log('='.repeat(60));
 
     await connectDB();
 
-    // Seed in order
-    await seedTechnicians();      // MANDATORY technicians
+    // Jalankan urutan seeding
+    await seedTechnicians();      // WAJIB: Teknisi
     await seedDefaultUsers();     // Admin & Kasir
-    await seedSampleItems();      // Sample inventory
+    await seedSampleItems();      // Contoh barang gudang
 
     console.log('\n' + '='.repeat(60));
-    console.log('✅ Database seeding completed successfully!');
+    console.log('✅ Pengisian database berhasil selesai!');
     console.log('='.repeat(60));
-    console.log('\n📝 Default Credentials:');
+    console.log('\n📝 Kredensial Bawaan (Default):');
     console.log('   Admin    - Username: admin    | Password: admin123');
     console.log('   Kasir    - Username: kasir1   | Password: kasir123');
     console.log('   Teknisi  - Username: farrel   | Password: password123');
-    console.log('\n⚠️  IMPORTANT: Change these passwords in production!');
+    console.log('\n⚠️  PENTING: Ubah kata sandi ini di mode produksi!');
     console.log('='.repeat(60) + '\n');
 
     process.exit(0);
   } catch (error) {
-    console.error('\n❌ Seeding Error:', error);
+    console.error('\n❌ Kesalahan Seeding:', error);
     process.exit(1);
   }
 };
 
-// Run seeder
+// Jalankan seeder
 runSeeder();

@@ -1,10 +1,10 @@
-// controllers/reportController.js - Revenue Aggregation & Analytics
+// controllers/reportController.js - Agregasi Pendapatan & Analitik
 const Transaction = require('../models/Transaction');
 const ServiceTicket = require('../models/ServiceTicket');
 const mongoose = require('mongoose');
 
 /**
- * @desc    Get daily revenue (Transactions + Completed Services)
+ * @desc    Ambil pendapatan harian (Transaksi + Servis Selesai)
  * @route   GET /api/reports/revenue/daily
  * @access  Private (Admin, Kasir)
  */
@@ -19,7 +19,7 @@ exports.getDailyRevenue = async (req, res, next) => {
     const endOfDay = new Date(targetDate);
     endOfDay.setHours(23, 59, 59, 999);
 
-    // Get transaction revenue
+    // Ambil pendapatan transaksi
     const transactionRevenue = await Transaction.aggregate([
       {
         $match: {
@@ -35,7 +35,7 @@ exports.getDailyRevenue = async (req, res, next) => {
       }
     ]);
 
-    // Get service revenue (completed tickets)
+    // Ambil pendapatan servis (tiket selesai)
     const serviceRevenue = await ServiceTicket.aggregate([
       {
         $match: {
@@ -77,7 +77,7 @@ exports.getDailyRevenue = async (req, res, next) => {
 };
 
 /**
- * @desc    Get monthly revenue (Transactions + Completed Services)
+ * @desc    Ambil pendapatan bulanan (Transaksi + Servis Selesai)
  * @route   GET /api/reports/revenue/monthly
  * @access  Private (Admin)
  */
@@ -90,7 +90,7 @@ exports.getMonthlyRevenue = async (req, res, next) => {
     const startDate = new Date(targetYear, targetMonth - 1, 1);
     const endDate = new Date(targetYear, targetMonth, 0, 23, 59, 59, 999);
 
-    // Transaction revenue grouped by day
+    // Pendapatan transaksi dikelompokkan per hari
     const transactionRevenue = await Transaction.aggregate([
       {
         $match: {
@@ -107,7 +107,7 @@ exports.getMonthlyRevenue = async (req, res, next) => {
       { $sort: { _id: 1 } }
     ]);
 
-    // Service revenue grouped by day
+    // Pendapatan servis dikelompokkan per hari
     const serviceRevenue = await ServiceTicket.aggregate([
       {
         $match: {
@@ -125,7 +125,7 @@ exports.getMonthlyRevenue = async (req, res, next) => {
       { $sort: { _id: 1 } }
     ]);
 
-    // Combine data by day
+    // Gabungkan data berdasarkan hari
     const dailyBreakdown = {};
     transactionRevenue.forEach(item => {
       dailyBreakdown[item._id] = {
@@ -152,7 +152,7 @@ exports.getMonthlyRevenue = async (req, res, next) => {
       }
     });
 
-    // Calculate totals and add daily total
+    // Hitung total dan tambahkan total harian
     const breakdown = Object.values(dailyBreakdown).map(day => ({
       ...day,
       total_revenue: day.retail_revenue + day.service_revenue
@@ -182,7 +182,7 @@ exports.getMonthlyRevenue = async (req, res, next) => {
 };
 
 /**
- * @desc    Get revenue by date range
+ * @desc    Ambil pendapatan berdasarkan rentang tanggal
  * @route   GET /api/reports/revenue/range
  * @access  Private (Admin)
  */
@@ -193,7 +193,7 @@ exports.getRevenueByRange = async (req, res, next) => {
     if (!start_date || !end_date) {
       return res.status(400).json({
         success: false,
-        message: 'start_date and end_date are required'
+        message: 'Tanggal mulai dan tanggal akhir wajib diisi'
       });
     }
 
@@ -203,7 +203,7 @@ exports.getRevenueByRange = async (req, res, next) => {
     const endDate = new Date(end_date);
     endDate.setHours(23, 59, 59, 999);
 
-    // Retail revenue
+    // Pendapatan Ritel
     const retailRevenue = await Transaction.aggregate([
       {
         $match: {
@@ -219,7 +219,7 @@ exports.getRevenueByRange = async (req, res, next) => {
       }
     ]);
 
-    // Service revenue
+    // Pendapatan Servis
     const serviceRevenue = await ServiceTicket.aggregate([
       {
         $match: {
@@ -260,7 +260,7 @@ exports.getRevenueByRange = async (req, res, next) => {
 };
 
 /**
- * @desc    Get top selling items
+ * @desc    Ambil barang terlaris
  * @route   GET /api/reports/top-items
  * @access  Private (Admin)
  */
@@ -301,7 +301,7 @@ exports.getTopSellingItems = async (req, res, next) => {
 };
 
 /**
- * @desc    Get cashier performance
+ * @desc    Ambil performa kasir
  * @route   GET /api/reports/cashier-performance
  * @access  Private (Admin)
  */
@@ -340,7 +340,7 @@ exports.getCashierPerformance = async (req, res, next) => {
 };
 
 /**
- * @desc    Get technician performance
+ * @desc    Ambil performa teknisi
  * @route   GET /api/reports/technician-performance
  * @access  Private (Admin)
  */

@@ -1,69 +1,69 @@
-// controllers/transactionController.js - POS Transaction without Atomic Sessions (Localhost Friendly)
+// controllers/transactionController.js - Transaksi POS (Tanpa Atomic Session agar ramah Localhost)
 const Transaction = require('../models/Transaction');
 const Item = require('../models/Item');
 const User = require('../models/User');
 
 /**
- * @desc    Create retail transaction (FIXED: Removed Atomic Transactions for Local MongoDB)
+ * @desc    Buat transaksi ritel (DIPERBAIKI: Menghapus Atomic Transactions untuk MongoDB Lokal)
  * @route   POST /api/transactions
  * @access  Private (Kasir, Admin)
  */
 exports.createRetailTransaction = async (req, res, next) => {
-  // HAPUS: Session & Transaction start (agar jalan di localhost biasa)
+  // CATATAN: Session & Transaction start dihapus agar berjalan lancar di localhost tanpa replika set
   
   try {
     const { items, payment_method, amount_paid, notes } = req.body;
 
-    // Validation
+    // Validasi
     if (!items || items.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Transaction must have at least one item'
+        message: 'Transaksi harus memiliki setidaknya satu barang'
       });
     }
 
-    // Get cashier info
+    // Ambil info kasir
     const cashier = await User.findById(req.user.id);
     if (!cashier) {
       return res.status(404).json({
         success: false,
-        message: 'Cashier not found'
+        message: 'Kasir tidak ditemukan'
       });
     }
 
-    // Process each item
+    // Proses setiap barang
     const processedItems = [];
     let grandTotal = 0;
 
     for (const transactionItem of items) {
       const { item_id, qty } = transactionItem;
 
-      // Find item
-      const item = await Item.findById(item_id); // Hapus .session()
+      // Cari barang
+      const item = await Item.findById(item_id); 
       if (!item) {
         return res.status(404).json({
           success: false,
-          message: `Item with ID ${item_id} not found`
+          message: `Barang dengan ID ${item_id} tidak ditemukan`
         });
       }
 
-      // Check stock
+      // Cek stok
       if (item.stock < qty) {
         return res.status(400).json({
           success: false,
-          message: `Insufficient stock for ${item.name}. Available: ${item.stock}, Requested: ${qty}`
+          message: `Stok tidak cukup untuk ${item.name}. Tersedia: ${item.stock}, Diminta: ${qty}`
         });
       }
 
-      // Calculate subtotal
+      // Hitung subtotal
       const subtotal = item.selling_price * qty;
       grandTotal += subtotal;
 
-      // Deduct stock (Direct Save)
+      // Kurangi stok (Simpan Langsung)
       item.stock -= qty;
-      await item.save(); // Hapus { session }
+      await item.save(); 
 
-      // Add to processed items
+      // Tambahkan ke item yang diproses
       processedItems.push({
         item_id: item._id,
         name: item.name,
@@ -73,10 +73,10 @@ exports.createRetailTransaction = async (req, res, next) => {
       });
     }
 
-    // Generate invoice number
+    // Generate nomor faktur
     const invoice_no = await Transaction.generateInvoiceNumber();
 
-    // Create transaction
+    // Buat transaksi
     const transaction = new Transaction({
       invoice_no,
       cashier_id: cashier._id,
@@ -88,11 +88,11 @@ exports.createRetailTransaction = async (req, res, next) => {
       notes
     });
 
-    await transaction.save(); // Hapus { session }
+    await transaction.save();
 
     res.status(201).json({
       success: true,
-      message: 'Transaction completed successfully',
+      message: 'Transaksi berhasil diselesaikan',
       data: transaction
     });
   } catch (error) {
@@ -101,7 +101,7 @@ exports.createRetailTransaction = async (req, res, next) => {
 };
 
 /**
- * @desc    Get all transactions with filters
+ * @desc    Ambil semua transaksi dengan filter
  * @route   GET /api/transactions
  * @access  Private
  */
@@ -152,7 +152,7 @@ exports.getAllTransactions = async (req, res, next) => {
 };
 
 /**
- * @desc    Get single transaction by ID
+ * @desc    Ambil satu transaksi berdasarkan ID
  * @route   GET /api/transactions/:id
  * @access  Private
  */
@@ -164,7 +164,7 @@ exports.getTransactionById = async (req, res, next) => {
     if (!transaction) {
       return res.status(404).json({
         success: false,
-        message: 'Transaction not found'
+        message: 'Transaksi tidak ditemukan'
       });
     }
 
@@ -178,7 +178,7 @@ exports.getTransactionById = async (req, res, next) => {
 };
 
 /**
- * @desc    Get transaction by invoice number
+ * @desc    Ambil transaksi berdasarkan nomor faktur
  * @route   GET /api/transactions/invoice/:invoice_no
  * @access  Private
  */
@@ -191,7 +191,7 @@ exports.getTransactionByInvoice = async (req, res, next) => {
     if (!transaction) {
       return res.status(404).json({
         success: false,
-        message: 'Transaction not found'
+        message: 'Transaksi tidak ditemukan'
       });
     }
 
@@ -205,7 +205,7 @@ exports.getTransactionByInvoice = async (req, res, next) => {
 };
 
 /**
- * @desc    Get today's transactions summary
+ * @desc    Ambil ringkasan transaksi hari ini
  * @route   GET /api/transactions/summary/today
  * @access  Private
  */
@@ -323,7 +323,7 @@ exports.getTodaySummary = async (req, res, next) => {
 };
 
 /**
- * @desc    Delete transaction (Admin only - use with caution)
+ * @desc    Hapus transaksi (Admin saja - gunakan dengan hati-hati)
  * @route   DELETE /api/transactions/:id
  * @access  Private (Admin)
  */
@@ -333,7 +333,7 @@ exports.deleteTransaction = async (req, res, next) => {
     if (!transaction) {
       return res.status(404).json({
         success: false,
-        message: 'Transaction not found'
+        message: 'Transaksi tidak ditemukan'
       });
     }
 
@@ -341,7 +341,7 @@ exports.deleteTransaction = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'Transaction deleted (stock NOT restored)'
+      message: 'Transaksi dihapus (stok TIDAK dikembalikan)'
     });
   } catch (error) {
     next(error);

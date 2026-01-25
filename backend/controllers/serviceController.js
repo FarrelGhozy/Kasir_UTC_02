@@ -1,11 +1,11 @@
-// controllers/serviceController.js - Service Ticket Management with Auto Stock Deduction
+// controllers/serviceController.js - Manajemen Tiket Servis dengan Pengurangan Stok Otomatis
 const ServiceTicket = require('../models/ServiceTicket');
 const Item = require('../models/Item');
 const User = require('../models/User');
 const mongoose = require('mongoose');
 
 /**
- * @desc    Create new service ticket
+ * @desc    Buat tiket servis baru
  * @route   POST /api/services
  * @access  Private (Teknisi, Admin)
  */
@@ -13,19 +13,19 @@ exports.createTicket = async (req, res, next) => {
   try {
     const { customer, device, technician_id, service_fee, notes } = req.body;
 
-    // Validate technician exists
+    // Validasi apakah teknisi ada
     const technician = await User.findById(technician_id);
     if (!technician || technician.role !== 'teknisi') {
       return res.status(400).json({
         success: false,
-        message: 'Invalid technician ID'
+        message: 'ID Teknisi tidak valid'
       });
     }
 
-    // Generate ticket number
+    // Generate nomor tiket
     const ticket_number = await ServiceTicket.generateTicketNumber();
 
-    // Create service ticket
+    // Buat tiket servis
     const ticket = await ServiceTicket.create({
       ticket_number,
       customer,
@@ -40,7 +40,7 @@ exports.createTicket = async (req, res, next) => {
 
     res.status(201).json({
       success: true,
-      message: 'Service ticket created successfully',
+      message: 'Tiket servis berhasil dibuat',
       data: ticket
     });
   } catch (error) {
@@ -49,7 +49,7 @@ exports.createTicket = async (req, res, next) => {
 };
 
 /**
- * @desc    Get all service tickets with filters
+ * @desc    Ambil semua tiket servis dengan filter
  * @route   GET /api/services
  * @access  Private
  */
@@ -93,7 +93,7 @@ exports.getAllTickets = async (req, res, next) => {
 };
 
 /**
- * @desc    Get single service ticket by ID
+ * @desc    Ambil satu tiket servis berdasarkan ID
  * @route   GET /api/services/:id
  * @access  Private
  */
@@ -104,7 +104,7 @@ exports.getTicketById = async (req, res, next) => {
     if (!ticket) {
       return res.status(404).json({
         success: false,
-        message: 'Service ticket not found'
+        message: 'Tiket servis tidak ditemukan'
       });
     }
 
@@ -118,7 +118,7 @@ exports.getTicketById = async (req, res, next) => {
 };
 
 /**
- * @desc    Update service ticket status
+ * @desc    Perbarui status tiket servis
  * @route   PATCH /api/services/:id/status
  * @access  Private (Teknisi, Admin)
  */
@@ -130,7 +130,7 @@ exports.updateStatus = async (req, res, next) => {
     if (!ticket) {
       return res.status(404).json({
         success: false,
-        message: 'Service ticket not found'
+        message: 'Tiket servis tidak ditemukan'
       });
     }
 
@@ -138,7 +138,7 @@ exports.updateStatus = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'Status updated successfully',
+      message: 'Status berhasil diperbarui',
       data: ticket
     });
   } catch (error) {
@@ -147,7 +147,7 @@ exports.updateStatus = async (req, res, next) => {
 };
 
 /**
- * @desc    Add spare part to service ticket (AUTO STOCK DEDUCTION)
+ * @desc    Tambahkan suku cadang ke tiket servis (STOK BERKURANG OTOMATIS)
  * @route   POST /api/services/:id/parts
  * @access  Private (Teknisi, Admin)
  */
@@ -158,49 +158,49 @@ exports.addPartToService = async (req, res, next) => {
   try {
     const { item_id, quantity } = req.body;
 
-    // Validate inputs
+    // Validasi input
     if (!item_id || !quantity || quantity < 1) {
       await session.abortTransaction();
       return res.status(400).json({
         success: false,
-        message: 'Item ID and valid quantity are required'
+        message: 'ID Barang dan jumlah yang valid wajib diisi'
       });
     }
 
-    // Find ticket
+    // Cari tiket
     const ticket = await ServiceTicket.findById(req.params.id).session(session);
     if (!ticket) {
       await session.abortTransaction();
       return res.status(404).json({
         success: false,
-        message: 'Service ticket not found'
+        message: 'Tiket servis tidak ditemukan'
       });
     }
 
-    // Find item
+    // Cari barang
     const item = await Item.findById(item_id).session(session);
     if (!item) {
       await session.abortTransaction();
       return res.status(404).json({
         success: false,
-        message: 'Item not found'
+        message: 'Barang tidak ditemukan'
       });
     }
 
-    // Check stock availability
+    // Cek ketersediaan stok
     if (item.stock < quantity) {
       await session.abortTransaction();
       return res.status(400).json({
         success: false,
-        message: `Insufficient stock for ${item.name}. Available: ${item.stock}, Requested: ${quantity}`
+        message: `Stok tidak cukup untuk ${item.name}. Tersedia: ${item.stock}, Diminta: ${quantity}`
       });
     }
 
-    // CRITICAL: Deduct stock atomically
+    // KRITIS: Kurangi stok secara atomik
     item.stock -= quantity;
     await item.save({ session });
 
-    // Add part to ticket
+    // Tambahkan part ke tiket
     const subtotal = item.selling_price * quantity;
     ticket.parts_used.push({
       item_id: item._id,
@@ -215,7 +215,7 @@ exports.addPartToService = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'Part added and stock deducted successfully',
+      message: 'Suku cadang berhasil ditambahkan dan stok telah dikurangi',
       data: ticket
     });
   } catch (error) {
@@ -227,7 +227,7 @@ exports.addPartToService = async (req, res, next) => {
 };
 
 /**
- * @desc    Update service fee
+ * @desc    Perbarui biaya jasa
  * @route   PATCH /api/services/:id/service-fee
  * @access  Private (Teknisi, Admin)
  */
@@ -238,7 +238,7 @@ exports.updateServiceFee = async (req, res, next) => {
     if (service_fee < 0) {
       return res.status(400).json({
         success: false,
-        message: 'Service fee cannot be negative'
+        message: 'Biaya jasa tidak boleh negatif'
       });
     }
 
@@ -246,7 +246,7 @@ exports.updateServiceFee = async (req, res, next) => {
     if (!ticket) {
       return res.status(404).json({
         success: false,
-        message: 'Service ticket not found'
+        message: 'Tiket servis tidak ditemukan'
       });
     }
 
@@ -255,7 +255,7 @@ exports.updateServiceFee = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'Service fee updated successfully',
+      message: 'Biaya jasa berhasil diperbarui',
       data: ticket
     });
   } catch (error) {
@@ -264,9 +264,9 @@ exports.updateServiceFee = async (req, res, next) => {
 };
 
 /**
- * @desc    Delete service ticket (soft delete by status)
+ * @desc    Hapus tiket servis (soft delete berdasarkan status)
  * @route   DELETE /api/services/:id
- * @access  Private (Admin only)
+ * @access  Private (Hanya Admin)
  */
 exports.deleteTicket = async (req, res, next) => {
   try {
@@ -274,15 +274,15 @@ exports.deleteTicket = async (req, res, next) => {
     if (!ticket) {
       return res.status(404).json({
         success: false,
-        message: 'Service ticket not found'
+        message: 'Tiket servis tidak ditemukan'
       });
     }
 
-    // Only allow deletion if not completed
+    // Hanya izinkan penghapusan jika belum selesai
     if (ticket.status === 'Completed' || ticket.status === 'Picked_Up') {
       return res.status(400).json({
         success: false,
-        message: 'Cannot delete completed or picked up tickets'
+        message: 'Tidak dapat menghapus tiket yang sudah selesai atau diambil'
       });
     }
 
@@ -290,7 +290,7 @@ exports.deleteTicket = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'Service ticket cancelled successfully'
+      message: 'Tiket servis berhasil dibatalkan'
     });
   } catch (error) {
     next(error);
@@ -298,7 +298,7 @@ exports.deleteTicket = async (req, res, next) => {
 };
 
 /**
- * @desc    Get technician workload (count active tickets)
+ * @desc    Ambil beban kerja teknisi (hitung tiket aktif)
  * @route   GET /api/services/technician/:id/workload
  * @access  Private
  */

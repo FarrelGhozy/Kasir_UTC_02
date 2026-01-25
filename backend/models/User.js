@@ -1,36 +1,36 @@
-// models/User.js - User Schema with Role-based Access
+// models/User.js - Skema Pengguna dengan Akses Berbasis Peran
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 
 const userSchema = new mongoose.Schema({
   name: {
     type: String,
-    required: [true, 'Name is required'],
+    required: [true, 'Nama wajib diisi'],
     trim: true,
-    maxlength: [100, 'Name cannot exceed 100 characters']
+    maxlength: [100, 'Nama tidak boleh lebih dari 100 karakter']
   },
   username: {
     type: String,
-    required: [true, 'Username is required'],
+    required: [true, 'Username wajib diisi'],
     unique: true,
     trim: true,
     lowercase: true,
-    minlength: [3, 'Username must be at least 3 characters'],
-    maxlength: [50, 'Username cannot exceed 50 characters']
+    minlength: [3, 'Username harus minimal 3 karakter'],
+    maxlength: [50, 'Username tidak boleh lebih dari 50 karakter']
   },
   password: {
     type: String,
-    required: [true, 'Password is required'],
-    minlength: [6, 'Password must be at least 6 characters'],
-    select: false // Don't return password by default in queries
+    required: [true, 'Password wajib diisi'],
+    minlength: [6, 'Password harus minimal 6 karakter'],
+    select: false // Jangan kembalikan password secara default dalam query
   },
   role: {
     type: String,
     enum: {
       values: ['admin', 'teknisi', 'kasir'],
-      message: '{VALUE} is not a valid role'
+      message: '{VALUE} bukan peran yang valid'
     },
-    required: [true, 'Role is required'],
+    required: [true, 'Peran (Role) wajib diisi'],
     default: 'kasir'
   },
   isActive: {
@@ -42,49 +42,45 @@ const userSchema = new mongoose.Schema({
     default: Date.now
   }
 }, {
-  timestamps: true // Adds createdAt and updatedAt automatically
+  timestamps: true // Menambahkan createdAt dan updatedAt secara otomatis
 });
 
-// Index for faster queries
-// userSchema.index({ username: 1 });
-// userSchema.index({ role: 1 });
-
-// Pre-save middleware to hash password
+// Middleware pre-save untuk hash password
 userSchema.pre('save', async function() {
-  // Only hash if password is modified
+  // Hanya hash jika password diubah
   if (!this.isModified('password')) return;
   
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
 });
 
-// Instance method to compare passwords
+// Method instance untuk membandingkan password
 userSchema.methods.comparePassword = async function(candidatePassword) {
   try {
     return await bcrypt.compare(candidatePassword, this.password);
   } catch (error) {
-    throw new Error('Password comparison failed');
+    throw new Error('Gagal memverifikasi password');
   }
 };
 
-// Static method to find user by username with password
+// Method static untuk mencari user berdasarkan username dan password
 userSchema.statics.findByCredentials = async function(username, password) {
   const user = await this.findOne({ username }).select('+password');
   
   if (!user) {
-    throw new Error('Invalid credentials');
+    throw new Error('Username atau password salah');
   }
 
   const isMatch = await user.comparePassword(password);
   
   if (!isMatch) {
-    throw new Error('Invalid credentials');
+    throw new Error('Username atau password salah');
   }
 
   return user;
 };
 
-// Remove password from JSON output
+// Hapus password dari output JSON
 userSchema.methods.toJSON = function() {
   const user = this.toObject();
   delete user.password;

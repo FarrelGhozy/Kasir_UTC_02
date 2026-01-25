@@ -1,4 +1,4 @@
-// controllers/authController.js - User Authentication & Management
+// controllers/authController.js - Manajemen & Autentikasi Pengguna
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 
@@ -10,24 +10,24 @@ const generateToken = (userId) => {
 };
 
 /**
- * @desc    Register new user
+ * @desc    Registrasi pengguna baru
  * @route   POST /api/auth/register
- * @access  Private (Admin only)
+ * @access  Private (Hanya Admin)
  */
 exports.register = async (req, res, next) => {
   try {
     const { name, username, password, role } = req.body;
 
-    // Check if user already exists
+    // Cek apakah user sudah ada
     const existingUser = await User.findOne({ username });
     if (existingUser) {
       return res.status(400).json({
         success: false,
-        message: 'Username already exists'
+        message: 'Nama pengguna sudah digunakan'
       });
     }
 
-    // Create user
+    // Buat pengguna
     const user = await User.create({
       name,
       username,
@@ -37,7 +37,7 @@ exports.register = async (req, res, next) => {
 
     res.status(201).json({
       success: true,
-      message: 'User registered successfully',
+      message: 'Registrasi pengguna berhasil',
       data: {
         id: user._id,
         name: user.name,
@@ -51,7 +51,7 @@ exports.register = async (req, res, next) => {
 };
 
 /**
- * @desc    Login user
+ * @desc    Login pengguna
  * @route   POST /api/auth/login
  * @access  Public
  */
@@ -59,30 +59,30 @@ exports.login = async (req, res, next) => {
   try {
     const { username, password } = req.body;
 
-    // Validate input
+    // Validasi input
     if (!username || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide username and password'
+        message: 'Mohon sertakan nama pengguna dan kata sandi'
       });
     }
 
-    // Find user by credentials
+    // Cari pengguna berdasarkan kredensial
     const user = await User.findByCredentials(username, password);
 
     if (!user.isActive) {
       return res.status(403).json({
         success: false,
-        message: 'Account is deactivated'
+        message: 'Akun telah dinonaktifkan'
       });
     }
 
-    // Generate token
+    // Buat token
     const token = generateToken(user._id);
 
     res.status(200).json({
       success: true,
-      message: 'Login successful',
+      message: 'Berhasil masuk',
       data: {
         user: {
           id: user._id,
@@ -97,7 +97,7 @@ exports.login = async (req, res, next) => {
     if (error.message === 'Invalid credentials') {
       return res.status(401).json({
         success: false,
-        message: 'Invalid username or password'
+        message: 'Nama pengguna atau kata sandi salah'
       });
     }
     next(error);
@@ -105,7 +105,7 @@ exports.login = async (req, res, next) => {
 };
 
 /**
- * @desc    Get current user profile
+ * @desc    Ambil profil pengguna saat ini
  * @route   GET /api/auth/me
  * @access  Private
  */
@@ -123,7 +123,7 @@ exports.getMe = async (req, res, next) => {
 };
 
 /**
- * @desc    Get all users
+ * @desc    Ambil semua pengguna
  * @route   GET /api/auth/users
  * @access  Private (Admin)
  */
@@ -148,7 +148,7 @@ exports.getAllUsers = async (req, res, next) => {
 };
 
 /**
- * @desc    Get technicians only
+ * @desc    Ambil hanya teknisi
  * @route   GET /api/auth/technicians
  * @access  Private
  */
@@ -170,7 +170,7 @@ exports.getTechnicians = async (req, res, next) => {
 };
 
 /**
- * @desc    Update user
+ * @desc    Perbarui data pengguna
  * @route   PUT /api/auth/users/:id
  * @access  Private (Admin)
  */
@@ -182,7 +182,7 @@ exports.updateUser = async (req, res, next) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'User not found'
+        message: 'Pengguna tidak ditemukan'
       });
     }
 
@@ -194,7 +194,7 @@ exports.updateUser = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'User updated successfully',
+      message: 'Data pengguna berhasil diperbarui',
       data: user
     });
   } catch (error) {
@@ -203,7 +203,7 @@ exports.updateUser = async (req, res, next) => {
 };
 
 /**
- * @desc    Change password
+ * @desc    Ubah kata sandi
  * @route   PATCH /api/auth/change-password
  * @access  Private
  */
@@ -214,28 +214,28 @@ exports.changePassword = async (req, res, next) => {
     if (!current_password || !new_password) {
       return res.status(400).json({
         success: false,
-        message: 'Current password and new password are required'
+        message: 'Kata sandi saat ini dan kata sandi baru wajib diisi'
       });
     }
 
     const user = await User.findById(req.user.id).select('+password');
     
-    // Verify current password
+    // Verifikasi kata sandi lama
     const isMatch = await user.comparePassword(current_password);
     if (!isMatch) {
       return res.status(401).json({
         success: false,
-        message: 'Current password is incorrect'
+        message: 'Kata sandi saat ini salah'
       });
     }
 
-    // Update password
+    // Perbarui kata sandi
     user.password = new_password;
     await user.save();
 
     res.status(200).json({
       success: true,
-      message: 'Password changed successfully'
+      message: 'Kata sandi berhasil diubah'
     });
   } catch (error) {
     next(error);
@@ -243,7 +243,7 @@ exports.changePassword = async (req, res, next) => {
 };
 
 /**
- * @desc    Delete user (soft delete)
+ * @desc    Hapus pengguna (soft delete)
  * @route   DELETE /api/auth/users/:id
  * @access  Private (Admin)
  */
@@ -253,7 +253,7 @@ exports.deleteUser = async (req, res, next) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'User not found'
+        message: 'Pengguna tidak ditemukan'
       });
     }
 
@@ -262,7 +262,7 @@ exports.deleteUser = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'User deactivated successfully'
+      message: 'Pengguna berhasil dinonaktifkan'
     });
   } catch (error) {
     next(error);

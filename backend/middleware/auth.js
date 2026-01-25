@@ -1,15 +1,15 @@
-// middleware/auth.js - JWT Authentication & Authorization Middleware
+// middleware/auth.js - Middleware Autentikasi & Otorisasi JWT
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
 /**
- * Protect routes - Verify JWT token
+ * Lindungi rute - Verifikasi token JWT
  */
 exports.protect = async (req, res, next) => {
   try {
     let token;
 
-    // Check for token in headers
+    // Cek token di headers
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
       token = req.headers.authorization.split(' ')[1];
     }
@@ -17,28 +17,28 @@ exports.protect = async (req, res, next) => {
     if (!token) {
       return res.status(401).json({
         success: false,
-        message: 'Not authorized to access this route'
+        message: 'Tidak diizinkan untuk mengakses rute ini (Token tidak ditemukan)'
       });
     }
 
     try {
-      // Verify token
+      // Verifikasi token
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-      // Get user from token
+      // Ambil user dari token
       req.user = await User.findById(decoded.id).select('-password');
 
       if (!req.user) {
         return res.status(401).json({
           success: false,
-          message: 'User not found'
+          message: 'Pengguna tidak ditemukan'
         });
       }
 
       if (!req.user.isActive) {
         return res.status(403).json({
           success: false,
-          message: 'Account is deactivated'
+          message: 'Akun telah dinonaktifkan'
         });
       }
 
@@ -46,7 +46,7 @@ exports.protect = async (req, res, next) => {
     } catch (error) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid or expired token'
+        message: 'Token tidak valid atau kedaluwarsa'
       });
     }
   } catch (error) {
@@ -55,14 +55,14 @@ exports.protect = async (req, res, next) => {
 };
 
 /**
- * Authorize specific roles
+ * Otorisasi peran tertentu (Role Authorization)
  */
 exports.authorize = (...roles) => {
   return (req, res, next) => {
     if (!roles.includes(req.user.role)) {
       return res.status(403).json({
         success: false,
-        message: `User role '${req.user.role}' is not authorized to access this route`
+        message: `Peran pengguna '${req.user.role}' tidak diizinkan untuk mengakses rute ini`
       });
     }
     next();

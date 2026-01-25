@@ -1,8 +1,8 @@
-// controllers/inventoryController.js - Inventory/Item CRUD Operations
+// controllers/inventoryController.js - Operasi CRUD Barang/Inventaris
 const Item = require('../models/Item');
 
 /**
- * @desc    Create new item
+ * @desc    Buat barang baru
  * @route   POST /api/inventory
  * @access  Private (Admin)
  */
@@ -12,14 +12,14 @@ exports.createItem = async (req, res, next) => {
 
     res.status(201).json({
       success: true,
-      message: 'Item created successfully',
+      message: 'Barang berhasil ditambahkan',
       data: item
     });
   } catch (error) {
     if (error.code === 11000) {
       return res.status(400).json({
         success: false,
-        message: 'SKU already exists'
+        message: 'SKU sudah terdaftar'
       });
     }
     next(error);
@@ -27,7 +27,7 @@ exports.createItem = async (req, res, next) => {
 };
 
 /**
- * @desc    Get all items with filters and search
+ * @desc    Ambil semua barang dengan filter dan pencarian
  * @route   GET /api/inventory
  * @access  Private
  */
@@ -84,7 +84,7 @@ exports.getAllItems = async (req, res, next) => {
 };
 
 /**
- * @desc    Get single item by ID
+ * @desc    Ambil satu barang berdasarkan ID
  * @route   GET /api/inventory/:id
  * @access  Private
  */
@@ -95,7 +95,7 @@ exports.getItemById = async (req, res, next) => {
     if (!item) {
       return res.status(404).json({
         success: false,
-        message: 'Item not found'
+        message: 'Barang tidak ditemukan'
       });
     }
 
@@ -109,7 +109,7 @@ exports.getItemById = async (req, res, next) => {
 };
 
 /**
- * @desc    Update item
+ * @desc    Perbarui data barang
  * @route   PUT /api/inventory/:id
  * @access  Private (Admin)
  */
@@ -127,13 +127,13 @@ exports.updateItem = async (req, res, next) => {
     if (!item) {
       return res.status(404).json({
         success: false,
-        message: 'Item not found'
+        message: 'Barang tidak ditemukan'
       });
     }
 
     res.status(200).json({
       success: true,
-      message: 'Item updated successfully',
+      message: 'Barang berhasil diperbarui',
       data: item
     });
   } catch (error) {
@@ -142,7 +142,7 @@ exports.updateItem = async (req, res, next) => {
 };
 
 /**
- * @desc    Delete item (soft delete)
+ * @desc    Hapus barang (soft delete / nonaktifkan)
  * @route   DELETE /api/inventory/:id
  * @access  Private (Admin)
  */
@@ -153,17 +153,17 @@ exports.deleteItem = async (req, res, next) => {
     if (!item) {
       return res.status(404).json({
         success: false,
-        message: 'Item not found'
+        message: 'Barang tidak ditemukan'
       });
     }
 
-    // Soft delete
+    // Soft delete (Nonaktifkan)
     item.isActive = false;
     await item.save();
 
     res.status(200).json({
       success: true,
-      message: 'Item deactivated successfully'
+      message: 'Barang berhasil dinonaktifkan'
     });
   } catch (error) {
     next(error);
@@ -171,7 +171,7 @@ exports.deleteItem = async (req, res, next) => {
 };
 
 /**
- * @desc    Get low stock items (stock <= min_stock_alert)
+ * @desc    Ambil barang dengan stok menipis (stok <= peringatan_stok_min)
  * @route   GET /api/inventory/alerts/low-stock
  * @access  Private
  */
@@ -190,18 +190,18 @@ exports.getLowStockItems = async (req, res, next) => {
 };
 
 /**
- * @desc    Manually adjust stock (restock/correction)
+ * @desc    Sesuaikan stok secara manual (restock/koreksi)
  * @route   PATCH /api/inventory/:id/stock
  * @access  Private (Admin)
  */
 exports.adjustStock = async (req, res, next) => {
   try {
-    const { quantity, type } = req.body; // type: 'add' or 'deduct'
+    const { quantity, type } = req.body; // type: 'add' (tambah) atau 'deduct' (kurang)
 
     if (!quantity || quantity <= 0) {
       return res.status(400).json({
         success: false,
-        message: 'Quantity must be a positive number'
+        message: 'Jumlah harus berupa angka positif'
       });
     }
 
@@ -209,7 +209,7 @@ exports.adjustStock = async (req, res, next) => {
     if (!item) {
       return res.status(404).json({
         success: false,
-        message: 'Item not found'
+        message: 'Barang tidak ditemukan'
       });
     }
 
@@ -220,13 +220,13 @@ exports.adjustStock = async (req, res, next) => {
     } else {
       return res.status(400).json({
         success: false,
-        message: 'Type must be either "add" or "deduct"'
+        message: 'Tipe harus berupa "add" (tambah) atau "deduct" (kurang)'
       });
     }
 
     res.status(200).json({
       success: true,
-      message: `Stock ${type === 'add' ? 'added' : 'deducted'} successfully`,
+      message: `Stok berhasil ${type === 'add' ? 'ditambahkan' : 'dikurangi'}`,
       data: item
     });
   } catch (error) {
@@ -235,7 +235,7 @@ exports.adjustStock = async (req, res, next) => {
 };
 
 /**
- * @desc    Get inventory value summary
+ * @desc    Ambil ringkasan nilai inventaris
  * @route   GET /api/inventory/summary/value
  * @access  Private (Admin)
  */
@@ -290,7 +290,7 @@ exports.getInventoryValue = async (req, res, next) => {
 };
 
 /**
- * @desc    Get items by category with stock summary
+ * @desc    Ambil barang berdasarkan kategori dengan ringkasan stok
  * @route   GET /api/inventory/summary/by-category
  * @access  Private
  */

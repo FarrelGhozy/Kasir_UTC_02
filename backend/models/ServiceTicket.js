@@ -1,29 +1,29 @@
-// models/ServiceTicket.js - Service Ticket Schema with Embedded Documents
+// models/ServiceTicket.js - Skema Tiket Servis dengan Dokumen Tertanam (Embedded)
 const mongoose = require('mongoose');
 
-// Embedded sub-schemas
+// Sub-schema tertanam
 const customerSchema = new mongoose.Schema({
   name: {
     type: String,
-    required: [true, 'Customer name is required'],
+    required: [true, 'Nama pelanggan wajib diisi'],
     trim: true
   },
   phone: {
     type: String,
-    required: [true, 'Customer phone is required'],
+    required: [true, 'Nomor telepon pelanggan wajib diisi'],
     trim: true
   },
   type: {
     type: String,
     enum: ['Mahasiswa', 'Dosen', 'Umum'],
-    required: [true, 'Customer type is required']
+    required: [true, 'Tipe pelanggan wajib dipilih']
   }
 }, { _id: false });
 
 const deviceSchema = new mongoose.Schema({
   type: {
     type: String,
-    required: [true, 'Device type is required'],
+    required: [true, 'Tipe perangkat wajib diisi'],
     trim: true
   },
   brand: {
@@ -40,13 +40,13 @@ const deviceSchema = new mongoose.Schema({
   },
   symptoms: {
     type: String,
-    required: [true, 'Device symptoms are required'],
+    required: [true, 'Keluhan/Gejala wajib diisi'],
     trim: true
   },
   accessories: {
     type: String,
     trim: true,
-    default: 'None'
+    default: 'Tidak ada'
   }
 }, { _id: false });
 
@@ -75,25 +75,25 @@ const partUsedSchema = new mongoose.Schema({
   qty: {
     type: Number,
     required: true,
-    min: [1, 'Quantity must be at least 1'],
+    min: [1, 'Jumlah harus minimal 1'],
     validate: {
       validator: Number.isInteger,
-      message: 'Quantity must be an integer'
+      message: 'Jumlah harus berupa bilangan bulat'
     }
   },
   price_at_time: {
     type: Number,
     required: true,
-    min: [0, 'Price cannot be negative']
+    min: [0, 'Harga tidak boleh negatif']
   },
   subtotal: {
     type: Number,
     required: true,
-    min: [0, 'Subtotal cannot be negative']
+    min: [0, 'Subtotal tidak boleh negatif']
   }
 }, { _id: true });
 
-// Main Service Ticket Schema
+// Skema Utama Tiket Servis
 const serviceTicketSchema = new mongoose.Schema({
   ticket_number: {
     type: String,
@@ -125,12 +125,12 @@ const serviceTicketSchema = new mongoose.Schema({
   },
   service_fee: {
     type: Number,
-    min: [0, 'Service fee cannot be negative'],
+    min: [0, 'Biaya jasa tidak boleh negatif'],
     default: 0
   },
   total_cost: {
     type: Number,
-    min: [0, 'Total cost cannot be negative'],
+    min: [0, 'Total biaya tidak boleh negatif'],
     default: 0
   },
   notes: {
@@ -162,26 +162,26 @@ serviceTicketSchema.index({ 'technician.id': 1 });
 serviceTicketSchema.index({ 'timestamps.created_at': -1 });
 serviceTicketSchema.index({ 'customer.phone': 1 });
 
-// ✅ FIX: Pre-save middleware without 'next' param (Async compatible)
+// Middleware pre-save (Kompatibel dengan Async)
 serviceTicketSchema.pre('save', async function() {
-  // 1. Calculate Total Cost
+  // 1. Hitung Total Biaya
   let partsTotal = 0;
   if (this.parts_used && this.parts_used.length > 0) {
     partsTotal = this.parts_used.reduce((sum, part) => sum + part.subtotal, 0);
   }
   this.total_cost = partsTotal + (this.service_fee || 0);
 
-  // 2. Generate Ticket Number
+  // 2. Generate Nomor Tiket
   if (this.isNew && !this.ticket_number) {
     try {
       this.ticket_number = await this.constructor.generateTicketNumber();
     } catch (error) {
-      throw new Error('Failed to generate ticket number: ' + error.message);
+      throw new Error('Gagal membuat nomor tiket: ' + error.message);
     }
   }
 });
 
-// Static method to generate next ticket number
+// Method static untuk membuat nomor tiket berikutnya
 serviceTicketSchema.statics.generateTicketNumber = async function() {
   const year = new Date().getFullYear();
   const prefix = `SRV-${year}`;
@@ -199,25 +199,24 @@ serviceTicketSchema.statics.generateTicketNumber = async function() {
   return `${prefix}${String(nextNumber).padStart(3, '0')}`;
 };
 
-// ✅ FIX: Instance method to add parts (Removed Session)
+// Method instance untuk menambah part (Tanpa Session untuk kompatibilitas Localhost)
 serviceTicketSchema.methods.addPart = async function(itemId, quantity) {
   const Item = mongoose.model('Item');
   
-  // No session here
   const item = await Item.findById(itemId);
   if (!item) {
-    throw new Error('Item not found');
+    throw new Error('Barang tidak ditemukan');
   }
   
   if (item.stock < quantity) {
-    throw new Error(`Insufficient stock for ${item.name}. Available: ${item.stock}, Requested: ${quantity}`);
+    throw new Error(`Stok tidak cukup untuk ${item.name}. Tersedia: ${item.stock}, Diminta: ${quantity}`);
   }
   
-  // Deduct stock
+  // Kurangi stok
   item.stock -= quantity;
-  await item.save(); // Save without session
+  await item.save();
   
-  // Add to parts_used
+  // Tambahkan ke parts_used
   const subtotal = item.selling_price * quantity;
   this.parts_used.push({
     item_id: item._id,
@@ -227,11 +226,11 @@ serviceTicketSchema.methods.addPart = async function(itemId, quantity) {
     subtotal: subtotal
   });
   
-  await this.save(); // Save without session
+  await this.save();
   return this;
 };
 
-// Instance method to update status with timestamp tracking
+// Method instance untuk update status dengan pelacakan waktu
 serviceTicketSchema.methods.updateStatus = async function(newStatus) {
   this.status = newStatus;
   
@@ -247,7 +246,7 @@ serviceTicketSchema.methods.updateStatus = async function(newStatus) {
   return this;
 };
 
-// Virtual for duration in days
+// Virtual untuk durasi pengerjaan dalam hari
 serviceTicketSchema.virtual('duration_days').get(function() {
   if (!this.timestamps.completed_at) return null;
   const diff = this.timestamps.completed_at - this.timestamps.created_at;
