@@ -16,13 +16,13 @@ const connectDB = async () => {
 
 // WAJIB: Nama teknisi sesuai spesifikasi
 const TECHNICIANS = [
-  'Farrel',
-  'Wildan',
+  'Farrel Ghozy',
+  'M Wildan',
   'Kaukab',
   'Rasya',
   'Tamam',
   'Noer Syamsi',
-  'Baso'
+  'Baso Akbar'
 ];
 
 const seedTechnicians = async () => {
