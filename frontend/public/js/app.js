@@ -27,16 +27,16 @@ class App {
     init() {
         // 1. Listener Normal: Menunggu sinyal login dari auth.js
         window.addEventListener('app-ready', () => {
-            console.log('Event app-ready diterima, memuat dasbor...');
+            console.log('Event app-ready diterima, memuat dashboard...');
             this.setupNavigation();
-            this.navigateTo('dashboard'); 
+            this.navigateTo('dashboard');
         });
 
         // 2. PERBAIKAN RACE CONDITION (Anti-Macet):
         // Jika auth.js sudah selesai duluan sebelum app.js siap,
-        // kita cek manual status loginnya. Jika sudah login, paksa masuk dasbor.
+        // kita cek manual status loginnya. Jika sudah login, paksa masuk dashboard.
         if (auth.isAuthenticated()) {
-            console.log('App telat memuat, memaksa masuk dasbor secara manual...');
+            console.log('App telat memuat, memaksa masuk dashboard secara manual...');
             this.setupNavigation();
             this.navigateTo('dashboard');
         }
@@ -49,9 +49,9 @@ class App {
         navLinks.forEach(link => {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
-                
+
                 const page = link.getAttribute('data-page');
-                
+
                 // Update status aktif (highlight menu)
                 navLinks.forEach(l => l.classList.remove('active'));
                 link.classList.add('active');
@@ -69,7 +69,7 @@ class App {
 
         // Update judul halaman
         const pageTitles = {
-            dashboard: 'Dasbor',
+            dashboard: 'Dashboard',
             pos: 'Kasir (POS)',
             service: 'Servis (Workshop)',
             inventory: 'Gudang (Inventaris)',
@@ -78,7 +78,7 @@ class App {
 
         const pageTitle = document.getElementById('page-title');
         if (pageTitle) {
-            pageTitle.textContent = pageTitles[page] || 'Dasbor';
+            pageTitle.textContent = pageTitles[page] || 'Dashboard';
         }
 
         // Tampilkan loading
@@ -102,7 +102,7 @@ class App {
                 <h2 class="mt-4">Halaman Tidak Ditemukan</h2>
                 <p class="text-muted">Halaman yang Anda cari tidak tersedia.</p>
                 <button class="btn btn-primary mt-3" onclick="app.navigateTo('dashboard')">
-                    <i class="bi bi-house me-2"></i>Kembali ke Dasbor
+                    <i class="bi bi-house me-2"></i>Kembali ke Dashboard
                 </button>
             </div>
         `;
