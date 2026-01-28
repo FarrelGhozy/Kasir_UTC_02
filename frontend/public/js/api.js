@@ -1,6 +1,6 @@
 // public/js/api.js - Global API Handler dengan Fetch Wrapper
 
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = 'https://kasir-utc-02.onrender.com/api'; // Ganti dengan URL backend Anda
 
 class API {
     constructor(baseURL) {
