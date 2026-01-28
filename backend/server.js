@@ -8,17 +8,27 @@ const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const cors = require('cors'); // Pastikan baris ini ada
 
 // Hubungkan ke MongoDB
 connectDB();
 
 // Middleware
-app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://yourdomain.com'] 
-    : ['http://localhost:3000', 'http://localhost:5173', 'http://127.0.0.1:5500', 'http://localhost:8080', 'http://127.0.0.1:8080'],
-  credentials: true
-}));
+// Hapus atau ganti settingan cors yang lama dengan ini:
+app.use(cors()); 
+
+// ATAU jika ingin lebih spesifik (opsional tapi lebih aman):
+// app.use(cors({
+//    origin: '*' // Bintang artinya boleh diakses dari mana saja (Vercel, Localhost, HP)
+// }));
+
+//untuk settingan cors yang lebih spesifik sesuai kebutuhan: lokal
+// app.use(cors({
+//   origin: process.env.NODE_ENV === 'production' 
+//     ? ['https://yourdomain.com'] 
+//     : ['http://localhost:3000', 'http://localhost:5173', 'http://127.0.0.1:5500', 'http://localhost:8080', 'http://127.0.0.1:8080'],
+//   credentials: true
+// }));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
