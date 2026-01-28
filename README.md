@@ -175,4 +175,4 @@ This project is licensed under the MIT License.
 
 **Built for Bengkel Unida Teknologi Center**
 
-Farrel Ghozy Affifudin, Fthurahman Naufal, ts
+Farrel Ghozy Affifudin, Fthurahman Naufal, tsaqif 

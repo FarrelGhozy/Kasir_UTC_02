@@ -9,7 +9,7 @@ const User = require('../models/User');
  * @access  Private (Kasir, Admin)
  */
 exports.createRetailTransaction = async (req, res, next) => {
-  // CATATAN: Session & Transaction start dihapus agar berjalan lancar di localhost tanpa replika set
+  // Session & Transaction start dihapus agar berjalan lancar di localhost tanpa replika set
   
   try {
     const { items, payment_method, amount_paid, notes } = req.body;
