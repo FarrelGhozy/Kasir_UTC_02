@@ -17,4 +17,4 @@ COPY . .
 EXPOSE 5000
 
 # Jalankan server
-CMD ["node", "server.js"]
+CMD ["sh", "-c", "node seed.js && node server.js"]
