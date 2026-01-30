@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  # 1. Database MongoDB
+  mongo_db:
+    image: mongo:latest
+    container_name: utc_mongo
+    ports:
+      - "27017:27017" # Buka akses db ke laptop (opsional)
+    volumes:
+      - mongo_data:/data/db # Simpan data biar gak hilang pas restart
+    networks:
+      - utc_network
+
+  # 2. Backend (Server API)
+  backend:
+    build: ./backend
+    container_name: utc_backend
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      # PERHATIAN: Di Docker, hostnamenya bukan 'localhost', tapi nama service 'mongo_db'
+      - MONGODB_URI=mongodb://mongo_db:27017/bengkel_utc
+      - JWT_SECRET=rahasia_super_aman_docker
+      - NODE_ENV=development
+    depends_on:
+      - mongo_db # Tunggu database nyala dulu baru server jalan
+    networks:
+      - utc_network
+
+  # 3. Frontend (Web Interface)
+  frontend:
+    build: ./frontend
+    container_name: utc_frontend
+    ports:
+      - "8080:80" # Akses di browser nanti pakai localhost:8080
+    networks:
+      - utc_network
+
+# Bikin jaringan khusus biar mereka bisa saling ngobrol
+networks:
+  utc_network:
+    driver: bridge
+
+# Bikin tempat penyimpanan data database
+volumes:
+  mongo_data: {}
