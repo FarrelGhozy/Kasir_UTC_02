@@ -1,6 +1,6 @@
 // public/js/api.js - Global API Handler dengan Fetch Wrapper
 
-const API_BASE_URL = 'http://localhost:5200/api';
+const API_BASE_URL = `${window.location.protocol}//${window.location.hostname}:5200/api`;
 
 class API {
     constructor(baseURL) {
