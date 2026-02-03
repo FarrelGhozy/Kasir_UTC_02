@@ -91,7 +91,14 @@ const runSeederLogic = async () => {
 // ==========================================
 
 // Middleware
-app.use(cors()); // Allow All Origins (Solusi CORS Anda)
+
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' 
+    ? ['https://kasir.utc.web.id', 'https://www.kasir.utc.web.id'] 
+    : '*', // <--- Development? Izinkan semua!
+  credentials: true
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
