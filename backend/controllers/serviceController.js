@@ -327,3 +327,40 @@ exports.getTechnicianWorkload = async (req, res, next) => {
     next(error);
   }
 };
+
+// controllers/serviceController.js
+
+// ... (kode yang lain tetap sama)
+
+/**
+ * @desc    Update data detail tiket (Pelanggan/Perangkat)
+ * @route   PUT /api/services/:id
+ * @access  Private
+ */
+exports.updateTicketDetails = async (req, res, next) => {
+  try {
+    const { customer, device, notes } = req.body;
+
+    const ticket = await ServiceTicket.findByIdAndUpdate(
+      req.params.id,
+      {
+        customer,
+        device,
+        notes
+      },
+      { new: true, runValidators: true }
+    );
+
+    if (!ticket) {
+      return res.status(404).json({ success: false, message: 'Tiket tidak ditemukan' });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Data tiket berhasil diperbarui',
+      data: ticket
+    });
+  } catch (error) {
+    next(error);
+  }
+};

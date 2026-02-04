@@ -44,7 +44,7 @@ const seedTechnicians = async () => {
       await User.create({
         name: techName,
         username: username,
-        password: 'password123', // Password default - GANTI SAAT PRODUKSI!
+        password: 'bengkelutc0326', // Password default - GANTI SAAT PRODUKSI!
         role: 'teknisi'
       });
       console.log(`   ✅ Dibuat: ${techName} (username: ${username})`);

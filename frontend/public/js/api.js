@@ -260,6 +260,20 @@ class API {
         const queryString = new URLSearchParams(params).toString();
         return this.get(`/reports/technician-performance${queryString ? '?' + queryString : ''}`);
     }
+
+// public/js/api.js
+
+    // ... endpoint service lainnya ...
+
+    async updateTicketDetails(id, data) {
+        return this.put(`/services/${id}`, data);
+    }
+    
+    // ... (pastikan updateServiceFee, addPartToService dll tetap ada)
+    // Tambahkan ini di bawah updateTicketDetails
+    async deleteServiceTicket(id) {
+        return this.delete(`/services/${id}`);
+    }
 }
 
 // Ekspor instance singleton
