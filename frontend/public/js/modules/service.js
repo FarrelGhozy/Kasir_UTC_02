@@ -1,4 +1,4 @@
-// public/js/modules/service.js - Modul Manajemen Servis (FIXED: Stages & Delete)
+// public/js/modules/service.js - Modul Manajemen Servis (FIXED: Add Part & Detail View)
 
 import api, { formatCurrency, formatDateTime, showToast, showError } from '../api.js';
 
@@ -10,7 +10,7 @@ class Service {
     }
 
     async render() {
-        // CSS Hack: Hilangkan panah input number
+        // CSS Hack
         const style = document.createElement('style');
         style.innerHTML = `
             input[type=number]::-webkit-inner-spin-button, 
@@ -122,6 +122,7 @@ class Service {
                                         <option value="">Semua Status</option>
                                         <option value="Queue">Antrian</option>
                                         <option value="Diagnosing">Diagnosa</option>
+                                        <option value="Waiting_Part">Tunggu Part</option>
                                         <option value="In_Progress">Dikerjakan</option>
                                         <option value="Completed">Selesai</option>
                                     </select>
@@ -296,8 +297,6 @@ class Service {
 
         try {
             const res = await api.getServiceTickets(filter ? { status: filter } : {});
-            // Filter Klien: Buang yang statusnya 'Cancelled' (Dihapus)
-            // Ini untuk memastikan jika backend masih mengirim data sampah, frontend tidak menampilkannya
             this.tickets = res.data.filter(t => t.status !== 'Cancelled');
             this.renderTicketList();
         } catch (err) {
@@ -305,7 +304,7 @@ class Service {
         }
     }
 
-    // --- RENDER LIST (BAGIAN PENTING) ---
+    // --- RENDER LIST ---
 
     renderTicketList() {
         const container = document.getElementById('tickets-container');
@@ -317,7 +316,6 @@ class Service {
         container.innerHTML = this.tickets.map(t => {
             const isCompleted = t.status === 'Completed' || t.status === 'Picked_Up';
             
-            // Generate Dropdown Status
             let statusSelect = '';
             if (!isCompleted) {
                 const stages = [
@@ -333,7 +331,7 @@ class Service {
 
                 statusSelect = `
                     <div class="mb-2">
-                        <small class="text-secondary fw-bold" style="font-size:0.7rem">STATUS PENGERJAAN</small>
+                        <small class="text-secondary fw-bold" style="font-size:0.7rem">STATUS</small>
                         <select class="form-select form-select-sm border-primary text-primary fw-bold" 
                                 onchange="service.updateStatus('${t._id}', this.value)">
                             ${options}
@@ -341,15 +339,14 @@ class Service {
                     </div>
                 `;
             } else {
-                // Jika selesai, tampilkan status ambil
                 const pickedUp = t.status === 'Picked_Up';
                 statusSelect = `
                     <div class="mb-2">
-                         <small class="text-secondary fw-bold" style="font-size:0.7rem">STATUS AKHIR</small>
+                         <small class="text-secondary fw-bold" style="font-size:0.7rem">STATUS</small>
                          <select class="form-select form-select-sm ${pickedUp ? 'bg-dark text-white' : 'bg-success text-white'}" 
                                 onchange="service.updateStatus('${t._id}', this.value)" ${pickedUp ? 'disabled' : ''}>
-                            <option value="Completed" ${!pickedUp ? 'selected' : ''}>Selesai (Siap Diambil)</option>
-                            <option value="Picked_Up" ${pickedUp ? 'selected' : ''}>Sudah Diambil</option>
+                            <option value="Completed" ${!pickedUp ? 'selected' : ''}>Selesai</option>
+                            <option value="Picked_Up" ${pickedUp ? 'selected' : ''}>Diambil</option>
                         </select>
                     </div>
                 `;
@@ -388,20 +385,20 @@ class Service {
                             </button>
 
                             ${!isCompleted ? `
-                                <button class="btn btn-sm btn-outline-warning" onclick="service.openEdit('${t._id}')" title="Edit Data">
+                                <button class="btn btn-sm btn-outline-warning" onclick="service.openEdit('${t._id}')" title="Edit">
                                     <i class="bi bi-pencil"></i>
                                 </button>
                                 
-                                <button class="btn btn-sm btn-outline-danger" onclick="service.deleteTicket('${t._id}')" title="Batalkan Servis">
+                                <button class="btn btn-sm btn-outline-danger" onclick="service.deleteTicket('${t._id}')" title="Batal">
                                     <i class="bi bi-trash"></i>
                                 </button>
                                 
-                                <button class="btn btn-sm btn-outline-primary" onclick="service.openAddPart('${t._id}')" title="Tambah Part">
+                                <button class="btn btn-sm btn-outline-primary" onclick="service.openAddPart('${t._id}')" title="Part">
                                     <i class="bi bi-tools"></i>
                                 </button>
 
                                 <button class="btn btn-sm btn-success fw-bold px-3" onclick="service.openFinalize('${t._id}')">
-                                    <i class="bi bi-check-lg me-1"></i> Selesai
+                                    <i class="bi bi-check-lg"></i>
                                 </button>
                             ` : `
                                 <button class="btn btn-sm btn-outline-dark" onclick="service.printInvoice('${t._id}')">
@@ -418,7 +415,7 @@ class Service {
     getStatusBadge(status) {
         const map = {
             'Queue': '<span class="badge bg-secondary">Antrian</span>',
-            'Diagnosing': '<span class="badge bg-info text-dark">Diagnosis</span>',
+            'Diagnosing': '<span class="badge bg-info text-dark">Diagnosa</span>',
             'Waiting_Part': '<span class="badge bg-warning text-dark">Tunggu Part</span>',
             'In_Progress': '<span class="badge bg-primary">Dikerjakan</span>',
             'Completed': '<span class="badge bg-success">Selesai</span>',
@@ -428,33 +425,26 @@ class Service {
         return map[status] || status;
     }
 
-    // --- ACTIONS: UPDATE STATUS, EDIT, DELETE ---
-
     async updateStatus(id, newStatus) {
-        // Jangan tanya konfirmasi untuk perpindahan status biasa agar cepat
-        // Kecuali jika mengubah ke Picked_Up
         if (newStatus === 'Picked_Up' && !confirm('Pastikan barang sudah diterima pelanggan & pembayaran lunas. Lanjutkan?')) {
-            this.loadTickets(); // Reset dropdown jika batal
+            this.loadTickets(); 
             return;
         }
-
         try {
             await api.updateTicketStatus(id, newStatus);
             showToast('Status diperbarui');
             this.loadTickets();
         } catch (e) {
             showToast(e.message, 'error');
-            this.loadTickets(); // Rollback UI
+            this.loadTickets();
         }
     }
 
     async deleteTicket(id) {
         if (!confirm('Yakin ingin MEMBATALKAN/MENGHAPUS tiket ini?')) return;
-
         try {
             await api.deleteServiceTicket(id);
             showToast('Tiket berhasil dihapus', 'success');
-            // Reload akan memicu filter(t => t.status !== 'Cancelled') sehingga data hilang
             await this.loadTickets(); 
         } catch (e) {
             showToast(e.message, 'error');
@@ -549,12 +539,12 @@ class Service {
                     </table>
                 </div>
             </div>
-            <h6 class="fw-bold text-secondary">BIAYA</h6>
+            <h6 class="fw-bold text-secondary">BIAYA & PART (Preview)</h6>
             <table class="table table-bordered table-sm">
                 <thead class="table-light"><tr><th>Item</th><th class="text-center">Qty</th><th class="text-end">Subtotal</th></tr></thead>
                 <tbody>
                     ${partList}
-                    <tr class="fw-bold"><td colspan="2" class="text-end">Jasa</td><td class="text-end">${formatCurrency(t.service_fee)}</td></tr>
+                    <tr class="fw-bold"><td colspan="2" class="text-end">Jasa (Estimasi)</td><td class="text-end">${formatCurrency(t.service_fee)}</td></tr>
                     <tr class="table-primary fw-bold"><td colspan="2" class="text-end">TOTAL</td><td class="text-end fs-5">${formatCurrency(t.total_cost)}</td></tr>
                 </tbody>
             </table>
@@ -617,12 +607,22 @@ class Service {
         document.getElementById('status-filter').addEventListener('change', () => this.loadTickets());
         document.getElementById('refresh-tickets-btn').addEventListener('click', () => this.loadTickets());
         document.getElementById('save-edit-btn').addEventListener('click', () => this.saveEdit());
+        
+        // --- PERBAIKAN: Refresh data otomatis setelah tambah part ---
         document.getElementById('save-part-btn').addEventListener('click', async () => {
             const tId = document.getElementById('part-ticket-id').value;
             const iId = document.getElementById('part-item-select').value;
             const qty = document.getElementById('part-quantity').value;
-            try { await api.addPartToService(tId, iId, qty); showToast('Part ditambahkan'); bootstrap.Modal.getInstance(document.getElementById('addPartModal')).hide(); this.loadTickets(); } catch(e){ showToast(e.message, 'error'); }
+            try { 
+                await api.addPartToService(tId, iId, qty); 
+                showToast('Part ditambahkan'); 
+                bootstrap.Modal.getInstance(document.getElementById('addPartModal')).hide(); 
+                
+                // PENTING: Reload tiket agar data Detail terupdate
+                await this.loadTickets(); 
+            } catch(e){ showToast(e.message, 'error'); }
         });
+        
         document.getElementById('confirm-finish-btn').addEventListener('click', () => this.confirmFinish());
     }
 }

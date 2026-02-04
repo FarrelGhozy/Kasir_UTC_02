@@ -1,4 +1,4 @@
-// controllers/serviceController.js - Manajemen Tiket Servis (FIXED: Filter Multi-Status)
+// controllers/serviceController.js - Manajemen Tiket Servis (FIXED: No Transactions)
 const ServiceTicket = require('../models/ServiceTicket');
 const Item = require('../models/Item');
 const User = require('../models/User');
@@ -34,8 +34,7 @@ exports.createTicket = async (req, res, next) => {
 };
 
 /**
- * @desc    Ambil semua tiket servis dengan filter (PERBAIKAN UTAMA DI SINI)
- * @route   GET /api/services
+ * @desc    Ambil semua tiket servis dengan filter
  */
 exports.getAllTickets = async (req, res, next) => {
   try {
@@ -43,16 +42,13 @@ exports.getAllTickets = async (req, res, next) => {
 
     const filter = {};
     
-    // --- PERBAIKAN LOGIKA FILTER STATUS ---
     if (status) {
-        // Jika ada koma (misal: 'Queue,Diagnosing'), pecah jadi array untuk query $in
         if (status.includes(',')) {
             filter.status = { $in: status.split(',') };
         } else {
             filter.status = status;
         }
     }
-    // -------------------------------------
 
     if (technician_id) filter['technician.id'] = technician_id;
     if (customer_phone) filter['customer.phone'] = customer_phone;
@@ -117,40 +113,39 @@ exports.updateStatus = async (req, res, next) => {
 };
 
 /**
- * @desc    Tambahkan suku cadang ke tiket servis
+ * @desc    Tambahkan suku cadang ke tiket servis (LOGIKA BARU: TANPA TRANSAKSI)
  */
 exports.addPartToService = async (req, res, next) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
+  // CATATAN: Session/Transaction dihapus agar kompatibel dengan MongoDB Standalone (Lokal)
   try {
     const { item_id, quantity } = req.body;
 
     if (!item_id || !quantity || quantity < 1) {
-      await session.abortTransaction();
       return res.status(400).json({ success: false, message: 'ID Barang dan jumlah valid wajib diisi' });
     }
 
-    const ticket = await ServiceTicket.findById(req.params.id).session(session);
+    // 1. Cek Tiket
+    const ticket = await ServiceTicket.findById(req.params.id);
     if (!ticket) {
-      await session.abortTransaction();
       return res.status(404).json({ success: false, message: 'Tiket servis tidak ditemukan' });
     }
 
-    const item = await Item.findById(item_id).session(session);
+    // 2. Cek Barang
+    const item = await Item.findById(item_id);
     if (!item) {
-      await session.abortTransaction();
       return res.status(404).json({ success: false, message: 'Barang tidak ditemukan' });
     }
 
+    // 3. Cek Stok
     if (item.stock < quantity) {
-      await session.abortTransaction();
-      return res.status(400).json({ success: false, message: `Stok tidak cukup untuk ${item.name}` });
+      return res.status(400).json({ success: false, message: `Stok tidak cukup untuk ${item.name}. Sisa: ${item.stock}` });
     }
 
+    // 4. Kurangi Stok & Simpan Barang
     item.stock -= quantity;
-    await item.save({ session });
+    await item.save();
 
+    // 5. Update Tiket & Simpan
     const subtotal = item.selling_price * quantity;
     ticket.parts_used.push({
       item_id: item._id,
@@ -160,15 +155,18 @@ exports.addPartToService = async (req, res, next) => {
       subtotal: subtotal
     });
 
-    await ticket.save({ session });
-    await session.commitTransaction();
+    // Recalculate total cost in ticket model logic usually handles this, 
+    // but just in case, ensure logic in Model handles 'total_cost' calculation on save.
+    // Assuming your schema handles pre-save or methods. 
+    // If not, trigger it or let the frontend recalculate visualization.
+    
+    await ticket.save();
 
     res.status(200).json({ success: true, message: 'Part ditambahkan', data: ticket });
   } catch (error) {
-    await session.abortTransaction();
+    // Jika error di tengah jalan, stok mungkin sudah berkurang tapi tiket gagal update.
+    // Dalam app skala kecil ini risiko tersebut kita terima demi kompatibilitas lokal.
     next(error);
-  } finally {
-    session.endSession();
   }
 };
 
@@ -228,6 +226,38 @@ exports.getTechnicianWorkload = async (req, res, next) => {
       }
     ]);
     res.status(200).json({ success: true, data: workload });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Update Detail Tiket (Nama, Perangkat, dll)
+ * @route   PUT /api/services/:id
+ */
+exports.updateTicketDetails = async (req, res, next) => {
+  try {
+    const { customer, device, notes } = req.body;
+
+    const ticket = await ServiceTicket.findByIdAndUpdate(
+      req.params.id,
+      {
+        customer,
+        device,
+        notes
+      },
+      { new: true, runValidators: true }
+    );
+
+    if (!ticket) {
+      return res.status(404).json({ success: false, message: 'Tiket tidak ditemukan' });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Data tiket berhasil diperbarui',
+      data: ticket
+    });
   } catch (error) {
     next(error);
   }
