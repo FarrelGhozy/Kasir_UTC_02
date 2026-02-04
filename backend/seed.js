@@ -223,10 +223,10 @@ const runSeeder = async () => {
     console.log('✅ Pengisian database berhasil selesai!');
     console.log('='.repeat(60));
     console.log('\n📝 Kredensial Bawaan (Default):');
-    console.log('   Admin    - Username: admin    | Password: admin123');
-    console.log('   Kasir    - Username: kasir1   | Password: kasir123');
-    console.log('   Teknisi  - Username: farrel   | Password: password123');
-    console.log('\n⚠️  PENTING: Ubah kata sandi ini di mode produksi!');
+    console.log('   Admin    - Username: admin-utc01    | Password: bengkelutc0326');
+    console.log('   Kasir    - Username: kasir1   | Password: bengkelutc0326');
+    console.log('   Teknisi  - Username:    | Password: bengkelutc0326');
+    console.log('\n⚠️  Penting Jangan lupa rubah password setiap beberapa waktu demi keamanan sistem!');
     console.log('='.repeat(60) + '\n');
 
     process.exit(0);
