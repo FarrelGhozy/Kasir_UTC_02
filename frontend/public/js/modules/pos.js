@@ -1,4 +1,4 @@
-// public/js/modules/pos.js - Modul Kasir / Point of Sale (POS)
+// public/js/modules/pos.js - Modul Kasir dengan Fitur Cetak Struk / PDF
 
 import api, { formatCurrency, showToast, showError } from '../api.js';
 import auth from '../auth.js';
@@ -117,7 +117,7 @@ class POS {
                                         <i class="bi bi-trash"></i>
                                     </button>
                                     <button class="btn btn-primary flex-grow-1 w-100 py-2 fw-bold" id="pay-btn" disabled>
-                                        <i class="bi bi-check-circle me-2"></i>BAYAR SEKARANG
+                                        <i class="bi bi-check-circle me-2"></i>BAYAR & CETAK
                                     </button>
                                 </div>
                             </div>
@@ -172,7 +172,6 @@ class POS {
             return;
         }
 
-        // GRID LAYOUT FIXED: Wrap in col-* classes
         grid.innerHTML = filtered.map(item => `
             <div class="col-6 col-md-4 col-lg-4">
                 <div class="card product-card h-100 border-0 shadow-sm cursor-pointer position-relative" 
@@ -197,7 +196,7 @@ class POS {
         document.querySelectorAll('.product-card').forEach(card => {
             card.addEventListener('click', () => {
                 const itemId = card.getAttribute('data-item-id');
-                // Animasi sederhana
+                // Animasi klik
                 card.style.transform = 'scale(0.95)';
                 setTimeout(() => card.style.transform = 'scale(1)', 100);
                 this.addToCart(itemId);
@@ -296,7 +295,6 @@ class POS {
     setupCartEventListeners() {
         document.querySelectorAll('[data-action="increase"]').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                e.stopPropagation();
                 const index = parseInt(btn.getAttribute('data-index'));
                 if (this.cart[index].qty < this.cart[index].max_stock) {
                     this.cart[index].qty++;
@@ -309,7 +307,6 @@ class POS {
 
         document.querySelectorAll('[data-action="decrease"]').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                e.stopPropagation();
                 const index = parseInt(btn.getAttribute('data-index'));
                 if (this.cart[index].qty > 1) {
                     this.cart[index].qty--;
@@ -320,7 +317,6 @@ class POS {
 
         document.querySelectorAll('[data-action="remove"]').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                e.stopPropagation();
                 const index = parseInt(btn.getAttribute('data-index'));
                 this.cart.splice(index, 1);
                 this.renderCart();
@@ -329,6 +325,7 @@ class POS {
     }
 
     setupEventListeners() {
+        // Search & Filter
         const searchInput = document.getElementById('product-search');
         if(searchInput) {
             searchInput.addEventListener('input', (e) => {
@@ -345,6 +342,7 @@ class POS {
             });
         }
 
+        // Pembayaran
         const paymentMethod = document.getElementById('payment-method');
         if(paymentMethod) {
             paymentMethod.addEventListener('change', (e) => {
@@ -416,7 +414,7 @@ class POS {
         const paymentMethod = document.getElementById('payment-method').value;
         const total = this.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
         
-        let amountPaid = total;
+        let amountPaid = total; // Default untuk non-tunai
         
         if (paymentMethod === 'Cash') {
             const inputVal = document.getElementById('amount-paid').value;
@@ -449,7 +447,9 @@ class POS {
 
             if (response.success) {
                 showToast('Transaksi berhasil!', 'success');
-                this.showReceipt(response.data);
+                
+                // --- DISINI MAGIC-NYA: CETAK STRUK ---
+                this.printReceipt(response.data);
 
                 // Bersihkan dan Muat Ulang
                 this.cart = [];
@@ -457,7 +457,7 @@ class POS {
                 document.getElementById('amount-paid').value = '';
                 document.getElementById('change-display').textContent = 'Rp 0';
                 
-                await this.loadItems(); // Perbarui tampilan stok
+                await this.loadItems(); 
             }
         } catch (error) {
             console.error(error);
@@ -470,17 +470,112 @@ class POS {
         }
     }
 
-    showReceipt(transaction) {
-        alert(
-`TRANSAKSI BERHASIL!
-================================
-Faktur: ${transaction.invoice_no}
-Tanggal: ${new Date(transaction.date).toLocaleString('id-ID')}
-Total: ${formatCurrency(transaction.grand_total)}
-Dibayar: ${formatCurrency(transaction.amount_paid)}
-Kembalian: ${formatCurrency(transaction.change || 0)}
-================================`
-        );
+    /**
+     * FUNGSI CETAK STRUK / PDF
+     * Membuat iframe tersembunyi, menulis HTML struk, lalu memanggil print()
+     */
+    printReceipt(transaction) {
+        // Hitung ulang total untuk tampilan
+        const total = transaction.grand_total;
+        const paid = transaction.amount_paid;
+        const change = paid - total;
+        const date = new Date(transaction.date).toLocaleString('id-ID');
+
+        // Buat elemen iframe tersembunyi
+        const iframe = document.createElement('iframe');
+        iframe.style.position = 'absolute';
+        iframe.style.width = '0px';
+        iframe.style.height = '0px';
+        iframe.style.border = 'none';
+        document.body.appendChild(iframe);
+
+        // Tulis HTML Struk ke dalam iframe
+        const doc = iframe.contentWindow.document;
+        doc.open();
+        doc.write(`
+            <html>
+            <head>
+                <title>Struk Belanja - ${transaction.invoice_no}</title>
+                <style>
+                    body { font-family: 'Courier New', monospace; font-size: 12px; margin: 0; padding: 10px; width: 80mm; }
+                    .header { text-align: center; margin-bottom: 10px; }
+                    .title { font-size: 16px; font-weight: bold; }
+                    .subtitle { font-size: 10px; }
+                    .divider { border-top: 1px dashed black; margin: 5px 0; }
+                    .item { display: flex; justify-content: space-between; margin-bottom: 2px; }
+                    .item-name { width: 100%; font-weight: bold; }
+                    .item-details { display: flex; justify-content: space-between; width: 100%; padding-left: 10px; color: #333; }
+                    .totals { margin-top: 10px; }
+                    .row { display: flex; justify-content: space-between; }
+                    .fw-bold { font-weight: bold; }
+                    .footer { text-align: center; margin-top: 15px; font-size: 10px; }
+                    @media print {
+                        @page { margin: 0; size: auto; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <div class="title">BENGKEL UTC</div>
+                    <div class="subtitle">Jln. Raya Siman, Ponorogo</div>
+                    <div class="subtitle">Telp: 0812-3456-7890</div>
+                </div>
+
+                <div class="divider"></div>
+                <div class="row"><span>Faktur</span> <span>${transaction.invoice_no}</span></div>
+                <div class="row"><span>Tgl</span> <span>${date}</span></div>
+                <div class="row"><span>Kasir</span> <span>${transaction.cashier_name}</span></div>
+                <div class="divider"></div>
+
+                ${transaction.items.map(item => `
+                    <div class="item-container">
+                        <div class="item-name">${item.name}</div>
+                        <div class="item-details">
+                            <span>${item.qty} x ${new Intl.NumberFormat('id-ID').format(item.price)}</span>
+                            <span>${new Intl.NumberFormat('id-ID').format(item.subtotal)}</span>
+                        </div>
+                    </div>
+                `).join('')}
+
+                <div class="divider"></div>
+                
+                <div class="totals">
+                    <div class="row fw-bold">
+                        <span>TOTAL</span>
+                        <span>${new Intl.NumberFormat('id-ID', {style:'currency', currency:'IDR'}).format(total)}</span>
+                    </div>
+                    <div class="row">
+                        <span>${transaction.payment_method}</span>
+                        <span>${new Intl.NumberFormat('id-ID', {style:'currency', currency:'IDR'}).format(paid)}</span>
+                    </div>
+                    <div class="row">
+                        <span>Kembali</span>
+                        <span>${new Intl.NumberFormat('id-ID', {style:'currency', currency:'IDR'}).format(change)}</span>
+                    </div>
+                </div>
+
+                <div class="divider"></div>
+                <div class="footer">
+                    <p>Terima Kasih atas Kunjungan Anda<br>
+                    Barang yang dibeli tidak dapat ditukar</p>
+                    <p>Powered by Bengkel UTC App</p>
+                </div>
+
+                <script>
+                    // Otomatis cetak saat dimuat
+                    window.onload = function() {
+                        window.print();
+                    }
+                </script>
+            </body>
+            </html>
+        `);
+        doc.close();
+
+        // Bersihkan iframe setelah selesai (beri waktu untuk dialog print muncul)
+        setTimeout(() => {
+            document.body.removeChild(iframe);
+        }, 10000); 
     }
 }
 
