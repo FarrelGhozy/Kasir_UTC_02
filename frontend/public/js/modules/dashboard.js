@@ -1,4 +1,4 @@
-// public/js/modules/dashboard.js - Modul Ringkasan Dasbor
+// public/js/modules/dashboard.js - Modul Ringkasan Dasbor (FIXED: Gabungan Aktivitas)
 
 import api, { formatCurrency, showError } from '../api.js';
 
@@ -36,7 +36,7 @@ class Dashboard {
                                     <i class="bi bi-cart3 fs-1 text-success"></i>
                                 </div>
                                 <div>
-                                    <div class="stat-label text-muted small text-uppercase fw-bold">Total Transaksi</div>
+                                    <div class="stat-label text-muted small text-uppercase fw-bold">Penjualan Retail</div>
                                     <div class="stat-value fs-4 fw-bold text-success" id="stat-transactions">0</div>
                                 </div>
                             </div>
@@ -111,32 +111,29 @@ class Dashboard {
 
     async loadDashboardData() {
         try {
-            // Memuat ringkasan hari ini
-            const todaySummary = await api.getTodaySummary();
-            document.getElementById('stat-revenue').textContent = formatCurrency(todaySummary.data.total_revenue);
-            document.getElementById('stat-transactions').textContent = todaySummary.data.total_transactions;
+            // 1. Load Data Statistik
+            const dailyReport = await api.getDailyRevenue();
+            document.getElementById('stat-revenue').textContent = formatCurrency(dailyReport.data.total_revenue);
+            document.getElementById('stat-transactions').textContent = dailyReport.data.retail_sales.transactions;
 
-            // Memuat tiket servis aktif (Parameter status dibiarkan bahasa Inggris sesuai API backend)
             const services = await api.getServiceTickets({ 
                 status: 'Queue,Diagnosing,Waiting_Part,In_Progress' 
             });
-            document.getElementById('stat-services').textContent = services.data.length;
+            const activeServices = services.data.filter(t => t.status !== 'Cancelled' && t.status !== 'Completed' && t.status !== 'Picked_Up');
+            document.getElementById('stat-services').textContent = activeServices.length;
 
-            // Memuat barang stok menipis
+            // 2. Load Tabel
             await this.loadLowStock();
-
-            // Memuat aktivitas terkini
-            await this.loadRecentActivity();
+            await this.loadRecentActivity(); // <--- INI FUNGSI YANG DIPERBAIKI
 
         } catch (error) {
             console.error('Gagal memuat data dasbor:', error);
-            showError('app-content', 'Gagal memuat data dasbor. Silakan coba muat ulang.');
+            showError('app-content', 'Gagal memuat data dasbor. Pastikan server backend berjalan.');
         }
     }
 
     async loadLowStock() {
         const container = document.getElementById('low-stock-container');
-        
         try {
             const response = await api.getLowStockItems();
             const items = response.data;
@@ -144,12 +141,7 @@ class Dashboard {
             document.getElementById('stat-low-stock').textContent = items.length;
 
             if (items.length === 0) {
-                container.innerHTML = `
-                    <div class="text-center text-muted py-5">
-                        <i class="bi bi-check-circle fs-1 text-success opacity-50"></i>
-                        <p class="mt-3 fw-semibold">Semua stok barang aman</p>
-                    </div>
-                `;
+                container.innerHTML = `<div class="text-center text-muted py-5"><i class="bi bi-check-circle fs-1 text-success opacity-50"></i><p class="mt-3 fw-semibold">Semua stok barang aman</p></div>`;
                 return;
             }
 
@@ -164,9 +156,7 @@ class Dashboard {
                                 </div>
                                 <div class="text-end">
                                     <span class="badge bg-danger rounded-pill">${item.stock} unit</span>
-                                    <div class="small text-danger mt-1" style="font-size: 0.75rem;">
-                                        Min: ${item.min_stock_alert}
-                                    </div>
+                                    <div class="small text-danger mt-1" style="font-size: 0.75rem;">Min: ${item.min_stock_alert}</div>
                                 </div>
                             </div>
                         </div>
@@ -178,40 +168,78 @@ class Dashboard {
         }
     }
 
+    // --- FITUR GABUNGAN AKTIVITAS TERKINI (Retail + Service) ---
     async loadRecentActivity() {
         const container = document.getElementById('recent-activity-container');
-        
         try {
-            const transactions = await api.getTransactions({ limit: 5 });
+            // Ambil Transaksi Retail
+            const retailPromise = api.getTransactions({ limit: 10 });
             
-            if (transactions.data.length === 0) {
-                container.innerHTML = `
-                    <div class="text-center text-muted py-5">
-                        <i class="bi bi-inbox fs-1 opacity-50"></i>
-                        <p class="mt-3 fw-semibold">Belum ada aktivitas baru</p>
-                    </div>
-                `;
+            // Ambil Servis yang Sudah Selesai/Diambil (Pendapatan)
+            const servicePromise = api.getServiceTickets({ 
+                status: 'Completed,Picked_Up', 
+                limit: 10 
+            });
+
+            const [retailRes, serviceRes] = await Promise.all([retailPromise, servicePromise]);
+
+            // Normalisasi data Retail agar formatnya sama
+            const retailActivities = retailRes.data.map(txn => ({
+                type: 'retail',
+                id: txn.invoice_no,
+                actor: txn.cashier_name,
+                date: new Date(txn.date),
+                amount: txn.grand_total,
+                status: txn.payment_method,
+                icon: 'bi-cart-check',
+                color: 'text-success',
+                badge: 'bg-info bg-opacity-10 text-info border-info'
+            }));
+
+            // Normalisasi data Servis
+            const serviceActivities = serviceRes.data.map(ticket => ({
+                type: 'service',
+                id: ticket.ticket_number,
+                actor: ticket.technician.name, // Atau nama customer jika lebih relevan
+                date: new Date(ticket.timestamps.completed_at || ticket.timestamps.created_at),
+                amount: ticket.total_cost || 0,
+                status: ticket.status === 'Picked_Up' ? 'Diambil' : 'Selesai',
+                icon: 'bi-tools',
+                color: 'text-warning', // Warna oranye untuk servis
+                badge: 'bg-success text-white'
+            }));
+
+            // Gabungkan dan Sortir berdasarkan Tanggal Terbaru (Descending)
+            const allActivities = [...retailActivities, ...serviceActivities]
+                .sort((a, b) => b.date - a.date)
+                .slice(0, 10); // Ambil 10 teratas setelah digabung
+
+            if (allActivities.length === 0) {
+                container.innerHTML = `<div class="text-center text-muted py-5"><i class="bi bi-inbox fs-1 opacity-50"></i><p class="mt-3 fw-semibold">Belum ada aktivitas baru</p></div>`;
                 return;
             }
 
+            // Render Gabungan
             container.innerHTML = `
                 <div class="list-group list-group-flush">
-                    ${transactions.data.map(txn => `
+                    ${allActivities.map(act => `
                         <div class="list-group-item px-4 py-3">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div>
-                                    <h6 class="mb-1 fw-bold text-primary">#${txn.invoice_no}</h6>
+                                    <h6 class="mb-1 fw-bold ${act.type === 'service' ? 'text-dark' : 'text-primary'}">
+                                        <i class="bi ${act.icon} me-2 ${act.color}"></i>#${act.id}
+                                    </h6>
                                     <small class="text-muted d-block">
-                                        <i class="bi bi-person-circle me-1"></i>${txn.cashier_name}
+                                        <i class="bi bi-person-circle me-1"></i>${act.actor}
                                     </small>
                                     <small class="text-muted">
-                                        <i class="bi bi-clock me-1"></i>${new Date(txn.date).toLocaleString('id-ID')}
+                                        <i class="bi bi-clock me-1"></i>${act.date.toLocaleString('id-ID')}
                                     </small>
                                 </div>
                                 <div class="text-end">
-                                    <strong class="text-dark fs-6">${formatCurrency(txn.grand_total)}</strong>
+                                    <strong class="text-dark fs-6">${formatCurrency(act.amount)}</strong>
                                     <br>
-                                    <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 mt-1">${txn.payment_method}</span>
+                                    <span class="badge ${act.badge} border border-opacity-25 mt-1">${act.status}</span>
                                 </div>
                             </div>
                         </div>
@@ -219,7 +247,8 @@ class Dashboard {
                 </div>
             `;
         } catch (error) {
-            container.innerHTML = `<div class="p-4 text-center text-danger">${error.message}</div>`;
+            console.error(error);
+            container.innerHTML = `<div class="p-4 text-center text-danger">Gagal memuat aktivitas</div>`;
         }
     }
 }

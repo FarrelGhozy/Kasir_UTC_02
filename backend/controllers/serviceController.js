@@ -1,4 +1,4 @@
-// controllers/serviceController.js - Manajemen Tiket Servis dengan Pengurangan Stok Otomatis
+// controllers/serviceController.js - Manajemen Tiket Servis (FIXED: Filter Multi-Status)
 const ServiceTicket = require('../models/ServiceTicket');
 const Item = require('../models/Item');
 const User = require('../models/User');
@@ -6,59 +6,54 @@ const mongoose = require('mongoose');
 
 /**
  * @desc    Buat tiket servis baru
- * @route   POST /api/services
- * @access  Private (Teknisi, Admin)
  */
 exports.createTicket = async (req, res, next) => {
   try {
     const { customer, device, technician_id, service_fee, notes } = req.body;
 
-    // Validasi apakah teknisi ada
     const technician = await User.findById(technician_id);
     if (!technician || technician.role !== 'teknisi') {
-      return res.status(400).json({
-        success: false,
-        message: 'ID Teknisi tidak valid'
-      });
+      return res.status(400).json({ success: false, message: 'ID Teknisi tidak valid' });
     }
 
-    // Generate nomor tiket
     const ticket_number = await ServiceTicket.generateTicketNumber();
 
-    // Buat tiket servis
     const ticket = await ServiceTicket.create({
       ticket_number,
       customer,
       device,
-      technician: {
-        id: technician._id,
-        name: technician.name
-      },
+      technician: { id: technician._id, name: technician.name },
       service_fee: service_fee || 0,
       notes
     });
 
-    res.status(201).json({
-      success: true,
-      message: 'Tiket servis berhasil dibuat',
-      data: ticket
-    });
+    res.status(201).json({ success: true, message: 'Tiket servis berhasil dibuat', data: ticket });
   } catch (error) {
     next(error);
   }
 };
 
 /**
- * @desc    Ambil semua tiket servis dengan filter
+ * @desc    Ambil semua tiket servis dengan filter (PERBAIKAN UTAMA DI SINI)
  * @route   GET /api/services
- * @access  Private
  */
 exports.getAllTickets = async (req, res, next) => {
   try {
     const { status, technician_id, customer_phone, start_date, end_date, page = 1, limit = 20 } = req.query;
 
     const filter = {};
-    if (status) filter.status = status;
+    
+    // --- PERBAIKAN LOGIKA FILTER STATUS ---
+    if (status) {
+        // Jika ada koma (misal: 'Queue,Diagnosing'), pecah jadi array untuk query $in
+        if (status.includes(',')) {
+            filter.status = { $in: status.split(',') };
+        } else {
+            filter.status = status;
+        }
+    }
+    // -------------------------------------
+
     if (technician_id) filter['technician.id'] = technician_id;
     if (customer_phone) filter['customer.phone'] = customer_phone;
     
@@ -94,24 +89,12 @@ exports.getAllTickets = async (req, res, next) => {
 
 /**
  * @desc    Ambil satu tiket servis berdasarkan ID
- * @route   GET /api/services/:id
- * @access  Private
  */
 exports.getTicketById = async (req, res, next) => {
   try {
     const ticket = await ServiceTicket.findById(req.params.id);
-
-    if (!ticket) {
-      return res.status(404).json({
-        success: false,
-        message: 'Tiket servis tidak ditemukan'
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      data: ticket
-    });
+    if (!ticket) return res.status(404).json({ success: false, message: 'Tiket servis tidak ditemukan' });
+    res.status(200).json({ success: true, data: ticket });
   } catch (error) {
     next(error);
   }
@@ -119,37 +102,22 @@ exports.getTicketById = async (req, res, next) => {
 
 /**
  * @desc    Perbarui status tiket servis
- * @route   PATCH /api/services/:id/status
- * @access  Private (Teknisi, Admin)
  */
 exports.updateStatus = async (req, res, next) => {
   try {
     const { status } = req.body;
-
     const ticket = await ServiceTicket.findById(req.params.id);
-    if (!ticket) {
-      return res.status(404).json({
-        success: false,
-        message: 'Tiket servis tidak ditemukan'
-      });
-    }
+    if (!ticket) return res.status(404).json({ success: false, message: 'Tiket servis tidak ditemukan' });
 
     await ticket.updateStatus(status);
-
-    res.status(200).json({
-      success: true,
-      message: 'Status berhasil diperbarui',
-      data: ticket
-    });
+    res.status(200).json({ success: true, message: 'Status berhasil diperbarui', data: ticket });
   } catch (error) {
     next(error);
   }
 };
 
 /**
- * @desc    Tambahkan suku cadang ke tiket servis (STOK BERKURANG OTOMATIS)
- * @route   POST /api/services/:id/parts
- * @access  Private (Teknisi, Admin)
+ * @desc    Tambahkan suku cadang ke tiket servis
  */
 exports.addPartToService = async (req, res, next) => {
   const session = await mongoose.startSession();
@@ -158,49 +126,31 @@ exports.addPartToService = async (req, res, next) => {
   try {
     const { item_id, quantity } = req.body;
 
-    // Validasi input
     if (!item_id || !quantity || quantity < 1) {
       await session.abortTransaction();
-      return res.status(400).json({
-        success: false,
-        message: 'ID Barang dan jumlah yang valid wajib diisi'
-      });
+      return res.status(400).json({ success: false, message: 'ID Barang dan jumlah valid wajib diisi' });
     }
 
-    // Cari tiket
     const ticket = await ServiceTicket.findById(req.params.id).session(session);
     if (!ticket) {
       await session.abortTransaction();
-      return res.status(404).json({
-        success: false,
-        message: 'Tiket servis tidak ditemukan'
-      });
+      return res.status(404).json({ success: false, message: 'Tiket servis tidak ditemukan' });
     }
 
-    // Cari barang
     const item = await Item.findById(item_id).session(session);
     if (!item) {
       await session.abortTransaction();
-      return res.status(404).json({
-        success: false,
-        message: 'Barang tidak ditemukan'
-      });
+      return res.status(404).json({ success: false, message: 'Barang tidak ditemukan' });
     }
 
-    // Cek ketersediaan stok
     if (item.stock < quantity) {
       await session.abortTransaction();
-      return res.status(400).json({
-        success: false,
-        message: `Stok tidak cukup untuk ${item.name}. Tersedia: ${item.stock}, Diminta: ${quantity}`
-      });
+      return res.status(400).json({ success: false, message: `Stok tidak cukup untuk ${item.name}` });
     }
 
-    // KRITIS: Kurangi stok secara atomik
     item.stock -= quantity;
     await item.save({ session });
 
-    // Tambahkan part ke tiket
     const subtotal = item.selling_price * quantity;
     ticket.parts_used.push({
       item_id: item._id,
@@ -213,11 +163,7 @@ exports.addPartToService = async (req, res, next) => {
     await ticket.save({ session });
     await session.commitTransaction();
 
-    res.status(200).json({
-      success: true,
-      message: 'Suku cadang berhasil ditambahkan dan stok telah dikurangi',
-      data: ticket
-    });
+    res.status(200).json({ success: true, message: 'Part ditambahkan', data: ticket });
   } catch (error) {
     await session.abortTransaction();
     next(error);
@@ -228,79 +174,45 @@ exports.addPartToService = async (req, res, next) => {
 
 /**
  * @desc    Perbarui biaya jasa
- * @route   PATCH /api/services/:id/service-fee
- * @access  Private (Teknisi, Admin)
  */
 exports.updateServiceFee = async (req, res, next) => {
   try {
     const { service_fee } = req.body;
-
-    if (service_fee < 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Biaya jasa tidak boleh negatif'
-      });
-    }
+    if (service_fee < 0) return res.status(400).json({ success: false, message: 'Biaya tidak boleh negatif' });
 
     const ticket = await ServiceTicket.findById(req.params.id);
-    if (!ticket) {
-      return res.status(404).json({
-        success: false,
-        message: 'Tiket servis tidak ditemukan'
-      });
-    }
+    if (!ticket) return res.status(404).json({ success: false, message: 'Tiket tidak ditemukan' });
 
     ticket.service_fee = service_fee;
     await ticket.save();
 
-    res.status(200).json({
-      success: true,
-      message: 'Biaya jasa berhasil diperbarui',
-      data: ticket
-    });
+    res.status(200).json({ success: true, message: 'Biaya jasa diperbarui', data: ticket });
   } catch (error) {
     next(error);
   }
 };
 
 /**
- * @desc    Hapus tiket servis (soft delete berdasarkan status)
- * @route   DELETE /api/services/:id
- * @access  Private (Hanya Admin)
+ * @desc    Hapus tiket servis
  */
 exports.deleteTicket = async (req, res, next) => {
   try {
     const ticket = await ServiceTicket.findById(req.params.id);
-    if (!ticket) {
-      return res.status(404).json({
-        success: false,
-        message: 'Tiket servis tidak ditemukan'
-      });
-    }
+    if (!ticket) return res.status(404).json({ success: false, message: 'Tiket tidak ditemukan' });
 
-    // Hanya izinkan penghapusan jika belum selesai
     if (ticket.status === 'Completed' || ticket.status === 'Picked_Up') {
-      return res.status(400).json({
-        success: false,
-        message: 'Tidak dapat menghapus tiket yang sudah selesai atau diambil'
-      });
+      return res.status(400).json({ success: false, message: 'Tiket selesai tidak bisa dihapus' });
     }
 
     await ticket.updateStatus('Cancelled');
-
-    res.status(200).json({
-      success: true,
-      message: 'Tiket servis berhasil dibatalkan'
-    });
+    res.status(200).json({ success: true, message: 'Tiket dibatalkan' });
   } catch (error) {
     next(error);
   }
 };
 
 /**
- * @desc    Ambil beban kerja teknisi (hitung tiket aktif)
- * @route   GET /api/services/technician/:id/workload
- * @access  Private
+ * @desc    Ambil beban kerja teknisi
  */
 exports.getTechnicianWorkload = async (req, res, next) => {
   try {
@@ -312,54 +224,10 @@ exports.getTechnicianWorkload = async (req, res, next) => {
         }
       },
       {
-        $group: {
-          _id: '$status',
-          count: { $sum: 1 }
-        }
+        $group: { _id: '$status', count: { $sum: 1 } }
       }
     ]);
-
-    res.status(200).json({
-      success: true,
-      data: workload
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// controllers/serviceController.js
-
-// ... (kode yang lain tetap sama)
-
-/**
- * @desc    Update data detail tiket (Pelanggan/Perangkat)
- * @route   PUT /api/services/:id
- * @access  Private
- */
-exports.updateTicketDetails = async (req, res, next) => {
-  try {
-    const { customer, device, notes } = req.body;
-
-    const ticket = await ServiceTicket.findByIdAndUpdate(
-      req.params.id,
-      {
-        customer,
-        device,
-        notes
-      },
-      { new: true, runValidators: true }
-    );
-
-    if (!ticket) {
-      return res.status(404).json({ success: false, message: 'Tiket tidak ditemukan' });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: 'Data tiket berhasil diperbarui',
-      data: ticket
-    });
+    res.status(200).json({ success: true, data: workload });
   } catch (error) {
     next(error);
   }
