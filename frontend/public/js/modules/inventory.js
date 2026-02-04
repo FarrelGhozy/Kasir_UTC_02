@@ -1,4 +1,4 @@
-// public/js/modules/inventory.js - Modul Manajemen Gudang (Inventaris)
+// public/js/modules/inventory.js - Modul Manajemen Gudang (Inventaris) - REVISI
 
 import api, { formatCurrency, showToast, confirmDialog } from '../api.js';
 
@@ -17,7 +17,7 @@ class Inventory {
                 <div class="card-header bg-white py-3">
                     <div class="d-flex justify-content-between align-items-center">
                         <h5 class="mb-0 fw-bold"><i class="bi bi-box-seam me-2"></i>Manajemen Gudang</h5>
-                        <button class="btn btn-primary" onclick="inventory.openItemModal()">
+                        <button class="btn btn-primary" id="add-item-btn">
                             <i class="bi bi-plus-circle me-2"></i>Tambah Barang
                         </button>
                     </div>
@@ -230,7 +230,6 @@ class Inventory {
                 ? '<span class="badge bg-warning text-dark">Sedang</span>'
                 : '<span class="badge bg-success">Aman</span>';
 
-            // Terjemahan Kategori untuk tampilan tabel
             const categoryMap = {
                 'Sparepart': 'Suku Cadang',
                 'Accessory': 'Aksesoris',
@@ -239,6 +238,10 @@ class Inventory {
             };
             const displayCategory = categoryMap[item.category] || item.category;
 
+            // PERBAIKAN: Escape tanda kutip ganda pada nama barang agar HTML tidak rusak
+            const safeName = item.name.replace(/"/g, '&quot;');
+
+            // PERBAIKAN: Menghapus onclick="...", menggantinya dengan data-attributes
             return `
                 <tr>
                     <td><code class="text-primary fw-bold">${item.sku}</code></td>
@@ -250,13 +253,22 @@ class Inventory {
                     <td>${stockBadge}</td>
                     <td>
                         <div class="btn-group btn-group-sm">
-                            <button class="btn btn-outline-primary" onclick="inventory.openStockModal('${item._id}', '${item.name}', ${item.stock})" title="Sesuaikan Stok">
+                            <button class="btn btn-outline-primary btn-action-stock" 
+                                    data-id="${item._id}" 
+                                    data-name="${safeName}" 
+                                    data-stock="${item.stock}" 
+                                    title="Sesuaikan Stok">
                                 <i class="bi bi-arrow-left-right"></i>
                             </button>
-                            <button class="btn btn-outline-secondary" onclick="inventory.editItem('${item._id}')" title="Edit">
+                            <button class="btn btn-outline-secondary btn-action-edit" 
+                                    data-id="${item._id}" 
+                                    title="Edit">
                                 <i class="bi bi-pencil"></i>
                             </button>
-                            <button class="btn btn-outline-danger" onclick="inventory.deleteItem('${item._id}', '${item.name}')" title="Hapus">
+                            <button class="btn btn-outline-danger btn-action-delete" 
+                                    data-id="${item._id}" 
+                                    data-name="${safeName}" 
+                                    title="Hapus">
                                 <i class="bi bi-trash"></i>
                             </button>
                         </div>
@@ -267,36 +279,61 @@ class Inventory {
     }
 
     setupEventListeners() {
-        // Cari
+        // Search & Filter
         document.getElementById('inventory-search').addEventListener('input', (e) => {
             this.searchTerm = e.target.value;
             this.loadItems();
         });
 
-        // Filter Kategori
         document.getElementById('inventory-category-filter').addEventListener('change', (e) => {
             this.categoryFilter = e.target.value;
             this.loadItems();
         });
 
-        // Tombol Muat Ulang
         document.getElementById('refresh-inventory-btn').addEventListener('click', () => {
             this.loadItems();
         });
 
-        // Simpan Barang
+        // Tombol Tambah Barang
+        document.getElementById('add-item-btn').addEventListener('click', () => {
+            this.openItemModal();
+        });
+
         document.getElementById('save-item-btn').addEventListener('click', () => {
             this.saveItem();
         });
 
-        // Simpan Penyesuaian Stok
         document.getElementById('save-stock-btn').addEventListener('click', () => {
             this.adjustStock();
+        });
+
+        // PERBAIKAN: EVENT DELEGATION untuk Tombol Tabel (Edit, Delete, Stock)
+        // Ini solusi agar tombol tetap jalan walau nama barang ada tanda kutipnya
+        const tbody = document.getElementById('inventory-table-body');
+        tbody.addEventListener('click', (e) => {
+            // Cari tombol terdekat yang diklik (karena bisa jadi klik icon <i> nya)
+            const targetBtn = e.target.closest('button');
+            
+            if (!targetBtn) return;
+
+            // Cek tombol mana yang diklik berdasarkan class
+            if (targetBtn.classList.contains('btn-action-edit')) {
+                this.editItem(targetBtn.dataset.id);
+            } 
+            else if (targetBtn.classList.contains('btn-action-delete')) {
+                this.deleteItem(targetBtn.dataset.id, targetBtn.dataset.name);
+            } 
+            else if (targetBtn.classList.contains('btn-action-stock')) {
+                this.openStockModal(
+                    targetBtn.dataset.id, 
+                    targetBtn.dataset.name, 
+                    parseInt(targetBtn.dataset.stock)
+                );
+            }
         });
     }
 
     openItemModal(itemId = null) {
-        // Gunakan getOrCreateInstance untuk mencegah instansi modal ganda
         const modalEl = document.getElementById('itemModal');
         const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
         
@@ -315,8 +352,8 @@ class Inventory {
                 document.getElementById('item-purchase-price').value = item.purchase_price;
                 document.getElementById('item-selling-price').value = item.selling_price;
                 
-                // Nonaktifkan edit stok di mode edit
-                stockInput.value = item.stock;
+                // Set nilai stok tapi matikan inputnya
+                stockInput.value = item.stock; 
                 stockInput.disabled = true;
                 stockHint.classList.remove('d-none');
                 
@@ -336,32 +373,48 @@ class Inventory {
         modal.show();
     }
 
+ // public/js/modules/inventory.js -> Cari saveItem() dan timpa dengan ini:
+
     async saveItem() {
         const form = document.getElementById('item-form');
 
-        // 1. Cek Validasi HTML5
+        // 1. Validasi Form HTML
         if (!form.checkValidity()) {
             form.reportValidity();
             return;
         }
 
         const itemId = document.getElementById('item-id').value;
+        const currentStockVal = document.getElementById('item-stock').value;
 
-        // 2. Pengumpulan Data Aman
+        // 2. Ambil nilai dan pastikan jadi ANGKA (Number)
+        // Kita hapus karakter non-angka jaga-jaga ada format aneh
+        const purchasePrice = parseFloat(document.getElementById('item-purchase-price').value) || 0;
+        const sellingPrice = parseFloat(document.getElementById('item-selling-price').value) || 0;
+        const minStock = parseInt(document.getElementById('item-min-stock').value) || 0;
+        const stock = parseInt(currentStockVal) || 0;
+
+        // 3. Susun Data (Kirim DUA format field untuk jaga-jaga backend bingung)
         const itemData = {
             sku: document.getElementById('item-sku').value.trim(),
             name: document.getElementById('item-name').value.trim(),
             category: document.getElementById('item-category').value,
-            purchase_price: parseFloat(document.getElementById('item-purchase-price').value) || 0,
-            selling_price: parseFloat(document.getElementById('item-selling-price').value) || 0,
-            min_stock_alert: parseInt(document.getElementById('item-min-stock').value) || 0,
-            description: document.getElementById('item-description').value
+            description: document.getElementById('item-description').value,
+            
+            // Format Snake Case (Standar DB)
+            purchase_price: purchasePrice,
+            selling_price: sellingPrice,
+            min_stock_alert: minStock,
+            stock: stock,
+
+            // Format Camel Case (Jaga-jaga backend minta ini)
+            purchasePrice: purchasePrice,
+            sellingPrice: sellingPrice,
+            minStockAlert: minStock
         };
 
-        // Hanya sertakan stok jika membuat barang baru
-        if (!itemId) {
-            itemData.stock = parseInt(document.getElementById('item-stock').value) || 0;
-        }
+        // DEBUG: Cek di Console Browser (Tekan F12 -> Console)
+        console.log("📤 Mengirim Data ke Server:", itemData);
 
         try {
             if (itemId) {
@@ -372,12 +425,14 @@ class Inventory {
                 showToast('Barang baru berhasil ditambahkan', 'success');
             }
 
-            // Tutup modal dengan aman
+            // Tutup modal
             const modalEl = document.getElementById('itemModal');
             bootstrap.Modal.getInstance(modalEl).hide();
             
+            // Refresh tabel
             await this.loadItems();
         } catch (error) {
+            console.error("❌ Gagal Simpan:", error);
             showToast(error.message, 'error');
         }
     }
@@ -434,7 +489,7 @@ class Inventory {
     }
 }
 
-// Buat inventory dapat diakses secara global
+// Buat inventory dapat diakses secara global (opsional, tapi bagus untuk debug)
 window.inventory = new Inventory();
 
 export default Inventory;

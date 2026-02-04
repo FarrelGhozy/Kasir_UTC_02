@@ -44,7 +44,7 @@ const seedTechnicians = async () => {
       await User.create({
         name: techName,
         username: username,
-        password: 'password123', // Password default - GANTI SAAT PRODUKSI!
+        password: 'bengkelutc0326', // Password default - GANTI SAAT PRODUKSI!
         role: 'teknisi'
       });
       console.log(`   ✅ Dibuat: ${techName} (username: ${username})`);
@@ -64,14 +64,17 @@ const seedDefaultUsers = async () => {
   const defaultUsers = [
     {
       name: 'Admin UTC',
-      username: 'admin-utc',
-      password: 'unida-BengkelUTC-0326',
+
+      username: 'admin-utc01',
+      password: 'bengkelutc0326',
+
       role: 'admin'
     },
     {
       name: 'Kasir 1',
       username: 'kasir1',
-      password: 'unida-BengkelUTC-0326',
+      password: 'bengkelutc0326',
+
       role: 'kasir'
     }
   ];
@@ -223,10 +226,10 @@ const runSeeder = async () => {
     console.log('✅ Pengisian database berhasil selesai!');
     console.log('='.repeat(60));
     console.log('\n📝 Kredensial Bawaan (Default):');
-    console.log('   Admin    - Username: admin    | Password: admin123');
-    console.log('   Kasir    - Username: kasir1   | Password: kasir123');
-    console.log('   Teknisi  - Username: farrel   | Password: password123');
-    console.log('\n⚠️  PENTING: Ubah kata sandi ini di mode produksi!');
+    console.log('   Admin    - Username: admin-utc01    | Password: bengkelutc0326');
+    console.log('   Kasir    - Username: kasir1   | Password: bengkelutc0326');
+    console.log('   Teknisi  - Username:    | Password: bengkelutc0326');
+    console.log('\n⚠️  Penting Jangan lupa rubah password setiap beberapa waktu demi keamanan sistem!');
     console.log('='.repeat(60) + '\n');
 
     process.exit(0);

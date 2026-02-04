@@ -1,100 +1,120 @@
-// controllers/transactionController.js - Transaksi POS (Tanpa Atomic Session agar ramah Localhost)
+// controllers/transactionController.js - Transaksi POS (Optimized & Secure)
 const Transaction = require('../models/Transaction');
 const Item = require('../models/Item');
 const User = require('../models/User');
 
 /**
- * @desc    Buat transaksi ritel (DIPERBAIKI: Menghapus Atomic Transactions untuk MongoDB Lokal)
+ * @desc    Buat transaksi ritel (Dengan Validasi Stok 2 Tahap)
  * @route   POST /api/transactions
  * @access  Private (Kasir, Admin)
  */
 exports.createRetailTransaction = async (req, res, next) => {
-  // Session & Transaction start dihapus agar berjalan lancar di localhost tanpa replika set
-  
   try {
     const { items, payment_method, amount_paid, notes } = req.body;
 
-    // Validasi
+    // 1. Validasi Input Dasar
     if (!items || items.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Transaksi harus memiliki setidaknya satu barang'
+        message: 'Keranjang belanja tidak boleh kosong'
       });
     }
 
-    // Ambil info kasir
     const cashier = await User.findById(req.user.id);
     if (!cashier) {
-      return res.status(404).json({
-        success: false,
-        message: 'Kasir tidak ditemukan'
-      });
+      return res.status(404).json({ success: false, message: 'Kasir tidak ditemukan' });
     }
 
-    // Proses setiap barang
-    const processedItems = [];
+    // --- FASE 1: VALIDASI & PERSIAPAN (Tanpa Mengubah Database) ---
+    // Kita cek stok SEMUA barang dulu. Kalau ada 1 yang kurang, batalkan semua.
+    
+    const itemsToProcess = [];
     let grandTotal = 0;
 
-    for (const transactionItem of items) {
-      const { item_id, qty } = transactionItem;
-
-      // Cari barang
-      const item = await Item.findById(item_id); 
-      if (!item) {
+    for (const cartItem of items) {
+      const itemDB = await Item.findById(cartItem.item_id);
+      
+      // Cek eksistensi barang
+      if (!itemDB) {
         return res.status(404).json({
           success: false,
-          message: `Barang dengan ID ${item_id} tidak ditemukan`
+          message: `Barang dengan ID ${cartItem.item_id} tidak ditemukan di database`
         });
       }
 
-      // Cek stok
-      if (item.stock < qty) {
+      // Cek stok cukup atau tidak
+      if (itemDB.stock < cartItem.qty) {
         return res.status(400).json({
           success: false,
-          message: `Stok tidak cukup untuk ${item.name}. Tersedia: ${item.stock}, Diminta: ${qty}`
+          message: `Stok tidak cukup: ${itemDB.name} (Sisa: ${itemDB.stock}, Diminta: ${cartItem.qty})`
         });
       }
 
-      // Hitung subtotal
-      const subtotal = item.selling_price * qty;
+      // Hitung subtotal & simpan data sementara di memori
+      const subtotal = itemDB.selling_price * cartItem.qty;
       grandTotal += subtotal;
 
-      // Kurangi stok (Simpan Langsung)
-      item.stock -= qty;
-      await item.save(); 
-
-      // Tambahkan ke item yang diproses
-      processedItems.push({
-        item_id: item._id,
-        name: item.name,
-        qty: qty,
-        price: item.selling_price,
+      itemsToProcess.push({
+        dbItem: itemDB,     // Object Mongoose asli (untuk di-save nanti)
+        name: itemDB.name,
+        qty: cartItem.qty,
+        price: itemDB.selling_price,
         subtotal: subtotal
       });
     }
 
-    // Generate nomor faktur
+    // Validasi Pembayaran (Khusus Tunai)
+    if (payment_method === 'Cash' && amount_paid < grandTotal) {
+      return res.status(400).json({
+        success: false,
+        message: `Uang pembayaran kurang! Total: ${grandTotal}, Dibayar: ${amount_paid}`
+      });
+    }
+
+    // --- FASE 2: EKSEKUSI (Potong Stok & Simpan Transaksi) ---
+    // Karena Fase 1 lolos, berarti semua stok AMAN. Sekarang kita eksekusi.
+
+    const finalTransactionItems = [];
+
+    for (const proc of itemsToProcess) {
+      // A. POTONG STOK OTOMATIS
+      proc.dbItem.stock -= proc.qty;
+      await proc.dbItem.save(); // Simpan perubahan stok ke DB
+
+      // B. Siapkan data untuk struk
+      finalTransactionItems.push({
+        item_id: proc.dbItem._id,
+        name: proc.name,
+        qty: proc.qty,
+        price: proc.price,
+        subtotal: proc.subtotal
+      });
+    }
+
+    // Generate No Faktur
     const invoice_no = await Transaction.generateInvoiceNumber();
 
-    // Buat transaksi
+    // Simpan Transaksi Utama
     const transaction = new Transaction({
       invoice_no,
       cashier_id: cashier._id,
       cashier_name: cashier.name,
-      items: processedItems,
+      items: finalTransactionItems,
       grand_total: grandTotal,
       payment_method,
-      amount_paid: amount_paid || grandTotal,
-      notes
+      amount_paid: amount_paid || grandTotal, // Jika non-tunai, anggap pas
+      notes,
+      date: new Date()
     });
 
     await transaction.save();
 
     res.status(201).json({
       success: true,
-      message: 'Transaksi berhasil diselesaikan',
+      message: 'Transaksi berhasil!',
       data: transaction
     });
+
   } catch (error) {
     next(error);
   }
@@ -102,18 +122,12 @@ exports.createRetailTransaction = async (req, res, next) => {
 
 /**
  * @desc    Ambil semua transaksi dengan filter
- * @route   GET /api/transactions
- * @access  Private
  */
 exports.getAllTransactions = async (req, res, next) => {
   try {
     const { 
-      cashier_id, 
-      payment_method, 
-      start_date, 
-      end_date, 
-      page = 1, 
-      limit = 20 
+      cashier_id, payment_method, start_date, end_date, 
+      page = 1, limit = 20 
     } = req.query;
 
     const filter = {};
@@ -153,34 +167,22 @@ exports.getAllTransactions = async (req, res, next) => {
 
 /**
  * @desc    Ambil satu transaksi berdasarkan ID
- * @route   GET /api/transactions/:id
- * @access  Private
  */
 exports.getTransactionById = async (req, res, next) => {
   try {
     const transaction = await Transaction.findById(req.params.id)
       .populate('cashier_id', 'name username role');
 
-    if (!transaction) {
-      return res.status(404).json({
-        success: false,
-        message: 'Transaksi tidak ditemukan'
-      });
-    }
+    if (!transaction) return res.status(404).json({ success: false, message: 'Transaksi tidak ditemukan' });
 
-    res.status(200).json({
-      success: true,
-      data: transaction
-    });
+    res.status(200).json({ success: true, data: transaction });
   } catch (error) {
     next(error);
   }
 };
 
 /**
- * @desc    Ambil transaksi berdasarkan nomor faktur
- * @route   GET /api/transactions/invoice/:invoice_no
- * @access  Private
+ * @desc    Ambil transaksi berdasarkan Invoice
  */
 exports.getTransactionByInvoice = async (req, res, next) => {
   try {
@@ -188,26 +190,16 @@ exports.getTransactionByInvoice = async (req, res, next) => {
       invoice_no: req.params.invoice_no.toUpperCase() 
     }).populate('cashier_id', 'name username role');
 
-    if (!transaction) {
-      return res.status(404).json({
-        success: false,
-        message: 'Transaksi tidak ditemukan'
-      });
-    }
+    if (!transaction) return res.status(404).json({ success: false, message: 'Transaksi tidak ditemukan' });
 
-    res.status(200).json({
-      success: true,
-      data: transaction
-    });
+    res.status(200).json({ success: true, data: transaction });
   } catch (error) {
     next(error);
   }
 };
 
 /**
- * @desc    Ambil ringkasan transaksi hari ini
- * @route   GET /api/transactions/summary/today
- * @access  Private
+ * @desc    Ringkasan hari ini
  */
 exports.getTodaySummary = async (req, res, next) => {
   try {
@@ -217,22 +209,13 @@ exports.getTodaySummary = async (req, res, next) => {
     tomorrow.setDate(tomorrow.getDate() + 1);
 
     const summary = await Transaction.aggregate([
-      {
-        $match: {
-          date: { $gte: today, $lt: tomorrow }
-        }
-      },
+      { $match: { date: { $gte: today, $lt: tomorrow } } },
       {
         $group: {
           _id: null,
           total_transactions: { $sum: 1 },
           total_revenue: { $sum: '$grand_total' },
-          payment_methods: {
-            $push: {
-              method: '$payment_method',
-              amount: '$grand_total'
-            }
-          }
+          payment_methods: { $push: { method: '$payment_method', amount: '$grand_total' } }
         }
       },
       {
@@ -240,90 +223,23 @@ exports.getTodaySummary = async (req, res, next) => {
           _id: 0,
           total_transactions: 1,
           total_revenue: 1,
-          cash: {
-            $sum: {
-              $map: {
-                input: {
-                  $filter: {
-                    input: '$payment_methods',
-                    as: 'pm',
-                    cond: { $eq: ['$$pm.method', 'Cash'] }
-                  }
-                },
-                as: 'cash_pm',
-                in: '$$cash_pm.amount'
-              }
-            }
-          },
-          transfer: {
-            $sum: {
-              $map: {
-                input: {
-                  $filter: {
-                    input: '$payment_methods',
-                    as: 'pm',
-                    cond: { $eq: ['$$pm.method', 'Transfer'] }
-                  }
-                },
-                as: 'transfer_pm',
-                in: '$$transfer_pm.amount'
-              }
-            }
-          },
-          qris: {
-            $sum: {
-              $map: {
-                input: {
-                  $filter: {
-                    input: '$payment_methods',
-                    as: 'pm',
-                    cond: { $eq: ['$$pm.method', 'QRIS'] }
-                  }
-                },
-                as: 'qris_pm',
-                in: '$$qris_pm.amount'
-              }
-            }
-          },
-          card: {
-            $sum: {
-              $map: {
-                input: {
-                  $filter: {
-                    input: '$payment_methods',
-                    as: 'pm',
-                    cond: { $eq: ['$$pm.method', 'Card'] }
-                  }
-                },
-                as: 'card_pm',
-                in: '$$card_pm.amount'
-              }
-            }
-          }
+          cash: { $sum: { $map: { input: { $filter: { input: '$payment_methods', as: 'pm', cond: { $eq: ['$$pm.method', 'Cash'] } } }, as: 'val', in: '$$val.amount' } } },
+          transfer: { $sum: { $map: { input: { $filter: { input: '$payment_methods', as: 'pm', cond: { $eq: ['$$pm.method', 'Transfer'] } } }, as: 'val', in: '$$val.amount' } } },
+          qris: { $sum: { $map: { input: { $filter: { input: '$payment_methods', as: 'pm', cond: { $eq: ['$$pm.method', 'QRIS'] } } }, as: 'val', in: '$$val.amount' } } },
+          card: { $sum: { $map: { input: { $filter: { input: '$payment_methods', as: 'pm', cond: { $eq: ['$$pm.method', 'Card'] } } }, as: 'val', in: '$$val.amount' } } }
         }
       }
     ]);
 
-    const result = summary.length > 0 ? summary[0] : {
-      total_transactions: 0,
-      total_revenue: 0,
-      cash: 0,
-      transfer: 0,
-      qris: 0,
-      card: 0
-    };
-
-    res.status(200).json({
-      success: true,
-      data: result
-    });
+    const result = summary.length > 0 ? summary[0] : { total_transactions: 0, total_revenue: 0, cash: 0, transfer: 0, qris: 0, card: 0 };
+    res.status(200).json({ success: true, data: result });
   } catch (error) {
     next(error);
   }
 };
 
 /**
- * @desc    Hapus transaksi (Admin saja - gunakan dengan hati-hati)
+ * @desc    Hapus transaksi & KEMBALIKAN STOK
  * @route   DELETE /api/transactions/:id
  * @access  Private (Admin)
  */
@@ -337,11 +253,25 @@ exports.deleteTransaction = async (req, res, next) => {
       });
     }
 
+    // --- KEMBALIKAN STOK (RESTORE STOCK) ---
+    // Loop setiap barang yang dulu dibeli, kembalikan jumlahnya ke gudang
+    for (const itemSold of transaction.items) {
+      const itemInDb = await Item.findById(itemSold.item_id);
+      
+      if (itemInDb) {
+        // Kembalikan stok
+        itemInDb.stock += itemSold.qty;
+        await itemInDb.save();
+        console.log(`[RESTORE] Mengembalikan ${itemSold.qty} stok untuk ${itemInDb.name}`);
+      }
+    }
+
+    // Hapus data transaksi permanen
     await Transaction.findByIdAndDelete(req.params.id);
 
     res.status(200).json({
       success: true,
-      message: 'Transaksi dihapus (stok TIDAK dikembalikan)'
+      message: 'Transaksi dihapus dan stok barang telah DIKEMBALIKAN ke gudang'
     });
   } catch (error) {
     next(error);
