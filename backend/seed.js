@@ -64,14 +64,14 @@ const seedDefaultUsers = async () => {
   const defaultUsers = [
     {
       name: 'Admin UTC',
-      username: 'admin',
-      password: 'admin123',
+      username: 'admin-utc',
+      password: 'unida-BengkelUTC-0326',
       role: 'admin'
     },
     {
       name: 'Kasir 1',
       username: 'kasir1',
-      password: 'kasir123',
+      password: 'unida-BengkelUTC-0326',
       role: 'kasir'
     }
   ];
