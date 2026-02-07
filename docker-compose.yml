@@ -6,11 +6,19 @@ services:
     image: mongo:latest
     container_name: utc_mongo
     ports:
-      - "27018:27017" # Buka akses db ke laptop (opsional)
+      - "27018:27017"
     volumes:
-      - mongo_data:/data/db # Simpan data biar gak hilang pas restart
+      - mongo_data:/data/db
     networks:
       - utc_network
+    # --- LIMITASI RESOURCE ---
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'        # Maksimal pakai 50% dari 1 Core CPU
+          memory: 512M        # Maksimal RAM fisik 512MB (Selebihnya masuk Swap)
+        reservations:
+          memory: 128M        # Garansi RAM minimal 128MB agar stabil
 
   # 2. Backend (Server API)
   backend:
@@ -20,29 +28,42 @@ services:
       - "5200:5000"
     environment:
       - PORT=5000
-      # PERHATIAN: Di Docker, hostnamenya bukan 'localhost', tapi nama service 'mongo_db'
       - MONGODB_URI=mongodb://mongo_db:27017/bengkel_utc
       - JWT_SECRET=rahasia_super_aman_docker
       - NODE_ENV=development
     depends_on:
-      - mongo_db # Tunggu database nyala dulu baru server jalan
+      - mongo_db
     networks:
       - utc_network
+    # --- LIMITASI RESOURCE ---
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'        # Maksimal pakai 50% dari 1 Core CPU
+          memory: 300M        # Node.js backend cukup ringan, 300MB cukup
+        reservations:
+          memory: 100M        # Garansi RAM minimal
 
   # 3. Frontend (Web Interface)
   frontend:
     build: ./frontend
     container_name: utc_frontend
     ports:
-      - "8080:80" # Akses di browser nanti pakai localhost:8080
+      - "8080:80"
     networks:
       - utc_network
+    # --- LIMITASI RESOURCE ---
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'        # Frontend statis (Nginx) sangat ringan, 25% CPU cukup
+          memory: 128M        # 128MB sangat cukup untuk serve file statis
+        reservations:
+          memory: 32M
 
-# Bikin jaringan khusus biar mereka bisa saling ngobrol
 networks:
   utc_network:
     driver: bridge
 
-# Bikin tempat penyimpanan data database
 volumes:
   mongo_data: {}
