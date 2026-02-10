@@ -4,6 +4,7 @@ services:
   # 1. Database MongoDB
   mongo_db:
     image: mongo:latest
+    restart: always
     container_name: utc_mongo
     ports:
       - "27018:27017"
@@ -24,6 +25,7 @@ services:
   backend:
     build: ./backend
     container_name: utc_backend
+    restart: always
     ports:
       - "5200:5000"
     environment:
@@ -48,6 +50,7 @@ services:
   frontend:
     build: ./frontend
     container_name: utc_frontend
+    restart: always
     ports:
       - "8080:80"
     networks:
