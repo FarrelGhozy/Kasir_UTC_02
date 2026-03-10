@@ -115,7 +115,6 @@ exports.updateStatus = async (req, res, next) => {
  * @desc    Tambahkan suku cadang ke tiket servis (LOGIKA BARU: TANPA TRANSAKSI)
  */
 exports.addPartToService = async (req, res, next) => {
-  // CATATAN: Session/Transaction dihapus agar kompatibel dengan MongoDB Standalone (Lokal)
   try {
     const { item_id, quantity } = req.body;
 
@@ -129,42 +128,49 @@ exports.addPartToService = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Tiket servis tidak ditemukan' });
     }
 
-    // 2. Cek Barang
+    // 2. Validasi status tiket — tidak bisa tambah part ke tiket Completed/Cancelled/Picked_Up
+    if (['Completed', 'Cancelled', 'Picked_Up'].includes(ticket.status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Tidak dapat menambah part ke tiket dengan status ${ticket.status}`
+      });
+    }
+
+    // 3. Cek Barang
     const item = await Item.findById(item_id);
     if (!item) {
       return res.status(404).json({ success: false, message: 'Barang tidak ditemukan' });
     }
 
-    // 3. Cek Stok
+    // 4. Cek Stok
     if (item.stock < quantity) {
       return res.status(400).json({ success: false, message: `Stok tidak cukup untuk ${item.name}. Sisa: ${item.stock}` });
     }
 
-    // 4. Kurangi Stok & Simpan Barang
+    // 5. Kurangi Stok & Simpan Barang
     item.stock -= quantity;
     await item.save();
 
-    // 5. Update Tiket & Simpan
-    const subtotal = item.selling_price * quantity;
-    ticket.parts_used.push({
-      item_id: item._id,
-      name: item.name,
-      qty: quantity,
-      price_at_time: item.selling_price,
-      subtotal: subtotal
-    });
-
-    // Recalculate total cost in ticket model logic usually handles this, 
-    // but just in case, ensure logic in Model handles 'total_cost' calculation on save.
-    // Assuming your schema handles pre-save or methods. 
-    // If not, trigger it or let the frontend recalculate visualization.
-    
-    await ticket.save();
+    // 6. Update Tiket & Simpan — jika gagal, rollback stok
+    try {
+      const subtotal = item.selling_price * quantity;
+      ticket.parts_used.push({
+        item_id: item._id,
+        name: item.name,
+        qty: quantity,
+        price_at_time: item.selling_price,
+        subtotal: subtotal
+      });
+      await ticket.save();
+    } catch (ticketSaveError) {
+      // ROLLBACK: Kembalikan stok jika tiket gagal disimpan
+      item.stock += quantity;
+      await item.save();
+      throw ticketSaveError;
+    }
 
     res.status(200).json({ success: true, message: 'Part ditambahkan', data: ticket });
   } catch (error) {
-    // Jika error di tengah jalan, stok mungkin sudah berkurang tapi tiket gagal update.
-    // Dalam app skala kecil ini risiko tersebut kita terima demi kompatibilitas lokal.
     next(error);
   }
 };
@@ -197,8 +203,8 @@ exports.deleteTicket = async (req, res, next) => {
     const ticket = await ServiceTicket.findById(req.params.id);
     if (!ticket) return res.status(404).json({ success: false, message: 'Tiket tidak ditemukan' });
 
-    if (ticket.status === 'Completed' || ticket.status === 'Picked_Up') {
-      return res.status(400).json({ success: false, message: 'Tiket selesai tidak bisa dihapus' });
+    if (['Completed', 'Picked_Up', 'Cancelled'].includes(ticket.status)) {
+      return res.status(400).json({ success: false, message: 'Tiket ini tidak dapat dibatalkan (status final)' });
     }
 
     await ticket.updateStatus('Cancelled');

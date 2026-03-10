@@ -11,7 +11,14 @@ const customerSchema = new mongoose.Schema({
   phone: {
     type: String,
     required: [true, 'Nomor telepon pelanggan wajib diisi'],
-    trim: true
+    trim: true,
+    validate: {
+      validator: function(v) {
+        // Validasi nomor telepon Indonesia: diawali 0, 62, atau +62, diikuti 8-13 digit
+        return /^(\+62|62|0)[0-9]{8,13}$/.test(v.replace(/[\s\-]/g, ''));
+      },
+      message: 'Format nomor telepon tidak valid. Gunakan format: 08xx-xxxx-xxxx atau +628xx-xxxx-xxxx'
+    }
   },
   type: {
     type: String,
@@ -152,8 +159,6 @@ const serviceTicketSchema = new mongoose.Schema({
       type: Date
     }
   }
-}, {
-  timestamps: true
 });
 
 // Indexes
@@ -186,17 +191,22 @@ serviceTicketSchema.statics.generateTicketNumber = async function() {
   const year = new Date().getFullYear();
   const prefix = `SRV-${year}`;
   
+  // FIX: Sort by timestamps.created_at (waktu), bukan string ticket_number
   const lastTicket = await this.findOne({
     ticket_number: new RegExp(`^${prefix}`)
-  }).sort({ ticket_number: -1 });
+  }).sort({ 'timestamps.created_at': -1 });
   
   let nextNumber = 1;
   if (lastTicket) {
-    const lastNumber = parseInt(lastTicket.ticket_number.slice(-3));
-    nextNumber = lastNumber + 1;
+    // FIX: Extract angka dari akhir string dengan regex, bukan slice
+    const match = lastTicket.ticket_number.match(/(\d+)$/);
+    if (match) {
+      nextNumber = parseInt(match[1], 10) + 1;
+    }
   }
   
-  return `${prefix}${String(nextNumber).padStart(3, '0')}`;
+  // FIX: padStart(4) agar bisa menampung hingga 9999 tiket per tahun
+  return `${prefix}-${String(nextNumber).padStart(4, '0')}`;
 };
 
 // Method instance untuk menambah part (Tanpa Session untuk kompatibilitas Localhost)
@@ -230,8 +240,29 @@ serviceTicketSchema.methods.addPart = async function(itemId, quantity) {
   return this;
 };
 
-// Method instance untuk update status dengan pelacakan waktu
+// Method instance untuk update status dengan validasi alur state machine
 serviceTicketSchema.methods.updateStatus = async function(newStatus) {
+  const validTransitions = {
+    'Queue':        ['Diagnosing', 'Cancelled'],
+    'Diagnosing':   ['Waiting_Part', 'In_Progress', 'Cancelled'],
+    'Waiting_Part': ['In_Progress', 'Cancelled'],
+    'In_Progress':  ['Completed', 'Waiting_Part', 'Cancelled'],
+    'Completed':    ['Picked_Up'],
+    'Cancelled':    [], // Terminal state
+    'Picked_Up':    [], // Terminal state
+  };
+
+  const allowedNext = validTransitions[this.status];
+  if (!allowedNext) {
+    throw new Error(`Status saat ini tidak dikenali: ${this.status}`);
+  }
+  if (!allowedNext.includes(newStatus)) {
+    throw new Error(
+      `Transisi status tidak valid: ${this.status} → ${newStatus}. ` +
+      `Status yang diizinkan: ${allowedNext.join(', ') || 'tidak ada (status final)'}`
+    );
+  }
+
   this.status = newStatus;
   
   if (newStatus === 'Diagnosing' && !this.timestamps.diagnosed_at) {
