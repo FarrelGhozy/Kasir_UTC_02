@@ -167,6 +167,7 @@ body {
 /* Cart Table */
 
 .cart-container {
+    /* calc: 100vh minus navbar (~60px), cart header (~56px), payment section (~300px) */
     max-height: calc(100vh - 420px);
     overflow-y: auto;
     border: 1px solid #dee2e6;

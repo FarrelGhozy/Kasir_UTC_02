@@ -38,6 +38,8 @@ const userSchema = new mongoose.Schema({
     default: true
   }
 }, {
+  // Use snake_case field names to match the existing API responses and database schema.
+  // This ensures consistency with Item.js and other models in this project.
   timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
 });
 

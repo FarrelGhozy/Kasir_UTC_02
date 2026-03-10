@@ -240,8 +240,8 @@ class Inventory {
         let sortedItems = [...this.items];
         if (this.sortColumn) {
             sortedItems.sort((a, b) => {
-                let valA = a[this.sortColumn];
-                let valB = b[this.sortColumn];
+                let valA = a[this.sortColumn] ?? '';
+                let valB = b[this.sortColumn] ?? '';
                 if (typeof valA === 'string') valA = valA.toLowerCase();
                 if (typeof valB === 'string') valB = valB.toLowerCase();
                 if (valA < valB) return this.sortDirection === 'asc' ? -1 : 1;

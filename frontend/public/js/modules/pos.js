@@ -189,7 +189,7 @@ class POS {
                             <i class="bi bi-box-seam" style="font-size: 2.5rem;"></i>
                         </div>
                         <h6 class="card-title text-truncate mb-1 fw-bold" title="${item.name}">${item.name}</h6>
-                        <small class="text-muted sku-label mb-1">${item.sku}</small>
+                        <small class="text-muted sku-label d-block mb-1">${item.sku}</small>
                         <div class="mt-auto">
                             <h5 class="text-primary fw-bold mb-2">${formatCurrency(item.selling_price)}</h5>
                             <span class="badge ${this.getStockBadgeClass(item.stock, item.min_stock_alert)} rounded-pill">
@@ -616,12 +616,12 @@ class POS {
                 document.body.removeChild(iframe);
             }
         });
-        // Fallback: hapus iframe setelah 60 detik jika afterprint tidak terpicu
+        // Fallback: remove iframe after 15 seconds if afterprint doesn't fire
         setTimeout(() => {
             if (document.body.contains(iframe)) {
                 document.body.removeChild(iframe);
             }
-        }, 60000); 
+        }, 15000); 
     }
 }
 
