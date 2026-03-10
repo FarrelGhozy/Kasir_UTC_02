@@ -13,12 +13,18 @@ const PORT = process.env.PORT || 5000;
 connectDB();
 
 // Middleware
+
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://yourdomain.com'] 
-    : '*', // <--- Development? Izinkan semua!
-  credentials: true
+  origin: '*',
+  credentials: false
 }));
+
+// app.use(cors({
+//   origin: process.env.NODE_ENV === 'production' 
+//     ? ['https://kasir.utc.vercel.app'] 
+//     : '*', // <--- Development? Izinkan semua!
+//   credentials: true
+// }));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
