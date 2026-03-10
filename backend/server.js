@@ -53,7 +53,7 @@ app.use((req, res) => {
 app.use(errorHandler);
 
 // Jalankan server
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log('='.repeat(50));
   console.log(`🚀 Server API Bengkel UTC Berjalan`);
   console.log(`📍 Port: ${PORT}`);
@@ -65,7 +65,12 @@ app.listen(PORT, () => {
 // Penanganan shutdown yang aman (Graceful shutdown)
 process.on('SIGTERM', () => {
   console.log('Sinyal SIGTERM diterima: menutup server HTTP');
-  process.exit(0);
+  server.close(async () => {
+    const mongoose = require('mongoose');
+    await mongoose.connection.close();
+    console.log('Server dan koneksi MongoDB ditutup dengan aman');
+    process.exit(0);
+  });
 });
 
 process.on('unhandledRejection', (err) => {

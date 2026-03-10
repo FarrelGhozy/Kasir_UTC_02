@@ -5,6 +5,17 @@
     --primary-color: #0d6efd;
     --dark-bg: #212529;
     --light-bg: #f8f9fa;
+    --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    --card-shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.12);
+    --border-radius: 12px;
+    --border-radius-sm: 8px;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
+    --toast-success: #198754;
+    --toast-error: #dc3545;
+    --toast-warning: #ffc107;
+    --toast-info: #0dcaf0;
 }
 
 * {
@@ -13,8 +24,7 @@
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    background: linear-gradient(rgba(248, 249, 250, 0.8), rgba(248, 249, 250, 0.8)), url('unidapoenya.jpg') no-repeat center center fixed;
-    background-size: cover;
+    background-color: var(--light-bg);
     overflow-x: hidden;
 }
 
@@ -45,6 +55,7 @@ body {
 #sidebar .nav-link.active {
     background-color: var(--primary-color);
     color: white !important;
+    border-left: 4px solid rgba(255, 255, 255, 0.7);
 }
 
 #sidebar .nav-link i {
@@ -65,14 +76,15 @@ body {
 
 .card {
     border: none;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border-radius: var(--border-radius);
+    box-shadow: var(--card-shadow);
+    transition: box-shadow 0.3s ease;
 }
 
-.card:hover {
+/* Only apply hover lift to cards that opt-in via .hoverable-card */
+.hoverable-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    box-shadow: var(--card-shadow-hover);
 }
 
 .card-header {
@@ -155,10 +167,10 @@ body {
 /* Cart Table */
 
 .cart-container {
-    max-height: calc(100vh - 400px);
+    max-height: calc(100vh - 420px);
     overflow-y: auto;
     border: 1px solid #dee2e6;
-    border-radius: 8px;
+    border-radius: var(--border-radius-sm);
     background: white;
 }
 
@@ -386,15 +398,53 @@ body {
 
 /* Responsive */
 
-@media (max-width: 768px) {
+/* Desktop: Sidebar always visible */
+@media (min-width: 992px) {
     #sidebar {
-        width: 100%;
-        position: relative;
-        height: auto;
+        left: 0 !important;
+        width: 250px;
     }
     #main-content {
-        margin-left: 0;
+        margin-left: 250px;
     }
+    #sidebar-toggle {
+        display: none;
+    }
+}
+
+/* Mobile: Sidebar hidden, slides in */
+@media (max-width: 991px) {
+    #sidebar {
+        left: -280px;
+        width: 280px;
+        z-index: 9999;
+        transition: all 0.3s ease-in-out;
+        visibility: hidden;
+    }
+    #sidebar.active {
+        left: 0;
+        visibility: visible;
+    }
+    #main-content {
+        margin-left: 0 !important;
+        width: 100%;
+    }
+    .sidebar-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 9998;
+    }
+    .sidebar-overlay.active {
+        display: block;
+    }
+}
+
+@media (max-width: 768px) {
     .product-grid {
         grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
     }
@@ -419,9 +469,60 @@ body {
 }
 
 
-/* Print Styles for Receipt */
+/* Print Styles for Receipt — handled in full @media print block at end of file */
+
+
+/* Custom Login Background */
+
+#login-screen {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    width: 100%;
+    height: 100vh;
+}
+
+
+/* Skeleton Loading Animation */
+
+@keyframes skeleton-shimmer {
+    0% { background-position: -200px 0; }
+    100% { background-position: calc(200px + 100%) 0; }
+}
+
+.skeleton {
+    background: linear-gradient(90deg, #e2e8f0 25%, #f8fafc 50%, #e2e8f0 75%);
+    background-size: 400px 100%;
+    animation: skeleton-shimmer 1.4s ease infinite;
+    border-radius: 4px;
+    color: transparent !important;
+}
+
+.skeleton-text {
+    display: inline-block;
+    border-radius: 4px;
+}
+
+
+/* Toast Variants */
+
+.toast.toast-success { background-color: var(--toast-success) !important; color: #fff; }
+.toast.toast-error   { background-color: var(--toast-error) !important;   color: #fff; }
+.toast.toast-warning { background-color: var(--toast-warning) !important; color: #000; }
+.toast.toast-info    { background-color: var(--toast-info) !important;    color: #000; }
+
+
+/* Print Styles */
 
 @media print {
+    #sidebar,
+    #main-content > nav.navbar,
+    .toast-container,
+    .btn,
+    .modal {
+        display: none !important;
+    }
+    #main-content {
+        margin-left: 0 !important;
+    }
     body * {
         visibility: hidden;
     }
@@ -436,17 +537,6 @@ body {
         width: 100%;
     }
 }
-
-
-/* Custom Login Background */
-
-#login-screen {
-    background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('unidapoenya.jpg') no-repeat center center fixed;
-    background-size: cover;
-    width: 100%;
-    height: 100vh;
-}
-
 
 /* Biar kotak loginnya lebih kontras */
 

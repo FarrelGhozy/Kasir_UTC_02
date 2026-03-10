@@ -36,13 +36,9 @@ const userSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
-  },
-  created_at: {
-    type: Date,
-    default: Date.now
   }
 }, {
-  timestamps: true // Menambahkan createdAt dan updatedAt secara otomatis
+  timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
 });
 
 // Middleware pre-save untuk hash password

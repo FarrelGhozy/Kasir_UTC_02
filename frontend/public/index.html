@@ -4,68 +4,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Bengkel UTC - Sistem Manajemen Bengkel dan Kasir">
+    <meta name="theme-color" content="#0d6efd">
     <title>Bengkel UTC - Sistem Manajemen Bengkel</title>
 
-    <link rel="icon" type="image/x-icon" href="assets/logo.webp">
+    <link rel="icon" type="image/webp" href="assets/logo.webp">
 
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
     <link rel="stylesheet" href="./css/styles.css">
-
-    <style>
-        /* Desktop: Sidebar tetap tampil */
-        
-        @media (min-width: 992px) {
-            #sidebar {
-                left: 0 !important;
-                width: 250px;
-            }
-            #main-content {
-                margin-left: 250px;
-            }
-            #sidebar-toggle {
-                display: none;
-            }
-        }
-        /* Mobile: Sidebar sembunyi & melayang */
-        
-        @media (max-width: 991px) {
-            #sidebar {
-                left: -280px;
-                /* Sembunyi ke kiri */
-                width: 280px;
-                z-index: 9999;
-                /* Pastikan di paling depan */
-                transition: all 0.3s ease-in-out;
-                visibility: hidden;
-                /* Biar kaga nutupin klik pas sembunyi */
-            }
-            #sidebar.active {
-                left: 0;
-                visibility: visible;
-            }
-            #main-content {
-                margin-left: 0 !important;
-                width: 100%;
-            }
-            /* Overlay gelap saat menu buka */
-            .sidebar-overlay {
-                display: none;
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(0, 0, 0, 0.5);
-                z-index: 9998;
-            }
-            .sidebar-overlay.active {
-                display: block;
-            }
-        }
-    </style>
 </head>
 
 <body class="bg-light">
@@ -180,8 +130,8 @@
                 <div class="container-fluid px-0">
                     <div class="d-flex align-items-center">
                         <button class="btn btn-light d-lg-none me-3" id="sidebar-toggle">
-                <i class="bi bi-list fs-4"></i>
-            </button>
+                            <i class="bi bi-list fs-4"></i>
+                        </button>
                         <h4 class="mb-0 fw-bold text-dark" id="page-title">Dasbor</h4>
                     </div>
 

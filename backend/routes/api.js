@@ -51,8 +51,9 @@ router.delete('/inventory/:id', protect, authorize('admin'), inventoryController
 // RUTE TIKET SERVIS
 // ============================================
 router.get('/services', protect, serviceController.getAllTickets);
-router.get('/services/:id', protect, serviceController.getTicketById);
+// Rute spesifik harus didefinisikan SEBELUM rute dengan parameter (:id)
 router.get('/services/technician/:id/workload', protect, serviceController.getTechnicianWorkload);
+router.get('/services/:id', protect, serviceController.getTicketById);
 
 // Teknisi & Admin dapat mengelola servis
 router.post('/services', protect, authorize('teknisi', 'admin'), serviceController.createTicket);
