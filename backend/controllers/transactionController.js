@@ -95,10 +95,7 @@ exports.createRetailTransaction = async (req, res, next) => {
         });
       }
 
-      const invoice_no = await Transaction.generateInvoiceNumber();
-
       transaction = new Transaction({
-        invoice_no,
         cashier_id: cashier._id,
         cashier_name: cashier.name,
         items: finalTransactionItems,

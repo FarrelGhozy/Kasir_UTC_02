@@ -243,6 +243,12 @@ class Users {
             return;
         }
 
+        if (!this.editingUserId && (!username || !password)) {
+            errorDiv.textContent = 'Username dan password wajib diisi';
+            errorDiv.classList.remove('d-none');
+            return;
+        }
+
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Menyimpan...';
 
@@ -254,11 +260,6 @@ class Users {
                 showToast('Data pengguna berhasil diperbarui', 'success');
             } else {
                 // Tambah pengguna baru
-                if (!username || !password) {
-                    errorDiv.textContent = 'Username dan password wajib diisi';
-                    errorDiv.classList.remove('d-none');
-                    return;
-                }
                 await api.createUser({ name, username, password, role });
                 showToast('Pengguna baru berhasil ditambahkan', 'success');
             }

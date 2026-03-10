@@ -132,7 +132,19 @@ exports.addPartToService = async (req, res, next) => {
         throw Object.assign(new Error('Tiket servis tidak ditemukan'), { statusCode: 404 });
       }
 
-      // 2. Cek Barang & Kurangi Stok Secara Atomic
+      // 2. Cek Barang Dulu (Satu Query untuk Eksistensi & Validasi)
+      const item = await Item.findById(item_id).session(session);
+      if (!item) {
+        throw Object.assign(new Error('Barang tidak ditemukan'), { statusCode: 404 });
+      }
+      if (item.stock < quantity) {
+        throw Object.assign(
+          new Error(`Stok tidak cukup untuk ${item.name}. Sisa: ${item.stock}`),
+          { statusCode: 400 }
+        );
+      }
+
+      // 3. Kurangi Stok Secara Atomic (Cegah Race Condition)
       const updatedItem = await Item.findOneAndUpdate(
         { _id: item_id, stock: { $gte: quantity } },
         { $inc: { stock: -quantity } },
@@ -140,17 +152,13 @@ exports.addPartToService = async (req, res, next) => {
       );
 
       if (!updatedItem) {
-        const item = await Item.findById(item_id).session(session);
-        if (!item) {
-          throw Object.assign(new Error('Barang tidak ditemukan'), { statusCode: 404 });
-        }
         throw Object.assign(
-          new Error(`Stok tidak cukup untuk ${item.name}. Sisa: ${item.stock}`),
+          new Error(`Stok tidak cukup untuk ${item.name} (race condition)`),
           { statusCode: 400 }
         );
       }
 
-      // 3. Update Tiket
+      // 4. Update Tiket
       const subtotal = updatedItem.selling_price * quantity;
       ticket.parts_used.push({
         item_id: updatedItem._id,

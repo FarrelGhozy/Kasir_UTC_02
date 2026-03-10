@@ -118,6 +118,9 @@ class Auth {
         const navService = document.getElementById('nav-service');
         const navUsers = document.getElementById('nav-users');
 
+        // Pastikan semua tersembunyi dulu, lalu tampilkan sesuai role
+        if (navUsers) navUsers.classList.add('d-none');
+
         if (role === 'teknisi') {
             // Teknisi hanya bisa melihat servis, gudang, dan dasbor
             navPos.classList.add('d-none');
@@ -126,7 +129,7 @@ class Auth {
             navService.classList.add('d-none');
         } else if (role === 'admin') {
             // Admin bisa melihat semua termasuk kelola pengguna
-            navUsers.classList.remove('d-none');
+            if (navUsers) navUsers.classList.remove('d-none');
         }
     }
 
