@@ -20,49 +20,14 @@
         @media (min-width: 992px) {
             #sidebar {
                 left: 0 !important;
-                width: 250px;
+                visibility: visible !important;
+                width: var(--sidebar-width, 250px);
             }
             #main-content {
-                margin-left: 250px;
+                margin-left: var(--sidebar-width, 250px);
             }
             #sidebar-toggle {
                 display: none;
-            }
-        }
-        /* Mobile: Sidebar sembunyi & melayang */
-        
-        @media (max-width: 991px) {
-            #sidebar {
-                left: -280px;
-                /* Sembunyi ke kiri */
-                width: 280px;
-                z-index: 9999;
-                /* Pastikan di paling depan */
-                transition: all 0.3s ease-in-out;
-                visibility: hidden;
-                /* Biar kaga nutupin klik pas sembunyi */
-            }
-            #sidebar.active {
-                left: 0;
-                visibility: visible;
-            }
-            #main-content {
-                margin-left: 0 !important;
-                width: 100%;
-            }
-            /* Overlay gelap saat menu buka */
-            .sidebar-overlay {
-                display: none;
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(0, 0, 0, 0.5);
-                z-index: 9998;
-            }
-            .sidebar-overlay.active {
-                display: block;
             }
         }
     </style>
@@ -165,10 +130,18 @@
                             <i class="bi bi-graph-up me-2"></i>Laporan
                         </a>
                     </li>
+                    <li class="nav-item d-none" id="nav-users">
+                        <a class="nav-link text-white" href="#" data-page="users">
+                            <i class="bi bi-people me-2"></i>Kelola Pengguna
+                        </a>
+                    </li>
                 </ul>
             </div>
 
             <div class="p-3 border-top border-secondary">
+                <button class="btn btn-outline-light w-100 mb-2" id="change-password-btn">
+                    <i class="bi bi-key me-2"></i>Ganti Password
+                </button>
                 <button class="btn btn-danger w-100" id="logout-btn">
                     <i class="bi bi-box-arrow-right me-2"></i>Keluar
                 </button>
@@ -208,6 +181,41 @@
     </div>
 
     <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toast-container"></div>
+
+    <!-- Modal Ganti Password -->
+    <div class="modal fade" id="changePasswordModal" tabindex="-1" aria-labelledby="changePasswordModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="changePasswordModalLabel"><i class="bi bi-key me-2"></i>Ganti Password</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="change-password-form">
+                        <div class="mb-3">
+                            <label class="form-label">Password Saat Ini</label>
+                            <input type="password" class="form-control" id="cp-current" placeholder="Masukkan password saat ini" required autocomplete="current-password">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Password Baru</label>
+                            <input type="password" class="form-control" id="cp-new" placeholder="Minimal 6 karakter" required minlength="6" autocomplete="new-password">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Konfirmasi Password Baru</label>
+                            <input type="password" class="form-control" id="cp-confirm" placeholder="Ulangi password baru" required autocomplete="new-password">
+                        </div>
+                        <div id="cp-error" class="alert alert-danger d-none"></div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="button" class="btn btn-primary" id="cp-submit-btn">
+                        <i class="bi bi-check-lg me-1"></i>Simpan Password
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 

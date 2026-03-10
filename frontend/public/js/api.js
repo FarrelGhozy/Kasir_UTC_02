@@ -147,6 +147,25 @@ class API {
         return this.get('/auth/users');
     }
 
+    async createUser(data) {
+        return this.post('/auth/register', data);
+    }
+
+    async updateUser(id, data) {
+        return this.put(`/auth/users/${id}`, data);
+    }
+
+    async deleteUser(id) {
+        return this.delete(`/auth/users/${id}`);
+    }
+
+    async changePassword(currentPassword, newPassword) {
+        return this.patch('/auth/change-password', {
+            current_password: currentPassword,
+            new_password: newPassword
+        });
+    }
+
     // ==================== ENDPOINT GUDANG (INVENTORY) ====================
 
     async getInventory(params = {}) {

@@ -5,7 +5,7 @@ const jwt = require('jsonwebtoken');
 // Generate JWT Token
 const generateToken = (userId) => {
   return jwt.sign({ id: userId }, process.env.JWT_SECRET, {
-    expiresIn: '7d'
+    expiresIn: process.env.JWT_EXPIRES_IN || '12h'
   });
 };
 
@@ -94,7 +94,7 @@ exports.login = async (req, res, next) => {
       }
     });
   } catch (error) {
-    if (error.message === 'Invalid credentials') {
+    if (error.message === 'Username atau password salah') {
       return res.status(401).json({
         success: false,
         message: 'Nama pengguna atau kata sandi salah'

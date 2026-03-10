@@ -1,7 +1,7 @@
 /* public/css/styles.css - Custom Theme & Layout Styles */
 
 :root {
-    --sidebar-width: 280px;
+    --sidebar-width: 250px;
     --primary-color: #0d6efd;
     --dark-bg: #212529;
     --light-bg: #f8f9fa;
@@ -386,18 +386,44 @@ body {
 
 /* Responsive */
 
-@media (max-width: 768px) {
+@media (max-width: 991px) {
     #sidebar {
-        width: 100%;
-        position: relative;
-        height: auto;
+        left: -250px;
+        width: 250px;
+        position: fixed;
+        height: 100%;
+        z-index: 9999;
+        transition: all 0.3s ease-in-out;
+        visibility: hidden;
+    }
+    #sidebar.active {
+        left: 0;
+        visibility: visible;
     }
     #main-content {
         margin-left: 0;
+        width: 100%;
     }
     .product-grid {
         grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
     }
+}
+
+/* Overlay gelap saat menu buka */
+
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 9998;
+}
+
+.sidebar-overlay.active {
+    display: block;
 }
 
 

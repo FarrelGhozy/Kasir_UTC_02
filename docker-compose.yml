@@ -31,7 +31,7 @@ services:
     environment:
       - PORT=5000
       - MONGODB_URI=mongodb://mongo_db:27017/bengkel_utc
-      - JWT_SECRET=rahasia_super_aman_docker
+      - JWT_SECRET=${JWT_SECRET:-change_me_in_production}
       - NODE_ENV=development
     depends_on:
       - mongo_db

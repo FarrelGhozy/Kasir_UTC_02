@@ -27,6 +27,9 @@ class Auth {
         
         // Setup tombol logout
         this.setupLogoutButton();
+
+        // Setup tombol ganti password
+        this.setupChangePassword();
     }
 
     setupLoginForm() {
@@ -113,6 +116,7 @@ class Auth {
         // Sembunyikan/tampilkan item navigasi berdasarkan peran
         const navPos = document.getElementById('nav-pos');
         const navService = document.getElementById('nav-service');
+        const navUsers = document.getElementById('nav-users');
 
         if (role === 'teknisi') {
             // Teknisi hanya bisa melihat servis, gudang, dan dasbor
@@ -120,8 +124,10 @@ class Auth {
         } else if (role === 'kasir') {
             // Kasir bisa melihat POS, gudang, dan dasbor
             navService.classList.add('d-none');
+        } else if (role === 'admin') {
+            // Admin bisa melihat semua termasuk kelola pengguna
+            navUsers.classList.remove('d-none');
         }
-        // Admin bisa melihat semuanya (tidak ada perubahan diperlukan)
     }
 
     getRoleName(role) {
@@ -154,6 +160,56 @@ class Auth {
 
         if (dateElement) dateElement.textContent = dateStr;
         if (timeElement) timeElement.textContent = timeStr;
+    }
+
+    setupChangePassword() {
+        const changePwdBtn = document.getElementById('change-password-btn');
+        const submitBtn = document.getElementById('cp-submit-btn');
+        const cpError = document.getElementById('cp-error');
+
+        if (changePwdBtn) {
+            changePwdBtn.addEventListener('click', () => {
+                const modal = new bootstrap.Modal(document.getElementById('changePasswordModal'));
+                document.getElementById('change-password-form').reset();
+                if (cpError) cpError.classList.add('d-none');
+                modal.show();
+            });
+        }
+
+        if (submitBtn) {
+            submitBtn.addEventListener('click', async () => {
+                const currentPwd = document.getElementById('cp-current').value;
+                const newPwd = document.getElementById('cp-new').value;
+                const confirmPwd = document.getElementById('cp-confirm').value;
+
+                if (cpError) cpError.classList.add('d-none');
+
+                if (newPwd !== confirmPwd) {
+                    if (cpError) {
+                        cpError.textContent = 'Password baru dan konfirmasi tidak cocok';
+                        cpError.classList.remove('d-none');
+                    }
+                    return;
+                }
+
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Menyimpan...';
+
+                try {
+                    await api.changePassword(currentPwd, newPwd);
+                    bootstrap.Modal.getInstance(document.getElementById('changePasswordModal')).hide();
+                    showToast('Password berhasil diubah', 'success');
+                } catch (error) {
+                    if (cpError) {
+                        cpError.textContent = error.message || 'Gagal mengubah password';
+                        cpError.classList.remove('d-none');
+                    }
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Simpan Password';
+                }
+            });
+        }
     }
 
     logout() {

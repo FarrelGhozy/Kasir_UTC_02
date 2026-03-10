@@ -113,10 +113,10 @@ exports.updateStatus = async (req, res, next) => {
 };
 
 /**
- * @desc    Tambahkan suku cadang ke tiket servis (LOGIKA BARU: TANPA TRANSAKSI)
+ * @desc    Tambahkan suku cadang ke tiket servis (ATOMIC: Mencegah Race Condition)
  */
 exports.addPartToService = async (req, res, next) => {
-  // CATATAN: Session/Transaction dihapus agar kompatibel dengan MongoDB Standalone (Lokal)
+  const session = await mongoose.startSession();
   try {
     const { item_id, quantity } = req.body;
 
@@ -124,49 +124,54 @@ exports.addPartToService = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'ID Barang dan jumlah valid wajib diisi' });
     }
 
-    // 1. Cek Tiket
-    const ticket = await ServiceTicket.findById(req.params.id);
-    if (!ticket) {
-      return res.status(404).json({ success: false, message: 'Tiket servis tidak ditemukan' });
-    }
+    let updatedTicket;
+    await session.withTransaction(async () => {
+      // 1. Cek Tiket
+      const ticket = await ServiceTicket.findById(req.params.id).session(session);
+      if (!ticket) {
+        throw Object.assign(new Error('Tiket servis tidak ditemukan'), { statusCode: 404 });
+      }
 
-    // 2. Cek Barang
-    const item = await Item.findById(item_id);
-    if (!item) {
-      return res.status(404).json({ success: false, message: 'Barang tidak ditemukan' });
-    }
+      // 2. Cek Barang & Kurangi Stok Secara Atomic
+      const updatedItem = await Item.findOneAndUpdate(
+        { _id: item_id, stock: { $gte: quantity } },
+        { $inc: { stock: -quantity } },
+        { new: true, session }
+      );
 
-    // 3. Cek Stok
-    if (item.stock < quantity) {
-      return res.status(400).json({ success: false, message: `Stok tidak cukup untuk ${item.name}. Sisa: ${item.stock}` });
-    }
+      if (!updatedItem) {
+        const item = await Item.findById(item_id).session(session);
+        if (!item) {
+          throw Object.assign(new Error('Barang tidak ditemukan'), { statusCode: 404 });
+        }
+        throw Object.assign(
+          new Error(`Stok tidak cukup untuk ${item.name}. Sisa: ${item.stock}`),
+          { statusCode: 400 }
+        );
+      }
 
-    // 4. Kurangi Stok & Simpan Barang
-    item.stock -= quantity;
-    await item.save();
+      // 3. Update Tiket
+      const subtotal = updatedItem.selling_price * quantity;
+      ticket.parts_used.push({
+        item_id: updatedItem._id,
+        name: updatedItem.name,
+        qty: quantity,
+        price_at_time: updatedItem.selling_price,
+        subtotal: subtotal
+      });
 
-    // 5. Update Tiket & Simpan
-    const subtotal = item.selling_price * quantity;
-    ticket.parts_used.push({
-      item_id: item._id,
-      name: item.name,
-      qty: quantity,
-      price_at_time: item.selling_price,
-      subtotal: subtotal
+      await ticket.save({ session });
+      updatedTicket = ticket;
     });
 
-    // Recalculate total cost in ticket model logic usually handles this, 
-    // but just in case, ensure logic in Model handles 'total_cost' calculation on save.
-    // Assuming your schema handles pre-save or methods. 
-    // If not, trigger it or let the frontend recalculate visualization.
-    
-    await ticket.save();
-
-    res.status(200).json({ success: true, message: 'Part ditambahkan', data: ticket });
+    res.status(200).json({ success: true, message: 'Part ditambahkan', data: updatedTicket });
   } catch (error) {
-    // Jika error di tengah jalan, stok mungkin sudah berkurang tapi tiket gagal update.
-    // Dalam app skala kecil ini risiko tersebut kita terima demi kompatibilitas lokal.
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ success: false, message: error.message });
+    }
     next(error);
+  } finally {
+    session.endSession();
   }
 };
 

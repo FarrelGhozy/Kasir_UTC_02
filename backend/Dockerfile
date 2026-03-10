@@ -16,5 +16,5 @@ COPY . .
 # Buka port 5000
 EXPOSE 5000
 
-# Jalankan server
-CMD ["sh", "-c", "node seed.js && node server.js"]
+# Jalankan server (set RUN_SEED=true untuk menjalankan seed data)
+CMD ["sh", "-c", "if [ \"$RUN_SEED\" = 'true' ]; then node seed.js; fi && node server.js"]

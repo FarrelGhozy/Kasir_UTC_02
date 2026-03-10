@@ -2,13 +2,15 @@
 const Transaction = require('../models/Transaction');
 const Item = require('../models/Item');
 const User = require('../models/User');
+const mongoose = require('mongoose');
 
 /**
- * @desc    Buat transaksi ritel (Dengan Validasi Stok 2 Tahap)
+ * @desc    Buat transaksi ritel (Dengan Validasi Stok Atomic)
  * @route   POST /api/transactions
  * @access  Private (Kasir, Admin)
  */
 exports.createRetailTransaction = async (req, res, next) => {
+  const session = await mongoose.startSession();
   try {
     const { items, payment_method, amount_paid, notes } = req.body;
 
@@ -25,16 +27,13 @@ exports.createRetailTransaction = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Kasir tidak ditemukan' });
     }
 
-    // --- FASE 1: VALIDASI & PERSIAPAN (Tanpa Mengubah Database) ---
-    // Kita cek stok SEMUA barang dulu. Kalau ada 1 yang kurang, batalkan semua.
-    
+    // --- FASE 1: VALIDASI (Tanpa Mengubah Database) ---
     const itemsToProcess = [];
     let grandTotal = 0;
 
     for (const cartItem of items) {
       const itemDB = await Item.findById(cartItem.item_id);
-      
-      // Cek eksistensi barang
+
       if (!itemDB) {
         return res.status(404).json({
           success: false,
@@ -42,7 +41,6 @@ exports.createRetailTransaction = async (req, res, next) => {
         });
       }
 
-      // Cek stok cukup atau tidak
       if (itemDB.stock < cartItem.qty) {
         return res.status(400).json({
           success: false,
@@ -50,12 +48,11 @@ exports.createRetailTransaction = async (req, res, next) => {
         });
       }
 
-      // Hitung subtotal & simpan data sementara di memori
       const subtotal = itemDB.selling_price * cartItem.qty;
       grandTotal += subtotal;
 
       itemsToProcess.push({
-        dbItem: itemDB,     // Object Mongoose asli (untuk di-save nanti)
+        itemId: itemDB._id,
         name: itemDB.name,
         qty: cartItem.qty,
         price: itemDB.selling_price,
@@ -71,43 +68,49 @@ exports.createRetailTransaction = async (req, res, next) => {
       });
     }
 
-    // --- FASE 2: EKSEKUSI (Potong Stok & Simpan Transaksi) ---
-    // Karena Fase 1 lolos, berarti semua stok AMAN. Sekarang kita eksekusi.
+    // --- FASE 2: EKSEKUSI ATOMIC ---
+    // Gunakan session untuk memastikan konsistensi data
+    let transaction;
+    await session.withTransaction(async () => {
+      const finalTransactionItems = [];
 
-    const finalTransactionItems = [];
+      for (const proc of itemsToProcess) {
+        // Potong stok secara atomic: hanya kurangi jika stok masih >= qty
+        const updatedItem = await Item.findOneAndUpdate(
+          { _id: proc.itemId, stock: { $gte: proc.qty } },
+          { $inc: { stock: -proc.qty } },
+          { new: true, session }
+        );
 
-    for (const proc of itemsToProcess) {
-      // A. POTONG STOK OTOMATIS
-      proc.dbItem.stock -= proc.qty;
-      await proc.dbItem.save(); // Simpan perubahan stok ke DB
+        if (!updatedItem) {
+          throw new Error(`Stok tidak cukup (race condition): ${proc.name}`);
+        }
 
-      // B. Siapkan data untuk struk
-      finalTransactionItems.push({
-        item_id: proc.dbItem._id,
-        name: proc.name,
-        qty: proc.qty,
-        price: proc.price,
-        subtotal: proc.subtotal
+        finalTransactionItems.push({
+          item_id: proc.itemId,
+          name: proc.name,
+          qty: proc.qty,
+          price: proc.price,
+          subtotal: proc.subtotal
+        });
+      }
+
+      const invoice_no = await Transaction.generateInvoiceNumber();
+
+      transaction = new Transaction({
+        invoice_no,
+        cashier_id: cashier._id,
+        cashier_name: cashier.name,
+        items: finalTransactionItems,
+        grand_total: grandTotal,
+        payment_method,
+        amount_paid: amount_paid || grandTotal,
+        notes,
+        date: new Date()
       });
-    }
 
-    // Generate No Faktur
-    const invoice_no = await Transaction.generateInvoiceNumber();
-
-    // Simpan Transaksi Utama
-    const transaction = new Transaction({
-      invoice_no,
-      cashier_id: cashier._id,
-      cashier_name: cashier.name,
-      items: finalTransactionItems,
-      grand_total: grandTotal,
-      payment_method,
-      amount_paid: amount_paid || grandTotal, // Jika non-tunai, anggap pas
-      notes,
-      date: new Date()
+      await transaction.save({ session });
     });
-
-    await transaction.save();
 
     res.status(201).json({
       success: true,
@@ -116,7 +119,12 @@ exports.createRetailTransaction = async (req, res, next) => {
     });
 
   } catch (error) {
+    if (error.message && error.message.startsWith('Stok tidak cukup (race condition)')) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
     next(error);
+  } finally {
+    session.endSession();
   }
 };
 

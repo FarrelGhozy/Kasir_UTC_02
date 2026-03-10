@@ -9,6 +9,7 @@ import POS from './modules/pos.js';
 import Service from './modules/service.js';
 import Inventory from './modules/inventory.js';
 import Reports from './modules/reports.js';
+import Users from './modules/users.js';
 
 class App {
     constructor() {
@@ -18,7 +19,8 @@ class App {
             pos: new POS(),
             service: new Service(),
             inventory: new Inventory(),
-            reports: new Reports()
+            reports: new Reports(),
+            users: new Users()
         };
 
         this.init();
@@ -73,7 +75,8 @@ class App {
             pos: 'Kasir (POS)',
             service: 'Servis (Workshop)',
             inventory: 'Gudang (Inventaris)',
-            reports: 'Laporan'
+            reports: 'Laporan',
+            users: 'Kelola Pengguna'
         };
 
         const pageTitle = document.getElementById('page-title');

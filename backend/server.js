@@ -2,6 +2,9 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const mongoSanitize = require('express-mongo-sanitize');
+const rateLimit = require('express-rate-limit');
 const connectDB = require('./config/db');
 const apiRoutes = require('./routes/api');
 const errorHandler = require('./middleware/errorHandler');
@@ -12,16 +15,32 @@ const PORT = process.env.PORT || 5000;
 // Hubungkan ke MongoDB
 connectDB();
 
+// Middleware keamanan
+app.use(helmet());
+
 // Middleware
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://yourdomain.com'] 
-    : '*', // <--- Development? Izinkan semua!
+  origin: process.env.NODE_ENV === 'production'
+    ? (process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : ['http://localhost:8080'])
+    : '*',
   credentials: true
 }));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Sanitasi input untuk mencegah NoSQL injection
+app.use(mongoSanitize());
+
+// Rate limiting untuk endpoint autentikasi
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 menit
+  max: 20,
+  message: { success: false, message: 'Terlalu banyak percobaan login, coba lagi setelah 15 menit' },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+app.use('/api/auth/login', authLimiter);
 
 // Middleware pencatatan request (logging)
 app.use((req, res, next) => {
