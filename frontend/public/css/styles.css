@@ -35,8 +35,9 @@ body {
     width: var(--sidebar-width);
     left: 0;
     top: 0;
-    z-index: 1000;
+    z-index: 1050;
     box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease;
 }
 
 #sidebar .nav-link {
@@ -397,13 +398,32 @@ body {
 }
 
 
+/* Sidebar Overlay */
+
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    backdrop-filter: blur(2px);
+}
+
+.sidebar-overlay.active {
+    display: block;
+}
+
+
 /* Responsive */
 
 /* Desktop: Sidebar always visible */
 @media (min-width: 992px) {
     #sidebar {
-        left: 0 !important;
-        width: 250px;
+        transform: translateX(0) !important;
+        transition: none;
     }
     #main-content {
         margin-left: 250px;
@@ -411,37 +431,66 @@ body {
     #sidebar-toggle {
         display: none;
     }
+    .sidebar-overlay {
+        display: none !important;
+    }
 }
 
 /* Mobile: Sidebar hidden, slides in */
-@media (max-width: 991px) {
+@media (max-width: 991.98px) {
     #sidebar {
-        left: -280px;
-        width: 280px;
-        z-index: 9999;
-        transition: all 0.3s ease-in-out;
-        visibility: hidden;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+        z-index: 1050;
     }
+
     #sidebar.active {
-        left: 0;
-        visibility: visible;
+        transform: translateX(0);
     }
+
     #main-content {
         margin-left: 0 !important;
-        width: 100%;
     }
-    .sidebar-overlay {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.5);
-        z-index: 9998;
+
+    /* Kurangi padding container di mobile — handled by p-2 p-md-4 Bootstrap utility in HTML */
+
+    /* Login card responsive */
+    #login-screen .card {
+        margin: 1rem;
     }
-    .sidebar-overlay.active {
-        display: block;
+
+    /* Stat cards - smaller font di mobile */
+    .stat-card .stat-value {
+        font-size: 1.4rem;
+    }
+
+    /* Cart container height di mobile */
+    .cart-container {
+        max-height: 250px;
+    }
+
+    /* Navbar padding lebih kecil */
+    .navbar.px-4 {
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+
+    /* Table font size lebih kecil */
+    .table {
+        font-size: 0.85rem;
+    }
+
+    /* Tombol aksi di tabel - lebih kecil */
+    .table .btn-sm {
+        padding: 0.2rem 0.4rem;
+        font-size: 0.75rem;
+    }
+}
+
+/* Tablet - 768px to 991px */
+@media (min-width: 768px) and (max-width: 991.98px) {
+    .stat-card .stat-value {
+        font-size: 1.6rem;
     }
 }
 
