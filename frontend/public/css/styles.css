@@ -419,41 +419,8 @@ body {
 
 /* Responsive */
 
-/* Desktop: Sidebar always visible */
-@media (min-width: 992px) {
-    #sidebar {
-        transform: translateX(0) !important;
-        transition: none;
-    }
-    #main-content {
-        margin-left: 250px;
-    }
-    #sidebar-toggle {
-        display: none;
-    }
-    .sidebar-overlay {
-        display: none !important;
-    }
-}
-
-/* Mobile: Sidebar hidden, slides in */
+/* Mobile: additional layout tweaks */
 @media (max-width: 991.98px) {
-    #sidebar {
-        transform: translateX(-100%);
-        transition: transform 0.3s ease;
-        z-index: 1050;
-    }
-
-    #sidebar.active {
-        transform: translateX(0);
-    }
-
-    #main-content {
-        margin-left: 0 !important;
-    }
-
-    /* Kurangi padding container di mobile — handled by p-2 p-md-4 Bootstrap utility in HTML */
-
     /* Login card responsive */
     #login-screen .card {
         margin: 1rem;

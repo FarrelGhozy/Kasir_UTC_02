@@ -16,6 +16,53 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
     <link rel="stylesheet" href="./css/styles.css">
+
+    <style>
+        /* Desktop: Sidebar tetap tampil */
+        @media (min-width: 992px) {
+            #sidebar {
+                left: 0 !important;
+                width: 250px;
+            }
+            #main-content {
+                margin-left: 250px;
+            }
+            #sidebar-toggle {
+                display: none;
+            }
+        }
+        /* Mobile: Sidebar sembunyi & melayang */
+        @media (max-width: 991px) {
+            #sidebar {
+                left: -280px;
+                width: 280px;
+                z-index: 9999;
+                transition: all 0.3s ease-in-out;
+                visibility: hidden;
+            }
+            #sidebar.active {
+                left: 0;
+                visibility: visible;
+            }
+            #main-content {
+                margin-left: 0 !important;
+                width: 100%;
+            }
+            .sidebar-overlay {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 9998;
+            }
+            .sidebar-overlay.active {
+                display: block;
+            }
+        }
+    </style>
 </head>
 
 <body class="bg-light">
@@ -173,37 +220,33 @@
             function openSidebar() {
                 sidebar.classList.add('active');
                 overlay.classList.add('active');
-                document.body.style.overflow = 'hidden';
             }
 
             function closeSidebar() {
                 sidebar.classList.remove('active');
                 overlay.classList.remove('active');
-                document.body.style.overflow = '';
             }
 
-            function toggleMenu() {
-                if (sidebar.classList.contains('active')) {
-                    closeSidebar();
-                } else {
-                    openSidebar();
-                }
-            }
-
+            // Klik tombol hamburger → buka menu
             if (toggleBtn) {
                 toggleBtn.addEventListener('click', function(e) {
                     e.preventDefault();
-                    toggleMenu();
+                    if (sidebar.classList.contains('active')) {
+                        closeSidebar();
+                    } else {
+                        openSidebar();
+                    }
                 });
             }
 
+            // Klik overlay → tutup menu
             if (overlay) {
                 overlay.addEventListener('click', function() {
                     closeSidebar();
                 });
             }
 
-            // Tutup sidebar saat nav link diklik di mobile
+            // Klik nav link di HP → tutup menu (navigasi tetap jalan)
             const navLinks = document.querySelectorAll('#sidebar .nav-link');
             navLinks.forEach(link => {
                 link.addEventListener('click', () => {
@@ -211,17 +254,6 @@
                         closeSidebar();
                     }
                 });
-            });
-
-            // Tutup sidebar saat window di-resize ke desktop
-            let resizeTimer;
-            window.addEventListener('resize', function() {
-                clearTimeout(resizeTimer);
-                resizeTimer = setTimeout(function() {
-                    if (window.innerWidth >= 992) {
-                        closeSidebar();
-                    }
-                }, 100);
             });
         });
     </script>
