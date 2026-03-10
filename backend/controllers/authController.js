@@ -94,7 +94,7 @@ exports.login = async (req, res, next) => {
       }
     });
   } catch (error) {
-    if (error.message === 'Invalid credentials') {
+    if (error.message === 'Username atau password salah' || error.message === 'Invalid credentials') {
       return res.status(401).json({
         success: false,
         message: 'Nama pengguna atau kata sandi salah'

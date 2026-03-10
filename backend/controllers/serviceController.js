@@ -2,7 +2,6 @@
 const ServiceTicket = require('../models/ServiceTicket');
 const Item = require('../models/Item');
 const User = require('../models/User');
-const mongoose = require('mongoose');
 
 /**
  * @desc    Buat tiket servis baru

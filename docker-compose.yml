@@ -12,7 +12,9 @@ services:
       - mongo_data:/data/db
     networks:
       - utc_network
-    # --- LIMITASI RESOURCE ---
+    mem_limit: 512m
+    cpus: 0.50
+    # --- LIMITASI RESOURCE (Docker Swarm) ---
     deploy:
       resources:
         limits:
@@ -31,13 +33,15 @@ services:
     environment:
       - PORT=5000
       - MONGODB_URI=mongodb://mongo_db:27017/bengkel_utc
-      - JWT_SECRET=rahasia_super_aman_docker
-      - NODE_ENV=development
+      - JWT_SECRET=${JWT_SECRET:-change_this_in_production}
+      - NODE_ENV=production
     depends_on:
       - mongo_db
     networks:
       - utc_network
-    # --- LIMITASI RESOURCE ---
+    mem_limit: 300m
+    cpus: 0.50
+    # --- LIMITASI RESOURCE (Docker Swarm) ---
     deploy:
       resources:
         limits:
@@ -55,7 +59,9 @@ services:
       - "8080:80"
     networks:
       - utc_network
-    # --- LIMITASI RESOURCE ---
+    mem_limit: 128m
+    cpus: 0.25
+    # --- LIMITASI RESOURCE (Docker Swarm) ---
     deploy:
       resources:
         limits:

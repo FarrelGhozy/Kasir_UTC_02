@@ -10,16 +10,19 @@ class Service {
     }
 
     async render() {
-        // CSS Hack
-        const style = document.createElement('style');
-        style.innerHTML = `
-            input[type=number]::-webkit-inner-spin-button, 
-            input[type=number]::-webkit-outer-spin-button { 
-                -webkit-appearance: none; margin: 0; 
-            }
-            input[type=number] { -moz-appearance: textfield; }
-        `;
-        document.head.appendChild(style);
+        // CSS Hack — inject only once
+        if (!document.getElementById('service-number-style')) {
+            const style = document.createElement('style');
+            style.id = 'service-number-style';
+            style.innerHTML = `
+                input[type=number]::-webkit-inner-spin-button, 
+                input[type=number]::-webkit-outer-spin-button { 
+                    -webkit-appearance: none; margin: 0; 
+                }
+                input[type=number] { -moz-appearance: textfield; }
+            `;
+            document.head.appendChild(style);
+        }
 
         const content = document.getElementById('app-content');
         

@@ -45,7 +45,7 @@ class API {
             
             // Backend mungkin mati atau mengembalikan HTML
             if (text.includes('<!DOCTYPE') || text.includes('<html')) {
-                throw new Error('Server tidak merespons dengan benar. Pastikan API backend berjalan di http://localhost:5000');
+                throw new Error('Server tidak merespons. Pastikan backend sedang berjalan.');
             }
             
             throw new Error('Server mengembalikan format respons yang tidak valid');
@@ -77,7 +77,6 @@ class API {
         const config = {
             method: options.method || 'GET',
             headers: this.getHeaders(authenticated),
-            ...options
         };
 
         // Tambahkan body jika ada

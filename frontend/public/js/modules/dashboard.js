@@ -21,7 +21,7 @@ class Dashboard {
                                 </div>
                                 <div>
                                     <div class="stat-label text-muted small text-uppercase fw-bold">Pendapatan Hari Ini</div>
-                                    <div class="stat-value fs-4 fw-bold" id="stat-revenue">Rp 0</div>
+                                    <div class="stat-value fs-4 fw-bold skeleton skeleton-text" id="stat-revenue" style="min-width:120px;">&nbsp;</div>
                                 </div>
                             </div>
                         </div>
@@ -37,7 +37,7 @@ class Dashboard {
                                 </div>
                                 <div>
                                     <div class="stat-label text-muted small text-uppercase fw-bold">Penjualan Retail</div>
-                                    <div class="stat-value fs-4 fw-bold text-success" id="stat-transactions">0</div>
+                                    <div class="stat-value fs-4 fw-bold text-success skeleton skeleton-text" id="stat-transactions" style="min-width:60px;">&nbsp;</div>
                                 </div>
                             </div>
                         </div>
@@ -53,7 +53,7 @@ class Dashboard {
                                 </div>
                                 <div>
                                     <div class="stat-label text-muted small text-uppercase fw-bold">Servis Aktif</div>
-                                    <div class="stat-value fs-4 fw-bold text-warning" id="stat-services">0</div>
+                                    <div class="stat-value fs-4 fw-bold text-warning skeleton skeleton-text" id="stat-services" style="min-width:60px;">&nbsp;</div>
                                 </div>
                             </div>
                         </div>
@@ -69,7 +69,7 @@ class Dashboard {
                                 </div>
                                 <div>
                                     <div class="stat-label text-muted small text-uppercase fw-bold">Stok Menipis</div>
-                                    <div class="stat-value fs-4 fw-bold text-danger" id="stat-low-stock">0</div>
+                                    <div class="stat-value fs-4 fw-bold text-danger skeleton skeleton-text" id="stat-low-stock" style="min-width:60px;">&nbsp;</div>
                                 </div>
                             </div>
                         </div>
@@ -113,21 +113,33 @@ class Dashboard {
         try {
             // 1. Load Data Statistik
             const dailyReport = await api.getDailyRevenue();
-            document.getElementById('stat-revenue').textContent = formatCurrency(dailyReport.data.total_revenue);
-            document.getElementById('stat-transactions').textContent = dailyReport.data.retail_sales.transactions;
+            const revenueEl = document.getElementById('stat-revenue');
+            revenueEl.classList.remove('skeleton', 'skeleton-text');
+            revenueEl.textContent = formatCurrency(dailyReport.data.total_revenue);
+
+            const txEl = document.getElementById('stat-transactions');
+            txEl.classList.remove('skeleton', 'skeleton-text');
+            txEl.textContent = dailyReport.data.retail_sales.transactions;
 
             const services = await api.getServiceTickets({ 
                 status: 'Queue,Diagnosing,Waiting_Part,In_Progress' 
             });
             const activeServices = services.data.filter(t => t.status !== 'Cancelled' && t.status !== 'Completed' && t.status !== 'Picked_Up');
-            document.getElementById('stat-services').textContent = activeServices.length;
+            const svcEl = document.getElementById('stat-services');
+            svcEl.classList.remove('skeleton', 'skeleton-text');
+            svcEl.textContent = activeServices.length;
 
             // 2. Load Tabel
             await this.loadLowStock();
-            await this.loadRecentActivity(); // <--- INI FUNGSI YANG DIPERBAIKI
+            await this.loadRecentActivity();
 
         } catch (error) {
             console.error('Gagal memuat data dasbor:', error);
+            // Remove skeleton classes on error
+            ['stat-revenue', 'stat-transactions', 'stat-services', 'stat-low-stock'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) { el.classList.remove('skeleton', 'skeleton-text'); el.textContent = '-'; }
+            });
             showError('app-content', 'Gagal memuat data dasbor. Pastikan server backend berjalan.');
         }
     }
@@ -138,7 +150,9 @@ class Dashboard {
             const response = await api.getLowStockItems();
             const items = response.data;
 
-            document.getElementById('stat-low-stock').textContent = items.length;
+            const lowStockEl = document.getElementById('stat-low-stock');
+            lowStockEl.classList.remove('skeleton', 'skeleton-text');
+            lowStockEl.textContent = items.length;
 
             if (items.length === 0) {
                 container.innerHTML = `<div class="text-center text-muted py-5"><i class="bi bi-check-circle fs-1 text-success opacity-50"></i><p class="mt-3 fw-semibold">Semua stok barang aman</p></div>`;

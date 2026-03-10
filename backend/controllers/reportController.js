@@ -1,7 +1,6 @@
 // controllers/reportController.js - Agregasi Pendapatan & Analitik
 const Transaction = require('../models/Transaction');
 const ServiceTicket = require('../models/ServiceTicket');
-const mongoose = require('mongoose');
 
 /**
  * @desc    Ambil pendapatan harian (Transaksi + Servis Selesai)
