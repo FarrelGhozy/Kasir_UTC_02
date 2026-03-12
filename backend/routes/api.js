@@ -41,9 +41,9 @@ router.get('/inventory/summary/value', protect, authorize('admin'), inventoryCon
 router.get('/inventory/summary/by-category', protect, inventoryController.getItemsByCategory);
 router.get('/inventory/:id', protect, inventoryController.getItemById);
 
-// Admin & Kasir dapat mengelola inventaris (Tambah/Edit)
-router.post('/inventory', protect, authorize('admin', 'kasir'), inventoryController.createItem);
-router.put('/inventory/:id', protect, authorize('admin', 'kasir'), inventoryController.updateItem);
+// Hanya Admin yang dapat mengelola inventaris (Tambah/Edit)
+router.post('/inventory', protect, authorize('admin'), inventoryController.createItem);
+router.put('/inventory/:id', protect, authorize('admin'), inventoryController.updateItem);
 router.patch('/inventory/:id/stock', protect, authorize('admin'), inventoryController.adjustStock);
 router.delete('/inventory/:id', protect, authorize('admin'), inventoryController.deleteItem);
 
