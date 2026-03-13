@@ -22,6 +22,7 @@ services:
           memory: 512M        # Maksimal RAM fisik 512MB (Selebihnya masuk Swap)
         reservations:
           memory: 128M        # Garansi RAM minimal 128MB agar stabil
+          
 
   # 2. Backend (Server API)
   backend:
