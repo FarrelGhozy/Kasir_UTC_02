@@ -508,7 +508,10 @@ body {
 /* Custom Login Background */
 
 #login-screen {
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    background-image: linear-gradient(rgba(248, 249, 250, 0.72), rgba(248, 249, 250, 0.72)), url('../assets/unidapuenya.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
     width: 100%;
     height: 100vh;
 }
