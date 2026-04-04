@@ -91,12 +91,30 @@ const runSeederLogic = async () => {
 // ==========================================
 
 // Middleware
+const defaultAllowedOrigins = [
+  'https://kasir.utc.web.id',
+  'https://www.kasir.utc.web.id',
+  'http://localhost:8080',
+  'http://127.0.0.1:8080'
+];
 
+const allowedOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim()).filter(Boolean)
+  : defaultAllowedOrigins;
 
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://kasir.utc.web.id', 'https://www.kasir.utc.web.id'] 
-    : '*', // <--- Development? Izinkan semua!
+  origin: (origin, callback) => {
+    // Izinkan request tanpa Origin header (curl, healthcheck, server-to-server)
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error('CORS: Origin tidak diizinkan'));
+  },
   credentials: true
 }));
 
