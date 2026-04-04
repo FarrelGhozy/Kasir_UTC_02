@@ -13,6 +13,7 @@ import Reports from './modules/reports.js';
 class App {
     constructor() {
         this.currentPage = null;
+        this._initialized = false;
         this.modules = {
             dashboard: new Dashboard(),
             pos: new POS(),
@@ -27,15 +28,19 @@ class App {
     init() {
         // 1. Listener Normal: Menunggu sinyal login dari auth.js
         window.addEventListener('app-ready', () => {
-            console.log('Event app-ready diterima, memuat dashboard...');
-            this.setupNavigation();
-            this.navigateTo('dashboard');
+            if (!this._initialized) {
+                this._initialized = true;
+                console.log('Event app-ready diterima, memuat dashboard...');
+                this.setupNavigation();
+                this.navigateTo('dashboard');
+            }
         });
 
         // 2. PERBAIKAN RACE CONDITION (Anti-Macet):
         // Jika auth.js sudah selesai duluan sebelum app.js siap,
         // kita cek manual status loginnya. Jika sudah login, paksa masuk dashboard.
-        if (auth.isAuthenticated()) {
+        if (auth.isAuthenticated() && !this._initialized) {
+            this._initialized = true;
             console.log('App telat memuat, memaksa masuk dashboard secara manual...');
             this.setupNavigation();
             this.navigateTo('dashboard');

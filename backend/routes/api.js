@@ -41,9 +41,9 @@ router.get('/inventory/summary/value', protect, authorize('admin'), inventoryCon
 router.get('/inventory/summary/by-category', protect, inventoryController.getItemsByCategory);
 router.get('/inventory/:id', protect, inventoryController.getItemById);
 
-// Admin & Kasir dapat mengelola inventaris (Tambah/Edit)
-router.post('/inventory', protect, authorize('admin', 'kasir'), inventoryController.createItem);
-router.put('/inventory/:id', protect, authorize('admin', 'kasir'), inventoryController.updateItem);
+// Hanya Admin yang dapat mengelola inventaris (Tambah/Edit)
+router.post('/inventory', protect, authorize('admin'), inventoryController.createItem);
+router.put('/inventory/:id', protect, authorize('admin'), inventoryController.updateItem);
 router.patch('/inventory/:id/stock', protect, authorize('admin'), inventoryController.adjustStock);
 router.delete('/inventory/:id', protect, authorize('admin'), inventoryController.deleteItem);
 
@@ -51,8 +51,9 @@ router.delete('/inventory/:id', protect, authorize('admin'), inventoryController
 // RUTE TIKET SERVIS
 // ============================================
 router.get('/services', protect, serviceController.getAllTickets);
-router.get('/services/:id', protect, serviceController.getTicketById);
+// Rute spesifik harus didefinisikan SEBELUM rute dengan parameter (:id)
 router.get('/services/technician/:id/workload', protect, serviceController.getTechnicianWorkload);
+router.get('/services/:id', protect, serviceController.getTicketById);
 
 // Teknisi & Admin dapat mengelola servis
 router.post('/services', protect, authorize('teknisi', 'admin'), serviceController.createTicket);

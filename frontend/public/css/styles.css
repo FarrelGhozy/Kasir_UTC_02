@@ -5,6 +5,17 @@
     --primary-color: #0d6efd;
     --dark-bg: #212529;
     --light-bg: #f8f9fa;
+    --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    --card-shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.12);
+    --border-radius: 12px;
+    --border-radius-sm: 8px;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
+    --toast-success: #198754;
+    --toast-error: #dc3545;
+    --toast-warning: #ffc107;
+    --toast-info: #0dcaf0;
 }
 
 * {
@@ -13,9 +24,19 @@
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    background: linear-gradient(rgba(248, 249, 250, 0.8), rgba(248, 249, 250, 0.8)), url('unidapoenya.jpg') no-repeat center center fixed;
-    background-size: cover;
+    background-color: var(--light-bg);
     overflow-x: hidden;
+}
+
+#login-screen {
+    background-image: linear-gradient(rgba(248, 249, 250, 0.72), rgba(248, 249, 250, 0.72)), url('../assets/unidapuenya.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+#login-screen .card {
+    background-color: rgba(255, 255, 255, 0.94);
 }
 
 
@@ -25,8 +46,9 @@ body {
     width: var(--sidebar-width);
     left: 0;
     top: 0;
-    z-index: 1000;
+    z-index: 1050;
     box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease;
 }
 
 #sidebar .nav-link {
@@ -45,6 +67,7 @@ body {
 #sidebar .nav-link.active {
     background-color: var(--primary-color);
     color: white !important;
+    border-left: 4px solid rgba(255, 255, 255, 0.7);
 }
 
 #sidebar .nav-link i {
@@ -65,14 +88,15 @@ body {
 
 .card {
     border: none;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border-radius: var(--border-radius);
+    box-shadow: var(--card-shadow);
+    transition: box-shadow 0.3s ease;
 }
 
-.card:hover {
+/* Only apply hover lift to cards that opt-in via .hoverable-card */
+.hoverable-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    box-shadow: var(--card-shadow-hover);
 }
 
 .card-header {
@@ -155,10 +179,11 @@ body {
 /* Cart Table */
 
 .cart-container {
-    max-height: calc(100vh - 400px);
+    /* calc: 100vh minus navbar (~60px), cart header (~56px), payment section (~300px) */
+    max-height: calc(100vh - 420px);
     overflow-y: auto;
     border: 1px solid #dee2e6;
-    border-radius: 8px;
+    border-radius: var(--border-radius-sm);
     background: white;
 }
 
@@ -301,17 +326,22 @@ body {
     position: relative;
 }
 
-.search-bar .form-control {
-    padding-left: 2.5rem;
+.search-bar .inventory-search-input {
+    width: 100%;
+    min-height: 44px;
+    padding: 0.5rem 0.9rem 0.5rem 2.5rem;
+    line-height: 1.3;
     border-radius: 25px;
 }
 
-.search-bar i {
+.search-bar .search-icon {
     position: absolute;
     left: 1rem;
     top: 50%;
     transform: translateY(-50%);
     color: #6c757d;
+    pointer-events: none;
+    z-index: 2;
 }
 
 
@@ -384,17 +414,70 @@ body {
 }
 
 
+/* Sidebar Overlay */
+
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    backdrop-filter: blur(2px);
+}
+
+.sidebar-overlay.active {
+    display: block;
+}
+
+
 /* Responsive */
 
+/* Mobile: additional layout tweaks */
+@media (max-width: 991.98px) {
+    /* Login card responsive */
+    #login-screen .card {
+        margin: 1rem;
+    }
+
+    /* Stat cards - smaller font di mobile */
+    .stat-card .stat-value {
+        font-size: 1.4rem;
+    }
+
+    /* Cart container height di mobile */
+    .cart-container {
+        max-height: 250px;
+    }
+
+    /* Navbar padding lebih kecil */
+    .navbar.px-4 {
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+
+    /* Table font size lebih kecil */
+    .table {
+        font-size: 0.85rem;
+    }
+
+    /* Tombol aksi di tabel - lebih kecil */
+    .table .btn-sm {
+        padding: 0.2rem 0.4rem;
+        font-size: 0.75rem;
+    }
+}
+
+/* Tablet - 768px to 991px */
+@media (min-width: 768px) and (max-width: 991.98px) {
+    .stat-card .stat-value {
+        font-size: 1.6rem;
+    }
+}
+
 @media (max-width: 768px) {
-    #sidebar {
-        width: 100%;
-        position: relative;
-        height: auto;
-    }
-    #main-content {
-        margin-left: 0;
-    }
     .product-grid {
         grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
     }
@@ -419,9 +502,60 @@ body {
 }
 
 
-/* Print Styles for Receipt */
+/* Print Styles for Receipt — handled in full @media print block at end of file */
+
+
+/* Custom Login Background */
+
+#login-screen {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    width: 100%;
+    height: 100vh;
+}
+
+
+/* Skeleton Loading Animation */
+
+@keyframes skeleton-shimmer {
+    0% { background-position: -200px 0; }
+    100% { background-position: calc(200px + 100%) 0; }
+}
+
+.skeleton {
+    background: linear-gradient(90deg, #e2e8f0 25%, #f8fafc 50%, #e2e8f0 75%);
+    background-size: 400px 100%;
+    animation: skeleton-shimmer 1.4s ease infinite;
+    border-radius: 4px;
+    color: transparent !important;
+}
+
+.skeleton-text {
+    display: inline-block;
+    border-radius: 4px;
+}
+
+
+/* Toast Variants */
+
+.toast.toast-success { background-color: var(--toast-success) !important; color: #fff; }
+.toast.toast-error   { background-color: var(--toast-error) !important;   color: #fff; }
+.toast.toast-warning { background-color: var(--toast-warning) !important; color: #000; }
+.toast.toast-info    { background-color: var(--toast-info) !important;    color: #000; }
+
+
+/* Print Styles */
 
 @media print {
+    #sidebar,
+    #main-content > nav.navbar,
+    .toast-container,
+    .btn,
+    .modal {
+        display: none !important;
+    }
+    #main-content {
+        margin-left: 0 !important;
+    }
     body * {
         visibility: hidden;
     }
@@ -436,17 +570,6 @@ body {
         width: 100%;
     }
 }
-
-
-/* Custom Login Background */
-
-#login-screen {
-    background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('unidapoenya.jpg') no-repeat center center fixed;
-    background-size: cover;
-    width: 100%;
-    height: 100vh;
-}
-
 
 /* Biar kotak loginnya lebih kontras */
 

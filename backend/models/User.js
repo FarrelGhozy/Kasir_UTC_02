@@ -36,13 +36,11 @@ const userSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
-  },
-  created_at: {
-    type: Date,
-    default: Date.now
   }
 }, {
-  timestamps: true // Menambahkan createdAt dan updatedAt secara otomatis
+  // Use snake_case field names to match the existing API responses and database schema.
+  // This ensures consistency with Item.js and other models in this project.
+  timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
 });
 
 // Middleware pre-save untuk hash password

@@ -108,14 +108,18 @@ transactionSchema.statics.generateInvoiceNumber = async function() {
   const month = String(now.getMonth() + 1).padStart(2, '0');
   const prefix = `INV-${year}${month}`;
 
+  // FIX: Sort by date (waktu), bukan string invoice_no
   const lastTransaction = await this.findOne({
     invoice_no: new RegExp(`^${prefix}`)
-  }).sort({ invoice_no: -1 });
+  }).sort({ date: -1 });
 
   let sequence = 1;
   if (lastTransaction) {
-    const lastSequence = parseInt(lastTransaction.invoice_no.split('-')[2]);
-    sequence = lastSequence + 1;
+    // FIX: Extract angka dengan regex dari akhir string
+    const match = lastTransaction.invoice_no.match(/(\d+)$/);
+    if (match) {
+      sequence = parseInt(match[1], 10) + 1;
+    }
   }
 
   return `${prefix}-${String(sequence).padStart(4, '0')}`;

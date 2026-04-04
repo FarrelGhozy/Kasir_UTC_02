@@ -92,6 +92,7 @@ const runSeederLogic = async () => {
 
 // Middleware
 
+
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
     ? ['https://kasir.utc.web.id', 'https://www.kasir.utc.web.id'] 
@@ -156,6 +157,13 @@ startServer();
 
 // Graceful Shutdown
 process.on('SIGTERM', () => {
+  console.log('Sinyal SIGTERM diterima: menutup server HTTP');
+  server.close(async () => {
+    const mongoose = require('mongoose');
+    await mongoose.connection.close();
+    console.log('Server dan koneksi MongoDB ditutup dengan aman');
+    process.exit(0);
+  });
   console.log('SIGTERM diterima: menutup server HTTP');
   process.exit(0);
 });

@@ -1,7 +1,6 @@
 // public/js/modules/pos.js - Modul Kasir dengan Fitur Cetak Struk / PDF
 
 import api, { formatCurrency, showToast, showError } from '../api.js';
-import auth from '../auth.js';
 
 class POS {
     constructor() {
@@ -9,6 +8,7 @@ class POS {
         this.cart = [];
         this.searchTerm = '';
         this.selectedCategory = 'all';
+        this._searchDebounceTimer = null;
     }
 
     async render() {
@@ -107,6 +107,13 @@ class POS {
                                     </div>
                                 </div>
 
+                                <div id="quick-pay-buttons" class="d-flex gap-1 flex-wrap mb-3">
+                                    <button class="btn btn-outline-secondary btn-sm" type="button" data-denomination="10000">+10rb</button>
+                                    <button class="btn btn-outline-secondary btn-sm" type="button" data-denomination="20000">+20rb</button>
+                                    <button class="btn btn-outline-secondary btn-sm" type="button" data-denomination="50000">+50rb</button>
+                                    <button class="btn btn-outline-secondary btn-sm" type="button" data-denomination="100000">+100rb</button>
+                                </div>
+
                                 <div class="d-flex justify-content-between align-items-center mb-3">
                                     <span class="text-muted">Kembalian:</span>
                                     <strong id="change-display" class="fs-5">Rp 0</strong>
@@ -182,6 +189,7 @@ class POS {
                             <i class="bi bi-box-seam" style="font-size: 2.5rem;"></i>
                         </div>
                         <h6 class="card-title text-truncate mb-1 fw-bold" title="${item.name}">${item.name}</h6>
+                        <small class="text-muted sku-label d-block mb-1">${item.sku}</small>
                         <div class="mt-auto">
                             <h5 class="text-primary fw-bold mb-2">${formatCurrency(item.selling_price)}</h5>
                             <span class="badge ${this.getStockBadgeClass(item.stock, item.min_stock_alert)} rounded-pill">
@@ -251,7 +259,7 @@ class POS {
                 </tr>
             `;
             cartCount.textContent = '0';
-            cartTotal.textContent = 'Rp 0';
+            cartTotal.textContent = formatCurrency(0);
             payBtn.disabled = true;
             this.updateChange();
             return;
@@ -288,49 +296,53 @@ class POS {
         cartTotal.textContent = formatCurrency(total);
         payBtn.disabled = false;
 
-        this.setupCartEventListeners();
         this.updateChange();
     }
 
     setupCartEventListeners() {
-        document.querySelectorAll('[data-action="increase"]').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const index = parseInt(btn.getAttribute('data-index'));
+        // Use event delegation on the cart-items tbody — set up ONCE, handles all cart actions
+        const cartItemsContainer = document.getElementById('cart-items');
+        if (!cartItemsContainer) return;
+
+        cartItemsContainer.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-action]');
+            if (!btn) return;
+
+            const action = btn.getAttribute('data-action');
+            const index = parseInt(btn.getAttribute('data-index'));
+
+            if (action === 'increase') {
                 if (this.cart[index].qty < this.cart[index].max_stock) {
                     this.cart[index].qty++;
                     this.renderCart();
                 } else {
                     showToast('Stok maksimum tercapai', 'warning');
                 }
-            });
-        });
-
-        document.querySelectorAll('[data-action="decrease"]').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const index = parseInt(btn.getAttribute('data-index'));
+            } else if (action === 'decrease') {
                 if (this.cart[index].qty > 1) {
                     this.cart[index].qty--;
                     this.renderCart();
                 }
-            });
-        });
-
-        document.querySelectorAll('[data-action="remove"]').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const index = parseInt(btn.getAttribute('data-index'));
+            } else if (action === 'remove') {
                 this.cart.splice(index, 1);
                 this.renderCart();
-            });
+            }
         });
     }
 
     setupEventListeners() {
-        // Search & Filter
+        // Set up cart event delegation ONCE (handles all cart row actions)
+        this.setupCartEventListeners();
+
+        // Search & Filter — debounced 300ms
         const searchInput = document.getElementById('product-search');
         if(searchInput) {
             searchInput.addEventListener('input', (e) => {
-                this.searchTerm = e.target.value;
-                this.renderProductGrid();
+                clearTimeout(this._searchDebounceTimer);
+                this._searchDebounceTimer = setTimeout(() => {
+                    this.searchTerm = e.target.value;
+                    this.renderProductGrid();
+                }, 300);
             });
         }
 
@@ -347,13 +359,13 @@ class POS {
         if(paymentMethod) {
             paymentMethod.addEventListener('change', (e) => {
                 const amountInput = document.getElementById('amount-paid');
+                const quickPayContainer = document.getElementById('quick-pay-buttons');
                 if (e.target.value === 'Cash') {
-                    amountInput.disabled = false;
-                    amountInput.value = '';
-                    amountInput.focus();
+                    if (amountInput) { amountInput.disabled = false; amountInput.value = ''; amountInput.focus(); }
+                    if (quickPayContainer) quickPayContainer.classList.remove('d-none');
                 } else {
-                    amountInput.disabled = true;
-                    amountInput.value = '';
+                    if (amountInput) { amountInput.disabled = true; amountInput.value = ''; }
+                    if (quickPayContainer) quickPayContainer.classList.add('d-none');
                 }
                 this.updateChange();
             });
@@ -363,6 +375,22 @@ class POS {
         if(amountPaid) {
             amountPaid.addEventListener('input', () => {
                 this.updateChange();
+            });
+        }
+
+        // Quick-pay denomination buttons
+        const quickPayContainer = document.getElementById('quick-pay-buttons');
+        if (quickPayContainer) {
+            quickPayContainer.addEventListener('click', (e) => {
+                const btn = e.target.closest('[data-denomination]');
+                if (!btn) return;
+                const denomination = parseInt(btn.getAttribute('data-denomination'));
+                const amountInput = document.getElementById('amount-paid');
+                if (amountInput) {
+                    const current = parseFloat(amountInput.value) || 0;
+                    amountInput.value = current + denomination;
+                    this.updateChange();
+                }
             });
         }
 
@@ -385,26 +413,34 @@ class POS {
     }
 
     updateChange() {
-        const paymentMethod = document.getElementById('payment-method').value;
+        const paymentMethodEl = document.getElementById('payment-method');
         const changeDisplay = document.getElementById('change-display');
+        const payBtn = document.getElementById('pay-btn');
+        if (!paymentMethodEl || !changeDisplay) return;
+
+        const paymentMethod = paymentMethodEl.value;
         const total = this.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
         
         if (paymentMethod !== 'Cash') {
-            changeDisplay.textContent = 'Rp 0';
+            changeDisplay.textContent = formatCurrency(0);
             changeDisplay.className = 'fs-5 text-muted';
+            if (payBtn && this.cart.length > 0) payBtn.disabled = false;
             return;
         }
 
-        const amountPaidInput = document.getElementById('amount-paid').value;
-        const amountPaid = parseFloat(amountPaidInput) || 0;
+        const amountPaidInput = document.getElementById('amount-paid');
+        const amountPaid = amountPaidInput ? (parseFloat(amountPaidInput.value) || 0) : 0;
         const change = amountPaid - total;
 
         if (change < 0) {
             changeDisplay.textContent = `Kurang: ${formatCurrency(Math.abs(change))}`;
             changeDisplay.className = 'fs-5 text-danger fw-bold';
+            // Disable pay button if cash is insufficient
+            if (payBtn) payBtn.disabled = true;
         } else {
             changeDisplay.textContent = formatCurrency(change);
             changeDisplay.className = 'fs-5 text-success fw-bold';
+            if (payBtn && this.cart.length > 0) payBtn.disabled = false;
         }
     }
 
@@ -454,8 +490,10 @@ class POS {
                 // Bersihkan dan Muat Ulang
                 this.cart = [];
                 this.renderCart();
-                document.getElementById('amount-paid').value = '';
-                document.getElementById('change-display').textContent = 'Rp 0';
+                const amountPaidEl = document.getElementById('amount-paid');
+                if (amountPaidEl) amountPaidEl.value = '';
+                const changeEl = document.getElementById('change-display');
+                if (changeEl) changeEl.textContent = formatCurrency(0);
                 
                 await this.loadItems(); 
             }
@@ -572,10 +610,18 @@ class POS {
         `);
         doc.close();
 
-        // Bersihkan iframe setelah selesai (beri waktu untuk dialog print muncul)
+        // Bersihkan iframe setelah dialog cetak ditutup
+        iframe.contentWindow.addEventListener('afterprint', () => {
+            if (document.body.contains(iframe)) {
+                document.body.removeChild(iframe);
+            }
+        });
+        // Fallback: remove iframe after 15 seconds if afterprint doesn't fire
         setTimeout(() => {
-            document.body.removeChild(iframe);
-        }, 10000); 
+            if (document.body.contains(iframe)) {
+                document.body.removeChild(iframe);
+            }
+        }, 15000); 
     }
 }
 

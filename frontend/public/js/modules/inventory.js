@@ -7,6 +7,8 @@ class Inventory {
         this.items = [];
         this.searchTerm = '';
         this.categoryFilter = 'all';
+        this.sortColumn = null;
+        this.sortDirection = 'asc';
     }
 
     async render() {
@@ -17,20 +19,23 @@ class Inventory {
                 <div class="card-header bg-white py-3">
                     <div class="d-flex justify-content-between align-items-center">
                         <h5 class="mb-0 fw-bold"><i class="bi bi-box-seam me-2"></i>Manajemen Gudang</h5>
-                        <button class="btn btn-primary" id="add-item-btn">
-                            <i class="bi bi-plus-circle me-2"></i>Tambah Barang
-                        </button>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-outline-success" id="export-csv-btn">
+                                <i class="bi bi-download me-2"></i>Export CSV
+                            </button>
+                            <button class="btn btn-primary" id="add-item-btn">
+                                <i class="bi bi-plus-circle me-2"></i>Tambah Barang
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div class="card-body">
                     <div class="row g-3 mb-4">
                         <div class="col-md-6">
                             <div class="search-bar">
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light border-end-0"><i class="bi bi-search"></i></span>
-                                    <input type="text" class="form-control border-start-0 ps-0" id="inventory-search" 
-                                           placeholder="Cari nama barang atau SKU...">
-                                </div>
+                                <i class="bi bi-search search-icon" aria-hidden="true"></i>
+                                <input type="text" class="form-control inventory-search-input" id="inventory-search"
+                                       placeholder="Cari nama barang atau SKU...">
                             </div>
                         </div>
                         <div class="col-md-3">
@@ -54,11 +59,17 @@ class Inventory {
                             <thead class="table-light">
                                 <tr>
                                     <th>SKU</th>
-                                    <th>Nama Barang</th>
+                                    <th class="sortable-header" data-sort="name" style="cursor:pointer;">
+                                        Nama Barang <span class="sort-icon" data-sort="name">▲▼</span>
+                                    </th>
                                     <th>Kategori</th>
                                     <th>Harga Beli</th>
-                                    <th>Harga Jual</th>
-                                    <th>Stok</th>
+                                    <th class="sortable-header" data-sort="selling_price" style="cursor:pointer;">
+                                        Harga Jual <span class="sort-icon" data-sort="selling_price">▲▼</span>
+                                    </th>
+                                    <th class="sortable-header" data-sort="stock" style="cursor:pointer;">
+                                        Stok <span class="sort-icon" data-sort="stock">▲▼</span>
+                                    </th>
                                     <th>Status</th>
                                     <th>Aksi</th>
                                 </tr>
@@ -223,10 +234,28 @@ class Inventory {
             return;
         }
 
-        tbody.innerHTML = this.items.map(item => {
-            const stockBadge = item.stock <= item.min_stock_alert 
+        // Apply client-side sorting
+        let sortedItems = [...this.items];
+        if (this.sortColumn) {
+            sortedItems.sort((a, b) => {
+                let valA = a[this.sortColumn] ?? '';
+                let valB = b[this.sortColumn] ?? '';
+                if (typeof valA === 'string') valA = valA.toLowerCase();
+                if (typeof valB === 'string') valB = valB.toLowerCase();
+                if (valA < valB) return this.sortDirection === 'asc' ? -1 : 1;
+                if (valA > valB) return this.sortDirection === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+
+        tbody.innerHTML = sortedItems.map(item => {
+            const isLowStock = item.stock <= item.min_stock_alert;
+            const isMediumStock = item.stock <= item.min_stock_alert * 2;
+            const rowClass = isLowStock ? 'table-danger' : isMediumStock ? 'table-warning' : '';
+
+            const stockBadge = isLowStock 
                 ? '<span class="badge bg-danger">Menipis</span>'
-                : item.stock <= item.min_stock_alert * 2
+                : isMediumStock
                 ? '<span class="badge bg-warning text-dark">Sedang</span>'
                 : '<span class="badge bg-success">Aman</span>';
 
@@ -238,12 +267,10 @@ class Inventory {
             };
             const displayCategory = categoryMap[item.category] || item.category;
 
-            // PERBAIKAN: Escape tanda kutip ganda pada nama barang agar HTML tidak rusak
             const safeName = item.name.replace(/"/g, '&quot;');
 
-            // PERBAIKAN: Menghapus onclick="...", menggantinya dengan data-attributes
             return `
-                <tr>
+                <tr class="${rowClass}">
                     <td><code class="text-primary fw-bold">${item.sku}</code></td>
                     <td><strong>${item.name}</strong></td>
                     <td><span class="badge bg-secondary bg-opacity-75">${displayCategory}</span></td>
@@ -276,6 +303,52 @@ class Inventory {
                 </tr>
             `;
         }).join('');
+
+        // Update sort icons in headers
+        document.querySelectorAll('.sort-icon').forEach(icon => {
+            const col = icon.getAttribute('data-sort');
+            if (col === this.sortColumn) {
+                icon.textContent = this.sortDirection === 'asc' ? '▲' : '▼';
+            } else {
+                icon.textContent = '▲▼';
+            }
+        });
+    }
+
+    exportCSV() {
+        const categoryMap = {
+            'Sparepart': 'Suku Cadang',
+            'Accessory': 'Aksesoris',
+            'Software': 'Software',
+            'Other': 'Lainnya'
+        };
+
+        const headers = ['SKU', 'Nama Barang', 'Kategori', 'Harga Beli', 'Harga Jual', 'Stok', 'Stok Minimum', 'Status'];
+        const rows = this.items.map(item => {
+            const status = item.stock <= item.min_stock_alert ? 'Menipis'
+                : item.stock <= item.min_stock_alert * 2 ? 'Sedang' : 'Aman';
+            return [
+                item.sku,
+                `"${item.name.replace(/"/g, '""')}"`,
+                categoryMap[item.category] || item.category,
+                item.purchase_price,
+                item.selling_price,
+                item.stock,
+                item.min_stock_alert,
+                status
+            ].join(',');
+        });
+
+        const csvContent = [headers.join(','), ...rows].join('\n');
+        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `inventaris_${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
     }
 
     setupEventListeners() {
@@ -293,6 +366,26 @@ class Inventory {
         document.getElementById('refresh-inventory-btn').addEventListener('click', () => {
             this.loadItems();
         });
+
+        // Export CSV
+        document.getElementById('export-csv-btn').addEventListener('click', () => {
+            this.exportCSV();
+        });
+
+        // Column sorting (event delegation on table head)
+        document.querySelector('#inventory-table-body')?.closest('table')?.querySelector('thead')
+            ?.addEventListener('click', (e) => {
+                const th = e.target.closest('.sortable-header');
+                if (!th) return;
+                const col = th.getAttribute('data-sort');
+                if (this.sortColumn === col) {
+                    this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+                } else {
+                    this.sortColumn = col;
+                    this.sortDirection = 'asc';
+                }
+                this.renderTable();
+            });
 
         // Tombol Tambah Barang
         document.getElementById('add-item-btn').addEventListener('click', () => {
