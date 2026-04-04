@@ -5,6 +5,8 @@ import api, { formatCurrency, showError } from '../api.js';
 class Dashboard {
     constructor() {
         this.stats = null;
+        this.customerChart = null;
+        this.incomeChart = null;
     }
 
     async render() {
@@ -77,6 +79,32 @@ class Dashboard {
                 </div>
             </div>
 
+            <div class="row g-4 mb-4">
+                <div class="col-lg-6">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0 fw-bold"><i class="bi bi-people me-2"></i>Pelanggan Masuk (30 Hari)</h5>
+                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle" id="monthly-customer-trend">Menghitung...</span>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="customer-monthly-chart" height="180"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-6">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0 fw-bold"><i class="bi bi-graph-up-arrow me-2"></i>Penghasilan 1 Bulan</h5>
+                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle" id="monthly-income-trend">Menghitung...</span>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="income-monthly-chart" height="180"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="row g-4">
                 <div class="col-lg-6">
                     <div class="card border-0 shadow-sm h-100">
@@ -132,6 +160,7 @@ class Dashboard {
             // 2. Load Tabel
             await this.loadLowStock();
             await this.loadRecentActivity();
+            await this.loadMonthlyCharts();
 
         } catch (error) {
             console.error('Gagal memuat data dasbor:', error);
@@ -141,6 +170,245 @@ class Dashboard {
                 if (el) { el.classList.remove('skeleton', 'skeleton-text'); el.textContent = '-'; }
             });
             showError('app-content', 'Gagal memuat data dasbor. Pastikan server backend berjalan.');
+        }
+    }
+
+    getLastThirtyDaysRange() {
+        const end = new Date();
+        end.setHours(23, 59, 59, 999);
+
+        const start = new Date();
+        start.setDate(start.getDate() - 29);
+        start.setHours(0, 0, 0, 0);
+
+        return {
+            start,
+            end,
+            startISO: start.toISOString().split('T')[0],
+            endISO: end.toISOString().split('T')[0]
+        };
+    }
+
+    buildDailyBuckets(startDate, totalDays = 30) {
+        const buckets = [];
+        for (let i = 0; i < totalDays; i += 1) {
+            const date = new Date(startDate);
+            date.setDate(startDate.getDate() + i);
+            buckets.push({
+                key: date.toISOString().slice(0, 10),
+                label: date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' }),
+                customers: 0,
+                income: 0
+            });
+        }
+        return buckets;
+    }
+
+    calculateTrendBadge(elementId, currentSevenDays, previousSevenDays, label) {
+        const trendEl = document.getElementById(elementId);
+        if (!trendEl) return;
+
+        if (previousSevenDays <= 0 && currentSevenDays <= 0) {
+            trendEl.className = 'badge bg-secondary-subtle text-secondary border border-secondary-subtle';
+            trendEl.textContent = `${label}: Stabil`;
+            return;
+        }
+
+        if (previousSevenDays <= 0 && currentSevenDays > 0) {
+            trendEl.className = 'badge bg-success-subtle text-success border border-success-subtle';
+            trendEl.textContent = `${label}: ↑ Naik`;
+            return;
+        }
+
+        const diff = currentSevenDays - previousSevenDays;
+        const percent = Math.abs((diff / previousSevenDays) * 100).toFixed(1);
+
+        if (diff > 0) {
+            trendEl.className = 'badge bg-success-subtle text-success border border-success-subtle';
+            trendEl.textContent = `${label}: ↑ ${percent}%`;
+        } else if (diff < 0) {
+            trendEl.className = 'badge bg-danger-subtle text-danger border border-danger-subtle';
+            trendEl.textContent = `${label}: ↓ ${percent}%`;
+        } else {
+            trendEl.className = 'badge bg-secondary-subtle text-secondary border border-secondary-subtle';
+            trendEl.textContent = `${label}: → Stabil`;
+        }
+    }
+
+    renderMonthlyCustomerChart(labels, values) {
+        const canvas = document.getElementById('customer-monthly-chart');
+        if (!canvas || typeof Chart === 'undefined') return;
+
+        const maxCustomers = Math.max(...values, 0);
+        const customerAxisMax = Math.max(5, maxCustomers + 1);
+
+        if (this.customerChart) {
+            this.customerChart.destroy();
+        }
+
+        this.customerChart = new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{
+                    label: 'Jumlah Pelanggan',
+                    data: values,
+                    backgroundColor: 'rgba(13, 110, 253, 0.25)',
+                    borderColor: 'rgba(13, 110, 253, 1)',
+                    borderWidth: 1.2,
+                    borderRadius: 6,
+                    maxBarThickness: 14
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { maxTicksLimit: 8 }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        max: customerAxisMax,
+                        ticks: {
+                            precision: 0,
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    renderMonthlyIncomeChart(labels, values) {
+        const canvas = document.getElementById('income-monthly-chart');
+        if (!canvas || typeof Chart === 'undefined') return;
+
+        const maxIncome = Math.max(...values, 0);
+        const incomeAxisMax = Math.max(2000000, Math.ceil(maxIncome / 500000) * 500000);
+
+        if (this.incomeChart) {
+            this.incomeChart.destroy();
+        }
+
+        this.incomeChart = new Chart(canvas, {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [{
+                    label: 'Penghasilan',
+                    data: values,
+                    borderColor: 'rgba(25, 135, 84, 1)',
+                    backgroundColor: 'rgba(25, 135, 84, 0.15)',
+                    fill: true,
+                    pointRadius: 2.5,
+                    pointHoverRadius: 4,
+                    tension: 0.3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => formatCurrency(ctx.raw || 0)
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { maxTicksLimit: 8 }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        max: incomeAxisMax,
+                        ticks: {
+                            stepSize: 500000,
+                            callback: (value) => {
+                                const numeric = Number(value) || 0;
+                                if (numeric >= 1000000) return `Rp ${(numeric / 1000000).toFixed(1)} jt`;
+                                return `Rp ${(numeric / 1000).toFixed(0)} rb`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    async loadMonthlyCharts() {
+        const { start, startISO, endISO } = this.getLastThirtyDaysRange();
+        const buckets = this.buildDailyBuckets(start, 30);
+        const bucketMap = new Map(buckets.map(b => [b.key, b]));
+
+        try {
+            const [transactionsRes, servicesRes] = await Promise.all([
+                api.getTransactions({ start_date: startISO, end_date: endISO, limit: 500 }),
+                api.getServiceTickets({ start_date: startISO, end_date: endISO, limit: 500 })
+            ]);
+
+            const transactions = Array.isArray(transactionsRes?.data) ? transactionsRes.data : [];
+            const services = Array.isArray(servicesRes?.data) ? servicesRes.data : [];
+
+            transactions.forEach((txn) => {
+                const dateKey = new Date(txn.date).toISOString().slice(0, 10);
+                const bucket = bucketMap.get(dateKey);
+                if (!bucket) return;
+                bucket.customers += 1;
+                bucket.income += Number(txn.grand_total || 0);
+            });
+
+            services.forEach((ticket) => {
+                const createdKey = new Date(ticket?.timestamps?.created_at).toISOString().slice(0, 10);
+                const createdBucket = bucketMap.get(createdKey);
+                if (createdBucket) {
+                    createdBucket.customers += 1;
+                }
+
+                const isRevenueTicket = ticket.status === 'Completed' || ticket.status === 'Picked_Up';
+                const completedAt = ticket?.timestamps?.completed_at;
+                if (!isRevenueTicket || !completedAt) return;
+
+                const incomeKey = new Date(completedAt).toISOString().slice(0, 10);
+                const incomeBucket = bucketMap.get(incomeKey);
+                if (!incomeBucket) return;
+                incomeBucket.income += Number(ticket.total_cost || 0);
+            });
+
+            const labels = buckets.map(b => b.label);
+            const customerValues = buckets.map(b => b.customers);
+            const incomeValues = buckets.map(b => b.income);
+
+            const currentCustomerSevenDays = customerValues.slice(-7).reduce((sum, val) => sum + val, 0);
+            const previousCustomerSevenDays = customerValues.slice(-14, -7).reduce((sum, val) => sum + val, 0);
+            const currentSevenDays = incomeValues.slice(-7).reduce((sum, val) => sum + val, 0);
+            const previousSevenDays = incomeValues.slice(-14, -7).reduce((sum, val) => sum + val, 0);
+
+            this.calculateTrendBadge('monthly-customer-trend', currentCustomerSevenDays, previousCustomerSevenDays, 'Pelanggan');
+            this.calculateTrendBadge('monthly-income-trend', currentSevenDays, previousSevenDays, 'Penghasilan');
+            this.renderMonthlyCustomerChart(labels, customerValues);
+            this.renderMonthlyIncomeChart(labels, incomeValues);
+        } catch (error) {
+            const trendEl = document.getElementById('monthly-income-trend');
+            if (trendEl) {
+                trendEl.className = 'badge bg-danger-subtle text-danger border border-danger-subtle';
+                trendEl.textContent = 'Data gagal dimuat';
+            }
+
+            const customerTrendEl = document.getElementById('monthly-customer-trend');
+            if (customerTrendEl) {
+                customerTrendEl.className = 'badge bg-danger-subtle text-danger border border-danger-subtle';
+                customerTrendEl.textContent = 'Data gagal dimuat';
+            }
+
+            console.error('Gagal memuat grafik bulanan:', error);
         }
     }
 

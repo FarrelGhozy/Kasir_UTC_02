@@ -33,11 +33,9 @@ class Inventory {
                     <div class="row g-3 mb-4">
                         <div class="col-md-6">
                             <div class="search-bar">
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light border-end-0"><i class="bi bi-search"></i></span>
-                                    <input type="text" class="form-control border-start-0 ps-0" id="inventory-search" 
-                                           placeholder="Cari nama barang atau SKU...">
-                                </div>
+                                <i class="bi bi-search search-icon" aria-hidden="true"></i>
+                                <input type="text" class="form-control inventory-search-input" id="inventory-search"
+                                       placeholder="Cari nama barang atau SKU...">
                             </div>
                         </div>
                         <div class="col-md-3">
