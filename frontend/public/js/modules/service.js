@@ -10,6 +10,9 @@ class Service {
     }
 
     async render() {
+        // PERBAIKAN: Pastikan global 'service' merujuk ke instance yang aktif
+        window.service = this;
+
         // CSS Hack — inject only once
         if (!document.getElementById('service-number-style')) {
             const style = document.createElement('style');
@@ -256,9 +259,9 @@ class Service {
             <div class="modal fade" id="detailModal" tabindex="-1">
                 <div class="modal-dialog modal-lg">
                     <div class="modal-content">
-                        <div class="modal-header">
+                        <div class="modal-header bg-primary text-white">
                             <h5 class="modal-title fw-bold">Detail Tiket Servis</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                         </div>
                         <div class="modal-body" id="detail-content"></div>
                         <div class="modal-footer">
@@ -387,27 +390,27 @@ class Service {
                                 <i class="bi bi-eye"></i> Detail
                             </button>
 
-                            ${!isCompleted ? `
-                                <button class="btn btn-sm btn-outline-warning" onclick="service.openEdit('${t._id}')" title="Edit">
-                                    <i class="bi bi-pencil"></i>
-                                </button>
-                                
-                                <button class="btn btn-sm btn-outline-danger" onclick="service.deleteTicket('${t._id}')" title="Batal">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                                
-                                <button class="btn btn-sm btn-outline-primary" onclick="service.openAddPart('${t._id}')" title="Part">
-                                    <i class="bi bi-tools"></i>
-                                </button>
+                            <button class="btn btn-sm btn-outline-warning" onclick="service.openEdit('${t._id}')" title="Edit">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            
+                            <button class="btn btn-sm btn-outline-danger" onclick="service.deleteTicket('${t._id}')" title="Batal">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                            
+                            <button class="btn btn-sm btn-outline-primary" onclick="service.openAddPart('${t._id}')" title="Part">
+                                <i class="bi bi-tools"></i>
+                            </button>
 
-                                <button class="btn btn-sm btn-success fw-bold px-3" onclick="service.openFinalize('${t._id}')">
-                                    <i class="bi bi-check-lg"></i>
+                            <button class="btn btn-sm btn-success fw-bold px-3" onclick="service.openFinalize('${t._id}')">
+                                <i class="bi bi-check-lg"></i>
+                            </button>
+
+                            ${isCompleted ? `
+                                <button class="btn btn-sm btn-outline-dark" onclick="service.printInvoice('${t._id}')" title="Nota">
+                                    <i class="bi bi-printer"></i>
                                 </button>
-                            ` : `
-                                <button class="btn btn-sm btn-outline-dark" onclick="service.printInvoice('${t._id}')">
-                                    <i class="bi bi-printer"></i> Nota
-                                </button>
-                            `}
+                            ` : ''}
                         </div>
                     </div>
                 </div>
@@ -461,7 +464,7 @@ class Service {
         document.getElementById('edit-ticket-id').value = t._id;
         document.getElementById('edit-customer-name').value = t.customer.name;
         document.getElementById('edit-customer-phone').value = t.customer.phone;
-        document.getElementById('edit-device-full').value = `${t.device.type} ${t.device.brand} ${t.device.model}`;
+        document.getElementById('edit-device-full').value = `${t.device.type} ${t.device.brand || ''} ${t.device.model || ''}`.trim().replace(/\s+/g, ' ');
         document.getElementById('edit-symptoms').value = t.device.symptoms;
         
         new bootstrap.Modal(document.getElementById('editTicketModal')).show();
@@ -521,36 +524,79 @@ class Service {
     openDetail(id) {
         const t = this.tickets.find(x => x._id === id);
         if(!t) return;
+
         const partList = t.parts_used.length ? t.parts_used.map(p => 
             `<tr><td>${p.name}</td><td class="text-center">${p.qty}</td><td class="text-end">${formatCurrency(p.subtotal)}</td></tr>`
         ).join('') : '<tr><td colspan="3" class="text-center text-muted">Tidak ada sparepart</td></tr>';
         
         const html = `
-            <div class="row mb-4">
-                <div class="col-6">
-                    <h6 class="fw-bold text-secondary">INFO PELANGGAN</h6>
-                    <table class="table table-sm table-borderless mb-0">
-                        <tr><td width="100">Nama</td><td>: <strong>${t.customer.name}</strong></td></tr>
-                        <tr><td>Telp</td><td>: ${t.customer.phone}</td></tr>
-                    </table>
+            <div class="row g-4 mb-4">
+                <div class="col-md-6">
+                    <div class="p-3 bg-light rounded shadow-sm h-100">
+                        <h6 class="fw-bold text-primary border-bottom pb-2 mb-3"><i class="bi bi-person me-2"></i>INFO PELANGGAN</h6>
+                        <table class="table table-sm table-borderless mb-0">
+                            <tr><td width="110" class="text-secondary">Nama</td><td>: <strong>${t.customer.name}</strong></td></tr>
+                            <tr><td class="text-secondary">Telepon</td><td>: ${t.customer.phone}</td></tr>
+                            <tr><td class="text-secondary">Tipe</td><td>: <span class="badge bg-info text-dark">${t.customer.type}</span></td></tr>
+                        </table>
+                    </div>
                 </div>
-                <div class="col-6">
-                    <h6 class="fw-bold text-secondary">PERANGKAT</h6>
-                    <table class="table table-sm table-borderless mb-0">
-                        <tr><td width="100">Unit</td><td>: <strong>${t.device.type} ${t.device.brand}</strong></td></tr>
-                        <tr><td>Keluhan</td><td>: ${t.device.symptoms}</td></tr>
-                    </table>
+                <div class="col-md-6">
+                    <div class="p-3 bg-light rounded shadow-sm h-100">
+                        <h6 class="fw-bold text-primary border-bottom pb-2 mb-3"><i class="bi bi-laptop me-2"></i>PERANGKAT</h6>
+                        <table class="table table-sm table-borderless mb-0">
+                            <tr><td width="110" class="text-secondary">Unit / Tipe</td><td>: <strong>${t.device.type} ${t.device.brand || ''}</strong></td></tr>
+                            <tr><td class="text-secondary">Model/Seri</td><td>: ${t.device.model || '-'}</td></tr>
+                            <tr><td class="text-secondary">Serial No.</td><td>: ${t.device.serial_number || '-'}</td></tr>
+                            <tr><td class="text-secondary">Keluhan</td><td>: <span class="text-danger">${t.device.symptoms}</span></td></tr>
+                            <tr><td class="text-secondary">Kelengkapan</td><td>: ${t.device.accessories || '-'}</td></tr>
+                        </table>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="p-3 bg-light rounded shadow-sm h-100">
+                        <h6 class="fw-bold text-primary border-bottom pb-2 mb-3"><i class="bi bi-clock me-2"></i>TIMELINE & PETUGAS</h6>
+                        <table class="table table-sm table-borderless mb-0">
+                            <tr><td width="110" class="text-secondary">Teknisi</td><td>: <strong>${t.technician.name}</strong></td></tr>
+                            <tr><td class="text-secondary">Waktu Masuk</td><td>: ${formatDateTime(t.timestamps.created_at)}</td></tr>
+                            ${t.timestamps.completed_at ? `<tr><td class="text-secondary text-success fw-bold">Waktu Selesai</td><td>: ${formatDateTime(t.timestamps.completed_at)}</td></tr>` : ''}
+                            ${t.timestamps.picked_up_at ? `<tr><td class="text-secondary text-primary fw-bold">Waktu Keluar</td><td>: ${formatDateTime(t.timestamps.picked_up_at)}</td></tr>` : ''}
+                        </table>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="p-3 bg-light rounded shadow-sm h-100">
+                        <h6 class="fw-bold text-primary border-bottom pb-2 mb-3"><i class="bi bi-journal-text me-2"></i>CATATAN</h6>
+                        <p class="small text-muted mb-0">${t.notes || 'Tidak ada catatan tambahan.'}</p>
+                    </div>
                 </div>
             </div>
-            <h6 class="fw-bold text-secondary">BIAYA & PART (Preview)</h6>
-            <table class="table table-bordered table-sm">
-                <thead class="table-light"><tr><th>Item</th><th class="text-center">Qty</th><th class="text-end">Subtotal</th></tr></thead>
-                <tbody>
-                    ${partList}
-                    <tr class="fw-bold"><td colspan="2" class="text-end">Jasa (Estimasi)</td><td class="text-end">${formatCurrency(t.service_fee)}</td></tr>
-                    <tr class="table-primary fw-bold"><td colspan="2" class="text-end">TOTAL</td><td class="text-end fs-5">${formatCurrency(t.total_cost)}</td></tr>
-                </tbody>
-            </table>
+
+            <h6 class="fw-bold text-primary mb-3"><i class="bi bi-cart me-2"></i>RINCIAN BIAYA & SPAREPART</h6>
+            <div class="table-responsive rounded border">
+                <table class="table table-hover table-sm mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Nama Item / Sparepart</th>
+                            <th class="text-center" width="80">Qty</th>
+                            <th class="text-end" width="150">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${partList}
+                    </tbody>
+                    <tfoot class="table-light">
+                        <tr class="fw-bold">
+                            <td colspan="2" class="text-end">Biaya Jasa</td>
+                            <td class="text-end">${formatCurrency(t.service_fee)}</td>
+                        </tr>
+                        <tr class="table-primary fw-bold">
+                            <td colspan="2" class="text-end fs-5 text-primary">GRAND TOTAL</td>
+                            <td class="text-end fs-5 text-primary">${formatCurrency(t.total_cost)}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
         `;
         document.getElementById('detail-content').innerHTML = html;
         document.getElementById('print-copy-btn').onclick = () => this.printInvoice(id);

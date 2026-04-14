@@ -243,13 +243,13 @@ serviceTicketSchema.methods.addPart = async function(itemId, quantity) {
 // Method instance untuk update status dengan validasi alur state machine
 serviceTicketSchema.methods.updateStatus = async function(newStatus) {
   const validTransitions = {
-    'Queue':        ['Diagnosing', 'Cancelled'],
-    'Diagnosing':   ['Waiting_Part', 'In_Progress', 'Cancelled'],
-    'Waiting_Part': ['In_Progress', 'Cancelled'],
-    'In_Progress':  ['Completed', 'Waiting_Part', 'Cancelled'],
-    'Completed':    ['Picked_Up'],
-    'Cancelled':    [], // Terminal state
-    'Picked_Up':    [], // Terminal state
+    'Queue':        ['Diagnosing', 'Cancelled', 'Completed', 'In_Progress', 'Waiting_Part'],
+    'Diagnosing':   ['Waiting_Part', 'In_Progress', 'Cancelled', 'Queue', 'Completed'],
+    'Waiting_Part': ['In_Progress', 'Cancelled', 'Queue', 'Diagnosing', 'Completed'],
+    'In_Progress':  ['Completed', 'Waiting_Part', 'Cancelled', 'Queue', 'Diagnosing'],
+    'Completed':    ['Picked_Up', 'In_Progress', 'Queue', 'Diagnosing', 'Waiting_Part'],
+    'Cancelled':    ['Queue', 'Diagnosing', 'Waiting_Part', 'In_Progress'], // Allow reopening cancelled
+    'Picked_Up':    [], // Keep Picked_Up as terminal for now to avoid stock/payment confusion
   };
 
   const allowedNext = validTransitions[this.status];

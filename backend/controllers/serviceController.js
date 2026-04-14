@@ -128,11 +128,11 @@ exports.addPartToService = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Tiket servis tidak ditemukan' });
     }
 
-    // 2. Validasi status tiket — tidak bisa tambah part ke tiket Completed/Cancelled/Picked_Up
-    if (['Completed', 'Cancelled', 'Picked_Up'].includes(ticket.status)) {
+    // 2. Validasi status tiket — diperlonggar: hanya Picked_Up yang dilarang tambah part
+    if (['Picked_Up'].includes(ticket.status)) {
       return res.status(400).json({
         success: false,
-        message: `Tidak dapat menambah part ke tiket dengan status ${ticket.status}`
+        message: `Tidak dapat menambah part ke tiket yang sudah diambil (Picked_Up)`
       });
     }
 
