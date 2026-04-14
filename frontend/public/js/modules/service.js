@@ -259,9 +259,9 @@ class Service {
             <div class="modal fade" id="detailModal" tabindex="-1">
                 <div class="modal-dialog modal-lg">
                     <div class="modal-content">
-                        <div class="modal-header bg-primary text-white">
+                        <div class="modal-header">
                             <h5 class="modal-title fw-bold">Detail Tiket Servis</h5>
-                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                         </div>
                         <div class="modal-body" id="detail-content"></div>
                         <div class="modal-footer">
@@ -674,6 +674,7 @@ class Service {
         
         document.getElementById('confirm-finish-btn').addEventListener('click', () => this.confirmFinish());
     }
+    
 }
 
 window.service = new Service();
