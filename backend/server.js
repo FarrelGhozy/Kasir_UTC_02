@@ -1,101 +1,24 @@
-// server.js (GABUNGAN DENGAN SEEDER)
+// server.js - Entry Point Utama Backend
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const mongoose = require('mongoose'); // Kita butuh mongoose langsung di sini
 const connectDB = require('./config/db');
 const apiRoutes = require('./routes/api');
 const errorHandler = require('./middleware/errorHandler');
-
-// Import Model untuk Seeding
-const User = require('./models/User');
-const Item = require('./models/Item');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 // ==========================================
-// 1. DATA & LOGIKA SEEDING (Dari seed.js)
+// 1. SETUP MIDDLEWARE & CORS
 // ==========================================
 
-const TECHNICIANS = [
-  'Farrel Ghozy', 'M Wildan', 'Kaukab', 'Rasya', 
-  'Tamam', 'Noer Syamsi', 'Baso Akbar'
-];
-
-const runSeederLogic = async () => {
-  console.log('\n🌱 MEMULAI PROSES CEK & SEEDING DATABASE OTOMATIS...');
-  
-  try {
-    // A. SEED TEKNISI
-    for (const techName of TECHNICIANS) {
-      const username = techName.toLowerCase().replace(/\s+/g, '_');
-      const existingTech = await User.findOne({ username });
-      
-      if (!existingTech) {
-        await User.create({
-          name: techName,
-          username: username,
-          password: 'password123', // PENTING: Pastikan Backend Anda menghandle hashing, atau ganti hash manual
-          role: 'teknisi'
-        });
-        console.log(`   ✅ Teknisi Dibuat: ${techName}`);
-      }
-    }
-
-    // B. SEED ADMIN & KASIR
-    const defaultUsers = [
-      { name: 'Admin UTC', username: 'admin', password: 'admin123', role: 'admin' },
-      { name: 'Kasir 1', username: 'kasir1', password: 'kasir123', role: 'kasir' }
-    ];
-
-    for (const userData of defaultUsers) {
-      const existingUser = await User.findOne({ username: userData.username });
-      if (!existingUser) {
-        await User.create(userData);
-        console.log(`   ✅ User Dibuat: ${userData.name}`);
-      }
-    }
-
-    // C. SEED BARANG (ITEMS)
-    const sampleItems = [
-      { sku: 'RAM-8GB-001', name: 'RAM DDR4 8GB Kingston', category: 'Sparepart', purchase_price: 400000, selling_price: 500000, stock: 15, min_stock_alert: 5 },
-      { sku: 'SSD-256-001', name: 'SSD 256GB Samsung', category: 'Sparepart', purchase_price: 500000, selling_price: 650000, stock: 10, min_stock_alert: 3 },
-      { sku: 'KB-MECH-001', name: 'Keyboard Mekanikal RGB', category: 'Accessory', purchase_price: 300000, selling_price: 450000, stock: 8, min_stock_alert: 2 },
-      { sku: 'MOUSE-001', name: 'Mouse Gaming Logitech', category: 'Accessory', purchase_price: 200000, selling_price: 300000, stock: 12, min_stock_alert: 4 },
-      { sku: 'HDMI-001', name: 'Kabel HDMI 2M', category: 'Accessory', purchase_price: 50000, selling_price: 75000, stock: 25, min_stock_alert: 10 },
-      { sku: 'HDD-1TB-001', name: 'HDD 1TB Seagate', category: 'Sparepart', purchase_price: 600000, selling_price: 750000, stock: 7, min_stock_alert: 3 },
-      { sku: 'PSU-500W-001', name: 'PSU 500W 80+ Bronze', category: 'Sparepart', purchase_price: 450000, selling_price: 600000, stock: 5, min_stock_alert: 2 },
-      { sku: 'COOL-FAN-001', name: 'Kipas Pendingin CPU', category: 'Sparepart', purchase_price: 150000, selling_price: 225000, stock: 10, min_stock_alert: 3 },
-      { sku: 'USB-HUB-001', name: 'USB Hub 4 Port', category: 'Accessory', purchase_price: 75000, selling_price: 120000, stock: 15, min_stock_alert: 5 },
-      { sku: 'THERMAL-001', name: 'Pasta Termal Arctic', category: 'Sparepart', purchase_price: 40000, selling_price: 60000, stock: 20, min_stock_alert: 8 }
-    ];
-
-    for (const itemData of sampleItems) {
-      const existingItem = await Item.findOne({ sku: itemData.sku });
-      if (!existingItem) {
-        await Item.create(itemData);
-        console.log(`   ✅ Barang Dibuat: ${itemData.name}`);
-      }
-    }
-    console.log('✅ SEEDING SELESAI (Data sudah lengkap/terupdate).\n');
-
-  } catch (error) {
-    console.error('⚠️  SEEDING ERROR (Server tetap jalan):', error.message);
-    // Kita tidak exit process agar server tetap nyala walau seeding gagal
-  }
-};
-
-// ==========================================
-// 2. SETUP SERVER EXPRESS
-// ==========================================
-
-// Middleware
 const defaultAllowedOrigins = [
   'https://kasir.utc.web.id',
   'https://www.kasir.utc.web.id',
   'http://localhost:8080',
-  'http://127.0.0.1:8080'
+  'http://127.0.0.1:8080',
+  'http://localhost:3000'
 ];
 
 const allowedOrigins = process.env.CORS_ORIGIN
@@ -105,14 +28,11 @@ const allowedOrigins = process.env.CORS_ORIGIN
 app.use(cors({
   origin: (origin, callback) => {
     // Izinkan request tanpa Origin header (curl, healthcheck, server-to-server)
-    if (!origin) {
-      return callback(null, true);
-    }
+    if (!origin) return callback(null, true);
 
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
-
     return callback(new Error('CORS: Origin tidak diizinkan'));
   },
   credentials: true
@@ -121,13 +41,16 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Logging
+// Simple Logging Middleware
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
   next();
 });
 
-// Routes
+// ==========================================
+// 2. ROUTES
+// ==========================================
+
 app.use('/api', apiRoutes);
 
 // Health Check
@@ -144,18 +67,15 @@ app.use((req, res) => {
 app.use(errorHandler);
 
 // ==========================================
-// 3. START SERVER DENGAN URUTAN YANG BENAR
+// 3. START SERVER
 // ==========================================
 
 const startServer = async () => {
   try {
-    // 1. Hubungkan Database dulu
+    // 1. Hubungkan Database
     await connectDB();
     
-    // 2. Jalankan Seeding (Tunggu sampai selesai)
-    await runSeederLogic();
-
-    // 3. Baru jalankan Listen Port
+    // 2. Jalankan Listen Port
     app.listen(PORT, () => {
       console.log('='.repeat(50));
       console.log(`🚀 Server API Bengkel UTC Berjalan`);
@@ -176,12 +96,5 @@ startServer();
 // Graceful Shutdown
 process.on('SIGTERM', () => {
   console.log('Sinyal SIGTERM diterima: menutup server HTTP');
-  server.close(async () => {
-    const mongoose = require('mongoose');
-    await mongoose.connection.close();
-    console.log('Server dan koneksi MongoDB ditutup dengan aman');
-    process.exit(0);
-  });
-  console.log('SIGTERM diterima: menutup server HTTP');
   process.exit(0);
 });

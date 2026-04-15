@@ -30,33 +30,55 @@ const TECHNICIANS = [
 ];
 
 const seedTechnicians = async () => {
-  console.log('\n🔧 Menambahkan Data Teknisi...');
+  console.log('\n🔧 Menyeimbangkan Data Teknisi...');
   
   let createdCount = 0;
   let skippedCount = 0;
 
+  // 1. Ambil daftar username yang seharusnya ada
+  const validUsernames = TECHNICIANS.map(name => name.toLowerCase().replace(/\s+/g, '_'));
+
+  // 2. Tambahkan atau update teknisi dari list
   for (const techName of TECHNICIANS) {
     const username = techName.toLowerCase().replace(/\s+/g, '_');
-    
-    // Cek apakah teknisi sudah ada
     const existingTech = await User.findOne({ username });
     
     if (existingTech) {
+      // Pastikan role-nya benar jika sudah ada
+      if (existingTech.role !== 'teknisi') {
+        existingTech.role = 'teknisi';
+        await existingTech.save();
+      }
       console.log(`   ⏭️  Dilewati: ${techName} (sudah ada)`);
       skippedCount++;
     } else {
       await User.create({
         name: techName,
         username: username,
-        password: 'teknisiutc26', // Password default
-        role: 'teknisi'
+        password: 'teknisiutc26',
+        role: 'teknisi',
+        isActive: true
       });
       console.log(`   ✅ Dibuat: ${techName} (username: ${username})`);
       createdCount++;
     }
   }
 
-  console.log(`\n📊 Ringkasan Teknisi: +${createdCount} Baru, ${skippedCount} Dilewati`);
+  // 3. Opsional: Nonaktifkan teknisi yang TIDAK ada di list (untuk membersihkan data sampah/dobel)
+  const strayTechs = await User.find({ 
+    role: 'teknisi', 
+    username: { $nin: validUsernames } 
+  });
+
+  if (strayTechs.length > 0) {
+    console.log(`   ⚠️  Menonaktifkan ${strayTechs.length} teknisi di luar list seed...`);
+    await User.updateMany(
+      { role: 'teknisi', username: { $nin: validUsernames } },
+      { isActive: false }
+    );
+  }
+
+  console.log(`\n📊 Ringkasan Teknisi: +${createdCount} Baru, ${skippedCount} Tetap, ${strayTechs.length} Dinonaktifkan`);
 };
 
 // --- DATA USER DEFAULT (ADMIN & KASIR) ---
