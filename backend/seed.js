@@ -17,16 +17,16 @@ const connectDB = async () => {
 
 // --- DATA TEKNISI ---
 const TECHNICIANS = [
-  'Farrel Ghozy',
+  'Farrel',
   'Kaukab',
   'Rasya',
   'Tamam',
-  'Noer Syamsi',
-  'Baso Akbar',
+  'Syamsi',
+  'Baso',
   'Fahri',
-  'Sultan Albi',
-  'Lutfi',
-  'Fayad'
+  'Sultan',
+  'Akhmad',
+  'Fayyadh'
 ];
 
 const seedTechnicians = async () => {
@@ -48,7 +48,7 @@ const seedTechnicians = async () => {
       await User.create({
         name: techName,
         username: username,
-        password: 'bengkelutc0326', // Password default
+        password: 'teknisiutc26', // Password default
         role: 'teknisi'
       });
       console.log(`   ✅ Dibuat: ${techName} (username: ${username})`);
@@ -68,14 +68,14 @@ const seedDefaultUsers = async () => {
       name: 'Admin UTC',
 
       username: 'admin-utc01',
-      password: 'bengkelutc0326',
+      password: 'adminutc28',
 
       role: 'admin'
     },
     {
       name: 'Kasir 1',
       username: 'kasir1',
-      password: 'bengkelutc0326',
+      password: 'kasirutc0326',
 
       role: 'kasir'
     }
