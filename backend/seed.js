@@ -18,12 +18,15 @@ const connectDB = async () => {
 // --- DATA TEKNISI ---
 const TECHNICIANS = [
   'Farrel Ghozy',
-  'M Wildan',
   'Kaukab',
   'Rasya',
   'Tamam',
   'Noer Syamsi',
-  'Baso Akbar'
+  'Baso Akbar',
+  'Fahri',
+  'Sultan Albi',
+  'Lutfi',
+  'Fayad'
 ];
 
 const seedTechnicians = async () => {
