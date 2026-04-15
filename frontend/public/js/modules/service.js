@@ -121,9 +121,13 @@ class Service {
                 <div class="col-lg-8">
                     <div class="card shadow-sm border-0 h-100">
                         <div class="card-header bg-white py-3">
-                            <div class="d-flex justify-content-between align-items-center">
+                            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
                                 <h5 class="mb-0 fw-bold text-primary">Daftar Servis Aktif</h5>
-                                <div class="d-flex gap-2">
+                                <div class="d-flex flex-wrap gap-2">
+                                    <div class="input-group input-group-sm" style="width: 200px;">
+                                        <span class="input-group-text bg-light"><i class="bi bi-search"></i></span>
+                                        <input type="text" class="form-control" id="search-customer" placeholder="Cari Nama / HP...">
+                                    </div>
                                     <select class="form-select form-select-sm" id="status-filter" style="width: 150px;">
                                         <option value="">Semua Status</option>
                                         <option value="Queue">Antrian</option>
@@ -314,12 +318,20 @@ class Service {
 
     renderTicketList() {
         const container = document.getElementById('tickets-container');
-        if (this.tickets.length === 0) {
-            container.innerHTML = '<div class="col-12 text-center text-muted py-5"><i class="bi bi-clipboard-x display-4"></i><p class="mt-2">Tidak ada data tiket aktif.</p></div>';
+        const searchTerm = document.getElementById('search-customer')?.value.toLowerCase() || '';
+
+        const filteredTickets = this.tickets.filter(t => {
+            const name = t.customer.name.toLowerCase();
+            const phone = t.customer.phone.toLowerCase();
+            return name.includes(searchTerm) || phone.includes(searchTerm);
+        });
+
+        if (filteredTickets.length === 0) {
+            container.innerHTML = `<div class="col-12 text-center text-muted py-5"><i class="bi bi-clipboard-x display-4"></i><p class="mt-2">${this.tickets.length === 0 ? 'Tidak ada data tiket aktif.' : 'Tidak ada hasil pencarian.'}</p></div>`;
             return;
         }
 
-        container.innerHTML = this.tickets.map(t => {
+        container.innerHTML = filteredTickets.map(t => {
             const isCompleted = t.status === 'Completed' || t.status === 'Picked_Up';
             
             let statusSelect = '';
@@ -614,13 +626,18 @@ class Service {
     printInvoice(id) {
         const t = this.tickets.find(x => x._id === id);
         if(!t) return;
+        
+        // Format Nama File: nama_nomerPelanggan_barang_angkaRandoom.pdf
+        const randomNum = Math.floor(Math.random() * 10000);
+        const fileName = `${t.customer.name}_${t.customer.phone}_${t.device.type}_${randomNum}`.replace(/\s+/g, '_');
+
         const iframe = document.createElement('iframe');
         iframe.style.display = 'none';
         document.body.appendChild(iframe);
         const doc = iframe.contentWindow.document;
         doc.open();
         doc.write(`
-            <html><head><title>Nota ${t.ticket_number}</title><style>
+            <html><head><title>${fileName}</title><style>
                 body { font-family: 'Courier New', monospace; padding: 20px; width: 80mm; font-size: 12px; }
                 .header { text-align: center; border-bottom: 2px dashed #000; margin-bottom: 10px; }
                 .row { display: flex; justify-content: space-between; margin-bottom: 3px; }
@@ -665,6 +682,9 @@ class Service {
         document.getElementById('refresh-tickets-btn').addEventListener('click', () => this.loadTickets());
         document.getElementById('save-edit-btn').addEventListener('click', () => this.saveEdit());
         
+        // Listener Pencarian
+        document.getElementById('search-customer').addEventListener('input', () => this.renderTicketList());
+
         // --- PERBAIKAN: Refresh data otomatis setelah tambah part ---
         document.getElementById('save-part-btn').addEventListener('click', async () => {
             const tId = document.getElementById('part-ticket-id').value;

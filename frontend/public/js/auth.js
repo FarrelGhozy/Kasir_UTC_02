@@ -110,18 +110,16 @@ class Auth {
     updateNavigationByRole() {
         const role = this.user.role;
 
-        // Sembunyikan/tampilkan item navigasi berdasarkan peran
+        // Tampilkan semua item navigasi untuk semua peran (Akses Maksimal)
         const navPos = document.getElementById('nav-pos');
         const navService = document.getElementById('nav-service');
 
-        if (role === 'teknisi') {
-            // Teknisi hanya bisa melihat servis, gudang, dan dasbor
-            navPos.classList.add('d-none');
-        } else if (role === 'kasir') {
-            // Kasir bisa melihat POS, gudang, dan dasbor
-            navService.classList.add('d-none');
-        }
-        // Admin bisa melihat semuanya (tidak ada perubahan diperlukan)
+        // Pastikan semua menu terlihat
+        if (navPos) navPos.classList.remove('d-none');
+        if (navService) navService.classList.remove('d-none');
+        
+        // Catatan: Admin tetap memiliki akses ke semua hal.
+        // Kasir dan Teknisi kini dapat mengakses modul satu sama lain untuk melihat data.
     }
 
     getRoleName(role) {

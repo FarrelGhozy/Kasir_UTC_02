@@ -41,10 +41,11 @@ router.get('/inventory/summary/value', protect, authorize('admin'), inventoryCon
 router.get('/inventory/summary/by-category', protect, inventoryController.getItemsByCategory);
 router.get('/inventory/:id', protect, inventoryController.getItemById);
 
-// Hanya Admin yang dapat mengelola inventaris (Tambah/Edit)
-router.post('/inventory', protect, authorize('admin'), inventoryController.createItem);
-router.put('/inventory/:id', protect, authorize('admin'), inventoryController.updateItem);
-router.patch('/inventory/:id/stock', protect, authorize('admin'), inventoryController.adjustStock);
+// Admin & Kasir dapat mengelola inventaris
+router.post('/inventory', protect, authorize('admin', 'kasir'), inventoryController.createItem);
+router.put('/inventory/:id', protect, authorize('admin', 'kasir'), inventoryController.updateItem);
+// Teknisi juga dapat menyesuaikan stok (misal: barang rusak/disesuaikan manual)
+router.patch('/inventory/:id/stock', protect, authorize('admin', 'kasir', 'teknisi'), inventoryController.adjustStock);
 router.delete('/inventory/:id', protect, authorize('admin'), inventoryController.deleteItem);
 
 // ============================================
@@ -55,11 +56,11 @@ router.get('/services', protect, serviceController.getAllTickets);
 router.get('/services/technician/:id/workload', protect, serviceController.getTechnicianWorkload);
 router.get('/services/:id', protect, serviceController.getTicketById);
 
-// Teknisi & Admin dapat mengelola servis
-router.post('/services', protect, authorize('teknisi', 'admin'), serviceController.createTicket);
-router.patch('/services/:id/status', protect, authorize('teknisi', 'admin'), serviceController.updateStatus);
-router.post('/services/:id/parts', protect, authorize('teknisi', 'admin'), serviceController.addPartToService);
-router.patch('/services/:id/service-fee', protect, authorize('teknisi', 'admin'), serviceController.updateServiceFee);
+// Teknisi, Kasir & Admin dapat mengelola servis
+router.post('/services', protect, authorize('teknisi', 'kasir', 'admin'), serviceController.createTicket);
+router.patch('/services/:id/status', protect, authorize('teknisi', 'kasir', 'admin'), serviceController.updateStatus);
+router.post('/services/:id/parts', protect, authorize('teknisi', 'kasir', 'admin'), serviceController.addPartToService);
+router.patch('/services/:id/service-fee', protect, authorize('teknisi', 'kasir', 'admin'), serviceController.updateServiceFee);
 router.delete('/services/:id', protect, authorize('admin'), serviceController.deleteTicket);
 
 // ============================================
@@ -70,16 +71,18 @@ router.get('/transactions/summary/today', protect, transactionController.getToda
 router.get('/transactions/invoice/:invoice_no', protect, transactionController.getTransactionByInvoice);
 router.get('/transactions/:id', protect, transactionController.getTransactionById);
 
-// Kasir & Admin dapat membuat transaksi
-router.post('/transactions', protect, authorize('kasir', 'admin'), transactionController.createRetailTransaction);
+// Kasir, Teknisi & Admin dapat membuat transaksi
+router.post('/transactions', protect, authorize('kasir', 'teknisi', 'admin'), transactionController.createRetailTransaction);
 router.delete('/transactions/:id', protect, authorize('admin'), transactionController.deleteTransaction);
 
 // ============================================
-// RUTE LAPORAN (Admin & Kasir)
+// RUTE LAPORAN
 // ============================================
-router.get('/reports/revenue/daily', protect, authorize('admin', 'kasir'), reportController.getDailyRevenue);
-router.get('/reports/revenue/monthly', protect, authorize('admin', 'kasir'), reportController.getMonthlyRevenue);
-router.get('/reports/revenue/range', protect, authorize('admin', 'kasir'), reportController.getRevenueByRange);
+// Semua peran dapat melihat pendapatan dasar
+router.get('/reports/revenue/daily', protect, authorize('admin', 'kasir', 'teknisi'), reportController.getDailyRevenue);
+router.get('/reports/revenue/monthly', protect, authorize('admin', 'kasir', 'teknisi'), reportController.getMonthlyRevenue);
+router.get('/reports/revenue/range', protect, authorize('admin', 'kasir', 'teknisi'), reportController.getRevenueByRange);
+// Hanya Admin yang dapat melihat laporan detail/performa
 router.get('/reports/top-items', protect, authorize('admin'), reportController.getTopSellingItems);
 router.get('/reports/cashier-performance', protect, authorize('admin'), reportController.getCashierPerformance);
 router.get('/reports/technician-performance', protect, authorize('admin'), reportController.getTechnicianPerformance);

@@ -1,6 +1,7 @@
 // public/js/modules/reports.js - Modul Laporan & Analitik
 
 import api, { formatCurrency, formatDate } from '../api.js';
+import auth from '../auth.js';
 
 class Reports {
     constructor() {
@@ -9,6 +10,7 @@ class Reports {
 
     async render() {
         const content = document.getElementById('app-content');
+        const isAdmin = auth.hasRole('admin');
         
         content.innerHTML = `
             <div class="row g-4">
@@ -23,10 +25,10 @@ class Reports {
                                     <i class="bi bi-calendar-month me-2"></i>Pendapatan Bulanan
                                 </button>
                                 <button type="button" class="btn btn-outline-primary" data-report="top-items">
-                                    <i class="bi bi-trophy me-2"></i>Barang Terlaris
+                                    <i class="bi bi-trophy me-2"></i>Barang Terlaris ${!isAdmin ? '<i class="bi bi-lock-fill ms-1 small opacity-50"></i>' : ''}
                                 </button>
                                 <button type="button" class="btn btn-outline-primary" data-report="performance">
-                                    <i class="bi bi-bar-chart me-2"></i>Performa Karyawan
+                                    <i class="bi bi-bar-chart me-2"></i>Performa Karyawan ${!isAdmin ? '<i class="bi bi-lock-fill ms-1 small opacity-50"></i>' : ''}
                                 </button>
                             </div>
                         </div>
@@ -49,11 +51,31 @@ class Reports {
             btn.addEventListener('click', (e) => {
                 // Handle klik pada icon di dalam tombol
                 const targetBtn = e.target.closest('button');
+                const reportType = targetBtn.getAttribute('data-report');
                 
+                // Cek akses admin untuk laporan tertentu
+                if ((reportType === 'top-items' || reportType === 'performance') && !auth.hasRole('admin')) {
+                    const container = document.getElementById('report-content');
+                    container.innerHTML = `
+                        <div class="card shadow-sm border-0 mt-4">
+                            <div class="card-body text-center py-5">
+                                <i class="bi bi-shield-lock text-warning display-1"></i>
+                                <h3 class="mt-4 fw-bold">Akses Terbatas</h3>
+                                <p class="text-muted">Maaf, laporan <strong>${targetBtn.textContent.trim()}</strong> hanya dapat diakses oleh Administrator.</p>
+                                <button class="btn btn-primary mt-2" onclick="document.querySelector('[data-report=daily]').click()">
+                                    <i class="bi bi-arrow-left me-2"></i>Kembali ke Laporan Umum
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    document.querySelectorAll('[data-report]').forEach(b => b.classList.remove('active'));
+                    targetBtn.classList.add('active');
+                    return;
+                }
+
                 document.querySelectorAll('[data-report]').forEach(b => b.classList.remove('active'));
                 targetBtn.classList.add('active');
                 
-                const reportType = targetBtn.getAttribute('data-report');
                 this.loadReport(reportType);
             });
         });
@@ -168,12 +190,12 @@ class Reports {
             `;
 
             // Setup listener perubahan tanggal
-            document.getElementById('daily-date').addEventListener('change', (e) => {
-                // Kita panggil render ulang, tapi pastikan nilai input terjaga
-                // Namun, metode renderDailyReport mengambil nilai dari DOM 'daily-date'
-                // Jadi kita cukup memanggil ulang fungsi ini
-                this.renderDailyReport(container);
-            });
+            const dailyDateInput = document.getElementById('daily-date');
+            if (dailyDateInput) {
+                dailyDateInput.addEventListener('change', (e) => {
+                    this.renderDailyReport(container);
+                });
+            }
         } catch (error) {
             container.innerHTML = `<div class="alert alert-danger">Gagal memuat laporan: ${error.message}</div>`;
         }
@@ -273,8 +295,10 @@ class Reports {
 
             // Setup listeners
             const reloadMonthly = () => this.renderMonthlyReport(container);
-            document.getElementById('month-select').addEventListener('change', reloadMonthly);
-            document.getElementById('year-select').addEventListener('change', reloadMonthly);
+            const monthSelectEl = document.getElementById('month-select');
+            const yearSelectEl = document.getElementById('year-select');
+            if (monthSelectEl) monthSelectEl.addEventListener('change', reloadMonthly);
+            if (yearSelectEl) yearSelectEl.addEventListener('change', reloadMonthly);
         } catch (error) {
             container.innerHTML = `<div class="alert alert-danger">Gagal memuat laporan bulanan: ${error.message}</div>`;
         }
