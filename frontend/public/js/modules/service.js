@@ -367,13 +367,21 @@ class Service {
                                 <h6 class="fw-bold mb-0 text-dark">#${t.ticket_number}</h6>
                                 <small class="text-muted">${formatDateTime(t.timestamps.created_at)}</small>
                             </div>
-                            ${this.getStatusBadge(t.status)}
+                            <div class="text-end">
+                                ${this.getStatusBadge(t.status)}
+                                <div class="small text-secondary mt-1" style="font-size: 0.75rem;">
+                                    <i class="bi bi-person-badge me-1"></i>${t.technician.name}
+                                </div>
+                            </div>
                         </div>
                         
                         <div class="row mb-3">
                             <div class="col-6">
                                 <small class="text-secondary fw-bold" style="font-size:0.7rem">PELANGGAN</small>
-                                <div class="fw-bold text-truncate">${t.customer.name}</div>
+                                <div class="fw-bold text-truncate">
+                                    ${t.customer.name} 
+                                    <span class="badge bg-light text-dark border ms-1" style="font-size:0.6rem; font-weight: normal;">${t.customer.type}</span>
+                                </div>
                                 <div class="small text-muted">${t.customer.phone}</div>
                             </div>
                             <div class="col-6">
