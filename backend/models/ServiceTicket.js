@@ -54,6 +54,14 @@ const deviceSchema = new mongoose.Schema({
     type: String,
     trim: true,
     default: 'Tidak ada'
+  },
+  password: {
+    type: String,
+    trim: true
+  },
+  pattern: {
+    type: String,
+    trim: true
   }
 }, { _id: false });
 

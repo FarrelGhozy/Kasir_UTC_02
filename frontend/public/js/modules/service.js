@@ -2,11 +2,111 @@
 
 import api, { formatCurrency, formatDateTime, showToast, showError } from '../api.js';
 
+/**
+ * Helper class for Pattern Lock UI
+ */
+class PatternLock {
+    constructor(containerId, inputId) {
+        this.containerId = containerId;
+        this.inputId = inputId;
+        this.sequence = [];
+    }
+
+    init() {
+        const container = document.getElementById(this.containerId);
+        if (!container) return;
+
+        container.innerHTML = `
+            <div class="pattern-lock-container">
+                <div class="pattern-sequence-display" id="${this.containerId}-display">Pola: -</div>
+                <div class="pattern-grid">
+                    ${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => `
+                        <div class="pattern-dot" data-index="${num}">${num}</div>
+                    `).join('')}
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-secondary mt-2" id="${this.containerId}-reset">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i>Reset Pola
+                </button>
+            </div>
+        `;
+
+        const dots = container.querySelectorAll('.pattern-dot');
+        dots.forEach(dot => {
+            dot.addEventListener('click', () => this.toggleDot(dot));
+        });
+
+        const resetBtn = document.getElementById(`${this.containerId}-reset`);
+        if (resetBtn) {
+            resetBtn.addEventListener('click', () => this.reset());
+        }
+    }
+
+    toggleDot(dotEl) {
+        const index = dotEl.dataset.index;
+        
+        // If already in sequence, don't add again (typical pattern behavior)
+        if (this.sequence.includes(index)) {
+            // Optional: allow removing the LAST added dot
+            if (this.sequence[this.sequence.length - 1] === index) {
+                this.sequence.pop();
+                dotEl.classList.remove('active');
+            }
+            this.updateDisplay();
+            return;
+        }
+
+        this.sequence.push(index);
+        dotEl.classList.add('active');
+        this.updateDisplay();
+    }
+
+    updateDisplay() {
+        const display = document.getElementById(`${this.containerId}-display`);
+        const input = document.getElementById(this.inputId);
+        
+        const seqStr = this.sequence.join('');
+        if (display) display.textContent = `Pola: ${seqStr || '-'}`;
+        if (input) input.value = seqStr;
+    }
+
+    reset() {
+        this.sequence = [];
+        const container = document.getElementById(this.containerId);
+        if (container) {
+            container.querySelectorAll('.pattern-dot').forEach(dot => {
+                dot.classList.remove('active');
+            });
+        }
+        this.updateDisplay();
+    }
+
+    setSequence(seqStr) {
+        this.reset();
+        if (!seqStr) return;
+        
+        const indices = String(seqStr).split('');
+        const container = document.getElementById(this.containerId);
+        
+        indices.forEach(idx => {
+            if (['1','2','3','4','5','6','7','8','9'].includes(idx)) {
+                this.sequence.push(idx);
+                if (container) {
+                    const dot = container.querySelector(`.pattern-dot[data-index="${idx}"]`);
+                    if (dot) dot.classList.add('active');
+                }
+            }
+        });
+        this.updateDisplay();
+    }
+}
+
 class Service {
     constructor() {
         this.tickets = [];
         this.technicians = [];
         this.items = [];
+        this.mainPatternLock = null;
+        this.editPatternLock = null;
     }
 
     async render() {
@@ -90,6 +190,17 @@ class Service {
                                     <input type="text" class="form-control" id="device-accessories" placeholder="Charger, Tas...">
                                 </div>
 
+                                <div class="mb-3">
+                                    <label class="form-label small fw-bold">Password / Sandi</label>
+                                    <input type="text" class="form-control" id="device-password" placeholder="1234">
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label small fw-bold">Pola Keamanan</label>
+                                    <input type="hidden" id="device-pattern">
+                                    <div id="main-pattern-selector"></div>
+                                </div>
+
                                 <h6 class="border-bottom pb-2 mb-3 mt-4 fw-bold text-secondary">Estimasi & Tugas</h6>
 
                                 <div class="mb-3">
@@ -153,6 +264,10 @@ class Service {
             ${this.renderModals()}
         `;
 
+        // Initialize Pattern Lock UI
+        this.mainPatternLock = new PatternLock('main-pattern-selector', 'device-pattern');
+        this.mainPatternLock.init();
+
         await this.loadTechnicians();
         await this.loadTickets();
         await this.loadItems();
@@ -186,6 +301,15 @@ class Service {
                                 <div class="mb-3">
                                     <label class="form-label">Keluhan</label>
                                     <textarea class="form-control" id="edit-symptoms" rows="3"></textarea>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Password</label>
+                                    <input type="text" class="form-control" id="edit-device-password">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Pola Keamanan</label>
+                                    <input type="hidden" id="edit-device-pattern">
+                                    <div id="edit-pattern-selector"></div>
                                 </div>
                             </form>
                         </div>
@@ -487,6 +611,18 @@ class Service {
         document.getElementById('edit-device-full').value = `${t.device.type} ${t.device.brand || ''} ${t.device.model || ''}`.trim().replace(/\s+/g, ' ');
         document.getElementById('edit-symptoms').value = t.device.symptoms;
         
+        // Populate Password
+        if (document.getElementById('edit-device-password')) {
+            document.getElementById('edit-device-password').value = t.device.password || '';
+        }
+
+        // Initialize and populate Pattern Lock for Edit
+        if (!this.editPatternLock) {
+            this.editPatternLock = new PatternLock('edit-pattern-selector', 'edit-device-pattern');
+        }
+        this.editPatternLock.init();
+        this.editPatternLock.setSequence(t.device.pattern || '');
+        
         new bootstrap.Modal(document.getElementById('editTicketModal')).show();
     }
 
@@ -495,7 +631,12 @@ class Service {
         const t = this.tickets.find(x => x._id === id);
         const newData = {
             customer: { ...t.customer, name: document.getElementById('edit-customer-name').value, phone: document.getElementById('edit-customer-phone').value },
-            device: { ...t.device, symptoms: document.getElementById('edit-symptoms').value }, 
+            device: { 
+                ...t.device, 
+                symptoms: document.getElementById('edit-symptoms').value,
+                password: document.getElementById('edit-device-password') ? document.getElementById('edit-device-password').value : t.device.password,
+                pattern: document.getElementById('edit-device-pattern') ? document.getElementById('edit-device-pattern').value : t.device.pattern
+            }, 
             notes: t.notes
         };
         try {
@@ -541,6 +682,20 @@ class Service {
         } catch(e) { showToast(e.message, 'error'); }
     }
 
+    renderPatternVisualization(seqStr) {
+        if (!seqStr) return '<span class="text-muted small">Tidak ada pola</span>';
+        
+        const activeIndices = String(seqStr).split('');
+        return `
+            <div class="pattern-mini-grid">
+                ${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => `
+                    <div class="pattern-mini-dot ${activeIndices.includes(String(num)) ? 'active' : ''}"></div>
+                `).join('')}
+            </div>
+            <div class="small fw-bold text-primary mt-1">Urutan: ${seqStr}</div>
+        `;
+    }
+
     openDetail(id) {
         const t = this.tickets.find(x => x._id === id);
         if(!t) return;
@@ -568,6 +723,11 @@ class Service {
                             <tr><td width="110" class="text-secondary">Unit / Tipe</td><td>: <strong>${t.device.type} ${t.device.brand || ''}</strong></td></tr>
                             <tr><td class="text-secondary">Model/Seri</td><td>: ${t.device.model || '-'}</td></tr>
                             <tr><td class="text-secondary">Serial No.</td><td>: ${t.device.serial_number || '-'}</td></tr>
+                            <tr><td class="text-secondary">Password</td><td>: <span class="badge bg-warning text-dark">${t.device.password || '-'}</span></td></tr>
+                            <tr>
+                                <td class="text-secondary">Pola</td>
+                                <td>: ${this.renderPatternVisualization(t.device.pattern)}</td>
+                            </tr>
                             <tr><td class="text-secondary">Keluhan</td><td>: <span class="text-danger">${t.device.symptoms}</span></td></tr>
                             <tr><td class="text-secondary">Kelengkapan</td><td>: ${t.device.accessories || '-'}</td></tr>
                         </table>
@@ -653,6 +813,9 @@ class Service {
                 <div class="row"><span>Tgl</span> <span>${new Date().toLocaleDateString('id-ID')}</span></div>
                 <div class="row"><span>Klien</span> <span>${t.customer.name}</span></div>
                 <div class="divider"></div>
+                <div class="row"><span>Perangkat</span> <span>${t.device.type} ${t.device.brand || ''}</span></div>
+                <div class="row"><span>Sandi/Pola</span> <span>${t.device.password || '-'}/${t.device.pattern || '-'}</span></div>
+                <div class="divider"></div>
                 ${t.parts_used.map(p => `<div class="row"><span>${p.name} x${p.qty}</span><span>${new Intl.NumberFormat('id-ID').format(p.subtotal)}</span></div>`).join('')}
                 <div class="row"><span>Jasa</span><span>${new Intl.NumberFormat('id-ID').format(t.service_fee)}</span></div>
                 <div class="divider"></div>
@@ -671,12 +834,26 @@ class Service {
             e.preventDefault();
             const data = {
                 customer: { name: document.getElementById('customer-name').value, phone: document.getElementById('customer-phone').value, type: document.getElementById('customer-type').value },
-                device: { type: document.getElementById('device-type').value, brand: document.getElementById('device-brand').value, model: document.getElementById('device-model').value, symptoms: document.getElementById('device-symptoms').value, accessories: document.getElementById('device-accessories').value },
+                device: { 
+                    type: document.getElementById('device-type').value, 
+                    brand: document.getElementById('device-brand').value, 
+                    model: document.getElementById('device-model').value, 
+                    symptoms: document.getElementById('device-symptoms').value, 
+                    accessories: document.getElementById('device-accessories').value,
+                    password: document.getElementById('device-password').value,
+                    pattern: document.getElementById('device-pattern').value
+                },
                 technician_id: document.getElementById('technician-select').value,
                 service_fee: document.getElementById('service-fee').value,
                 notes: ''
             };
-            try { await api.createServiceTicket(data); showToast('Tiket Dibuat'); document.getElementById('service-form').reset(); this.loadTickets(); } catch(e){ showToast(e.message, 'error'); }
+            try { 
+                await api.createServiceTicket(data); 
+                showToast('Tiket Dibuat'); 
+                document.getElementById('service-form').reset(); 
+                if (this.mainPatternLock) this.mainPatternLock.reset();
+                this.loadTickets(); 
+            } catch(e){ showToast(e.message, 'error'); }
         });
         document.getElementById('status-filter').addEventListener('change', () => this.loadTickets());
         document.getElementById('refresh-tickets-btn').addEventListener('click', () => this.loadTickets());
