@@ -1,6 +1,53 @@
 // controllers/reportController.js - Agregasi Pendapatan & Analitik
 const Transaction = require('../models/Transaction');
 const ServiceTicket = require('../models/ServiceTicket');
+const Item = require('../models/Item');
+
+/**
+ * @desc    Ambil rekapitulasi penuh untuk backup/laporan lengkap
+ * @route   GET /api/reports/full-recap
+ * @access  Private (Admin)
+ */
+exports.getFullRecap = async (req, res, next) => {
+  try {
+    // 1. Ambil semua data inventaris
+    const inventory = await Item.find({ isActive: true }).sort({ category: 1, name: 1 });
+
+    // 2. Ambil semua tiket servis (lengkap)
+    const services = await ServiceTicket.find().sort({ 'timestamps.created_at': -1 });
+
+    // 3. Ambil semua transaksi ritel
+    const transactions = await Transaction.find().sort({ date: -1 });
+
+    // 4. Hitung ringkasan statistik
+    const totalInventoryValue = inventory.reduce((sum, item) => sum + (item.stock * item.purchase_price), 0);
+    const totalServiceRevenue = services
+      .filter(s => ['Completed', 'Picked_Up'].includes(s.status))
+      .reduce((sum, s) => sum + s.total_cost, 0);
+    const totalRetailRevenue = transactions.reduce((sum, t) => sum + t.grand_total, 0);
+
+    res.status(200).json({
+      success: true,
+      timestamp: new Date(),
+      data: {
+        summary: {
+          inventory_items: inventory.length,
+          total_inventory_value: totalInventoryValue,
+          total_service_tickets: services.length,
+          total_service_revenue: totalServiceRevenue,
+          total_retail_transactions: transactions.length,
+          total_retail_revenue: totalRetailRevenue,
+          grand_total_revenue: totalServiceRevenue + totalRetailRevenue
+        },
+        inventory,
+        services,
+        transactions
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
 /**
  * @desc    Ambil pendapatan harian (Transaksi + Servis Selesai)

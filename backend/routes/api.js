@@ -78,13 +78,14 @@ router.delete('/transactions/:id', protect, authorize('admin'), transactionContr
 // ============================================
 // RUTE LAPORAN
 // ============================================
+// RUTE LAPORAN
 // Semua peran dapat melihat pendapatan dasar
 router.get('/reports/revenue/daily', protect, authorize('admin', 'kasir', 'teknisi'), reportController.getDailyRevenue);
 router.get('/reports/revenue/monthly', protect, authorize('admin', 'kasir', 'teknisi'), reportController.getMonthlyRevenue);
 router.get('/reports/revenue/range', protect, authorize('admin', 'kasir', 'teknisi'), reportController.getRevenueByRange);
-// Hanya Admin yang dapat melihat laporan detail/performa
+// Hanya Admin yang dapat melihat laporan detail/performa & rekap penuh
+router.get('/reports/full-recap', protect, authorize('admin'), reportController.getFullRecap);
 router.get('/reports/top-items', protect, authorize('admin'), reportController.getTopSellingItems);
 router.get('/reports/cashier-performance', protect, authorize('admin'), reportController.getCashierPerformance);
 router.get('/reports/technician-performance', protect, authorize('admin'), reportController.getTechnicianPerformance);
-
 module.exports = router;
