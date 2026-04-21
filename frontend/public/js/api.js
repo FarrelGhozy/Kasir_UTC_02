@@ -235,6 +235,33 @@ class API {
         return this.patch(`/services/${id}/service-fee`, { service_fee: serviceFee });
     }
 
+    // ==================== ENDPOINT PEMESANAN BARANG ====================
+
+    async createSpecialOrder(data) {
+        return this.post('/orders', data);
+    }
+
+    async getSpecialOrders(params = {}) {
+        const queryString = new URLSearchParams(params).toString();
+        return this.get(`/orders${queryString ? '?' + queryString : ''}`);
+    }
+
+    async getSpecialOrderById(id) {
+        return this.get(`/orders/${id}`);
+    }
+
+    async updateSpecialOrderStatus(id, status) {
+        return this.patch(`/orders/${id}/status`, { status });
+    }
+
+    async updateSpecialOrderDetails(id, data) {
+        return this.put(`/orders/${id}`, data);
+    }
+
+    async deleteSpecialOrder(id) {
+        return this.delete(`/orders/${id}`);
+    }
+
     // ==================== ENDPOINT LAPORAN ====================
 
     async getDailyRevenue(date) {
@@ -396,4 +423,45 @@ export function showError(containerId, message) {
  */
 export function confirmDialog(message) {
     return confirm(message);
+}
+
+/**
+ * Helpers for Currency Input Formatting (Thousand Separators)
+ */
+export function formatInputCurrency(value) {
+    if (!value) return '';
+    // Remove everything except numbers
+    const number = value.toString().replace(/\D/g, '');
+    if (!number) return '';
+    // Format with dots
+    return new Intl.NumberFormat('id-ID').format(number);
+}
+
+export function parseCurrencyValue(formattedValue) {
+    if (!formattedValue) return 0;
+    // Remove dots to get raw number
+    return parseInt(formattedValue.toString().replace(/\./g, ''), 10) || 0;
+}
+
+export function setupCurrencyInput(inputElement) {
+    if (!inputElement) return;
+    
+    // Initial format if has value
+    if (inputElement.value) {
+        inputElement.value = formatInputCurrency(inputElement.value);
+    }
+
+    inputElement.addEventListener('input', (e) => {
+        const cursorP = e.target.selectionStart;
+        const oldLen = e.target.value.length;
+        
+        const rawValue = e.target.value;
+        const formatted = formatInputCurrency(rawValue);
+        e.target.value = formatted;
+        
+        // Adjust cursor position
+        const newLen = formatted.length;
+        const newCursorP = cursorP + (newLen - oldLen);
+        e.target.setSelectionRange(newCursorP, newCursorP);
+    });
 }

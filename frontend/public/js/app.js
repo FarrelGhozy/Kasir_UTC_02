@@ -9,6 +9,7 @@ import POS from './modules/pos.js';
 import Service from './modules/service.js';
 import Inventory from './modules/inventory.js';
 import Reports from './modules/reports.js';
+import Order from './modules/order.js';
 
 class App {
     constructor() {
@@ -19,7 +20,8 @@ class App {
             pos: new POS(),
             service: new Service(),
             inventory: new Inventory(),
-            reports: new Reports()
+            reports: new Reports(),
+            orders: new Order()
         };
 
         this.init();
@@ -77,6 +79,7 @@ class App {
             dashboard: 'Dashboard',
             pos: 'Kasir (POS)',
             service: 'Servis (Workshop)',
+            orders: 'Pesanan Barang',
             inventory: 'Gudang (Inventaris)',
             reports: 'Laporan'
         };

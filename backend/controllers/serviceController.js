@@ -242,21 +242,27 @@ exports.getTechnicianWorkload = async (req, res, next) => {
  */
 exports.updateTicketDetails = async (req, res, next) => {
   try {
-    const { customer, device, notes } = req.body;
+    const { customer, device, technician_id, service_fee, notes } = req.body;
 
-    const ticket = await ServiceTicket.findByIdAndUpdate(
-      req.params.id,
-      {
-        customer,
-        device,
-        notes
-      },
-      { new: true, runValidators: true }
-    );
-
+    const ticket = await ServiceTicket.findById(req.params.id);
     if (!ticket) {
       return res.status(404).json({ success: false, message: 'Tiket tidak ditemukan' });
     }
+
+    if (customer) ticket.customer = { ...ticket.customer.toObject(), ...customer };
+    if (device) ticket.device = { ...ticket.device.toObject(), ...device };
+    if (notes !== undefined) ticket.notes = notes;
+    if (service_fee !== undefined) ticket.service_fee = service_fee;
+
+    if (technician_id) {
+      const technician = await User.findById(technician_id);
+      if (!technician || technician.role !== 'teknisi') {
+        return res.status(400).json({ success: false, message: 'ID Teknisi tidak valid' });
+      }
+      ticket.technician = { id: technician._id, name: technician.name };
+    }
+
+    await ticket.save();
 
     res.status(200).json({
       success: true,

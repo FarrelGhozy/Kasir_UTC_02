@@ -8,6 +8,7 @@ const inventoryController = require('../controllers/inventoryController');
 const serviceController = require('../controllers/serviceController');
 const transactionController = require('../controllers/transactionController');
 const reportController = require('../controllers/reportController');
+const orderController = require('../controllers/orderController');
 
 // Impor middleware
 const { protect, authorize } = require('../middleware/auth');
@@ -58,10 +59,21 @@ router.get('/services/:id', protect, serviceController.getTicketById);
 
 // Teknisi, Kasir & Admin dapat mengelola servis
 router.post('/services', protect, authorize('teknisi', 'kasir', 'admin'), serviceController.createTicket);
+router.put('/services/:id', protect, authorize('teknisi', 'kasir', 'admin'), serviceController.updateTicketDetails);
 router.patch('/services/:id/status', protect, authorize('teknisi', 'kasir', 'admin'), serviceController.updateStatus);
 router.post('/services/:id/parts', protect, authorize('teknisi', 'kasir', 'admin'), serviceController.addPartToService);
 router.patch('/services/:id/service-fee', protect, authorize('teknisi', 'kasir', 'admin'), serviceController.updateServiceFee);
 router.delete('/services/:id', protect, authorize('admin'), serviceController.deleteTicket);
+
+// ============================================
+// RUTE PEMESANAN BARANG (SPECIAL ORDER)
+// ============================================
+router.get('/orders', protect, orderController.getAllOrders);
+router.get('/orders/:id', protect, orderController.getOrderById);
+router.post('/orders', protect, authorize('kasir', 'teknisi', 'admin'), orderController.createOrder);
+router.put('/orders/:id', protect, authorize('kasir', 'teknisi', 'admin'), orderController.updateOrderDetails);
+router.patch('/orders/:id/status', protect, authorize('kasir', 'teknisi', 'admin'), orderController.updateOrderStatus);
+router.delete('/orders/:id', protect, authorize('admin', 'kasir'), orderController.deleteOrder);
 
 // ============================================
 // RUTE TRANSAKSI / KASIR (POS)
