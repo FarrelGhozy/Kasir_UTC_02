@@ -2,13 +2,22 @@ const express = require('express');
 const router = express.Router();
 const { handleIncomingMessage } = require('../bot/botHandler');
 
+// Endpoint untuk mengecek status webhook (Debugging via Browser)
+router.get('/waha-webhook', (req, res) => {
+  res.status(200).json({ 
+    success: true, 
+    message: 'Endpoint Webhook UTC Aktif!',
+    usage: 'Gunakan metode POST untuk mengirim data dari WAHA.'
+  });
+});
+
 // Endpoint untuk menerima Webhook dari WAHA
 router.post('/waha-webhook', async (req, res) => {
   try {
     const payload = req.body;
     
     // LOG UNTUK DEBUGGING (PENTING)
-    console.log(`[WAHA Webhook] Event diterima: ${payload.event}`);
+    console.log(`[WAHA Webhook] Event diterima: ${payload.event || 'Unknown Event'}`);
 
     // Mendukung 'message' (Core) atau 'message.upsert' (Plus/Newer)
     if (payload.event === 'message' || payload.event === 'message.upsert' || payload.event === 'message.any') {
@@ -20,6 +29,8 @@ router.post('/waha-webhook', async (req, res) => {
       } else {
         console.log('[WAHA Webhook] Data pesan kosong');
       }
+    } else {
+      console.log(`[WAHA Webhook] Event ${payload.event} diabaikan.`);
     }
 
     res.status(200).send('OK');
