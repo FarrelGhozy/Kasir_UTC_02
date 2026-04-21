@@ -151,6 +151,17 @@ class WhatsAppService {
 
     return this.sendMessage(technician.phone, message);
   }
+
+  /**
+   * Notifikasi Penugasan Pesanan Barang (Internal)
+   */
+  async notifyOrderAssignment(staff, order) {
+    if (!staff.phone) return null;
+
+    const message = `🛒 *TUGAS PESANAN BARU!* 🛒\n\nHalo *${staff.name}*,\nAnda ditugaskan untuk mencari/mengelola pesanan barang berikut:\n\n📦 Barang: *${order.item_name}*\n👤 Pelanggan: *${order.customer.name}*\n🎫 No. Order: #${order.order_number}\n\nSilakan segera diproses dan update statusnya di dashboard *Unida Technology Centere*. Semangat! 🚀`;
+
+    return this.sendMessage(staff.phone, message);
+  }
 }
 
 module.exports = new WhatsAppService();
