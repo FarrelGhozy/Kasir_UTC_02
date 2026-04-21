@@ -41,7 +41,7 @@ async function handleIncomingMessage(payload) {
     const lastWaitSent = waitMessageThrottling.get(from);
 
     if (!lastWaitSent || (now - lastWaitSent > WAIT_THROTTLE_TIME)) {
-      await sendReply(from, "Pesan Kakak sudah masuk di sistem kami ya. Mohon tunggu sebentar, Admin *Unida Technology Centere* akan membalas satu per satu sesuai antrean. 🙏😊");
+      await sendReply(from, "Pesan Kakak sudah masuk di sistem kami ya. Mohon tunggu sebentar, Admin *Unida Technology Centre* akan membalas satu per satu sesuai antrean. 🙏😊");
       waitMessageThrottling.set(from, now);
     }
     return;

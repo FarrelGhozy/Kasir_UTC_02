@@ -1,5 +1,5 @@
 module.exports = {
-  BUSINESS_NAME: 'Unida Technology Centere',
+  BUSINESS_NAME: 'Unida Technology Centre',
   SERVICES: [
     'Service Komputer & Laptop',
     'Service Handphone (HP)',
