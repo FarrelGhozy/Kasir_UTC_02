@@ -2,6 +2,7 @@
 const ServiceTicket = require('../models/ServiceTicket');
 const Item = require('../models/Item');
 const User = require('../models/User');
+const whatsappService = require('../services/whatsappService');
 
 /**
  * @desc    Buat tiket servis baru
@@ -25,6 +26,9 @@ exports.createTicket = async (req, res, next) => {
       service_fee: service_fee || 0,
       notes
     });
+
+    // Kirim notifikasi WA
+    whatsappService.notifyServiceStatus(ticket);
 
     res.status(201).json({ success: true, message: 'Tiket servis berhasil dibuat', data: ticket });
   } catch (error) {
@@ -105,6 +109,10 @@ exports.updateStatus = async (req, res, next) => {
     if (!ticket) return res.status(404).json({ success: false, message: 'Tiket servis tidak ditemukan' });
 
     await ticket.updateStatus(status);
+
+    // Kirim notifikasi WA
+    whatsappService.notifyServiceStatus(ticket);
+
     res.status(200).json({ success: true, message: 'Status berhasil diperbarui', data: ticket });
   } catch (error) {
     next(error);

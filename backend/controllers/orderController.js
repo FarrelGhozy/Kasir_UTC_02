@@ -1,5 +1,6 @@
 const SpecialOrder = require('../models/SpecialOrder');
 const User = require('../models/User');
+const whatsappService = require('../services/whatsappService');
 
 exports.createOrder = async (req, res, next) => {
   try {
@@ -25,6 +26,9 @@ exports.createOrder = async (req, res, next) => {
       handled_by,
       notes
     });
+
+    // Kirim notifikasi WA
+    whatsappService.notifyOrderStatus(order);
 
     res.status(201).json({ success: true, data: order });
   } catch (error) {
@@ -83,6 +87,10 @@ exports.updateOrderStatus = async (req, res, next) => {
     if (status === 'Picked_Up') order.timestamps.picked_up_at = new Date();
 
     await order.save();
+
+    // Kirim notifikasi WA
+    whatsappService.notifyOrderStatus(order);
+
     res.status(200).json({ success: true, data: order });
   } catch (error) {
     next(error);

@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # 1. Database MongoDB
   mongo_db:
@@ -36,6 +34,8 @@ services:
       - MONGODB_URI=mongodb://mongo_db:27017/bengkel_utc
       - JWT_SECRET=${JWT_SECRET:-change_this_in_production}
       - NODE_ENV=production
+      - WAHA_URL=http://waha:3000
+      - WAHA_API_KEY=adminutc28
     depends_on:
       - mongo_db
     networks:
@@ -70,6 +70,26 @@ services:
           memory: 128M        # 128MB sangat cukup untuk serve file statis
         reservations:
           memory: 32M
+
+  # 4. WAHA (WhatsApp HTTP API)
+  waha:
+    image: devlikeapro/waha:latest
+    container_name: utc_waha
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - WAHA_WHATSAPP_DEFAULT_SESSION=default
+      - WAHA_PRINT_QR=true
+      - WAHA_API_KEY=adminutc28
+      - WHATSAPP_SWAGGER_USERNAME=admin-utc01
+      - WHATSAPP_SWAGGER_PASSWORD=adminutc28
+      - WAHA_DASHBOARD_USERNAME=admin-utc01
+      - WAHA_DASHBOARD_PASSWORD=adminutc28
+    networks:
+      - utc_network
+    mem_limit: 512m
+    cpus: 0.50
 
 networks:
   utc_network:
