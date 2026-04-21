@@ -1,6 +1,6 @@
 // public/js/modules/pos.js - Modul Kasir dengan Fitur Cetak Struk / PDF
 
-import api, { formatCurrency, showToast, showError } from '../api.js';
+import api, { formatCurrency, showToast, showError, setupCurrencyInput, parseCurrencyValue } from '../api.js';
 
 class POS {
     constructor() {
@@ -101,8 +101,8 @@ class POS {
                                         <label class="form-label small text-muted">Uang Diterima</label>
                                         <div class="input-group">
                                             <span class="input-group-text px-2">Rp</span>
-                                            <input type="number" class="form-control px-2" id="amount-paid" 
-                                                placeholder="0" min="0">
+                                            <input type="text" class="form-control px-2 currency-input" id="amount-paid" 
+                                                placeholder="0" inputmode="numeric">
                                         </div>
                                     </div>
                                 </div>
@@ -135,6 +135,10 @@ class POS {
         `;
 
         await this.loadItems();
+        
+        // Initialize currency inputs
+        document.querySelectorAll('.currency-input').forEach(input => setupCurrencyInput(input));
+
         this.setupEventListeners();
     }
 
@@ -429,7 +433,7 @@ class POS {
         }
 
         const amountPaidInput = document.getElementById('amount-paid');
-        const amountPaid = amountPaidInput ? (parseFloat(amountPaidInput.value) || 0) : 0;
+        const amountPaid = amountPaidInput ? parseCurrencyValue(amountPaidInput.value) : 0;
         const change = amountPaid - total;
 
         if (change < 0) {
@@ -454,9 +458,9 @@ class POS {
         
         if (paymentMethod === 'Cash') {
             const inputVal = document.getElementById('amount-paid').value;
-            amountPaid = parseFloat(inputVal);
+            amountPaid = parseCurrencyValue(inputVal);
             
-            if (isNaN(amountPaid) || amountPaid < total) {
+            if (!amountPaid || amountPaid < total) {
                 showToast('Jumlah pembayaran kurang!', 'error');
                 return;
             }

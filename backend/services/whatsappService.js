@@ -57,17 +57,43 @@ class WhatsAppService {
    */
   async notifyServiceStatus(ticket) {
     const statusMap = {
-      'Queue': 'Antrian',
-      'Diagnosing': 'Proses Diagnosa',
+      'Queue': 'Dalam Antrian',
+      'Diagnosing': 'Sedang Tahap Diagnosa',
       'Waiting_Part': 'Menunggu Suku Cadang',
-      'In_Progress': 'Sedang Dikerjakan',
+      'In_Progress': 'Sedang Dikerjakan oleh Teknisi',
       'Completed': 'Selesai & Siap Diambil',
       'Cancelled': 'Dibatalkan',
       'Picked_Up': 'Sudah Diambil'
     };
 
     const statusLabel = statusMap[ticket.status] || ticket.status;
-    const message = `*BENGKEL UTC - NOTIFIKASI SERVIS*\n\nHalo Kak *${ticket.customer.name}*,\n\nKami mengabarkan bahwa perangkat Anda:\n📦 *${ticket.device.type} ${ticket.device.brand || ''} ${ticket.device.model || ''}*\n🎫 No. Tiket: #${ticket.ticket_number}\n\nSaat ini statusnya adalah: ✅ *${statusLabel}*\n\nTerima kasih telah mempercayakan servis Anda kepada kami.\n_Pesan otomatis dari Sistem UTC_`;
+    const currencyFormat = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 });
+
+    let message = `*UNIDA TECHNOLOGY CENTERE - UPDATE SERVIS*\n\n`;
+    message += `Halo Kak *${ticket.customer.name}*, apa kabarnya? Semoga sehat selalu 😊\n\n`;
+    message += `Kami ingin menginformasikan update terbaru untuk perbaikan perangkat Anda:\n`;
+    message += `📦 *${ticket.device.type} ${ticket.device.brand || ''} ${ticket.device.model || ''}*\n`;
+    message += `🎫 No. Tiket: #${ticket.ticket_number}\n\n`;
+    message += `Status saat ini: ✅ *${statusLabel}*\n\n`;
+
+    // Jika sudah selesai, berikan rincian biaya
+    if (ticket.status === 'Completed') {
+      const partCost = ticket.parts_used ? ticket.parts_used.reduce((sum, p) => sum + p.subtotal, 0) : 0;
+      const totalCost = (ticket.service_fee || 0) + partCost;
+
+      message += `*RINCIAN BIAYA:*\n`;
+      message += `• Jasa Servis: ${currencyFormat.format(ticket.service_fee)}\n`;
+      if (partCost > 0) message += `• Sparepart: ${currencyFormat.format(partCost)}\n`;
+      message += `--------------------------\n`;
+      message += `*TOTAL AKHIR: ${currencyFormat.format(totalCost)}*\n\n`;
+      message += `Silakan Kakak berkunjung kembali ke toko kami untuk pengambilan perangkat. Jangan lupa membawa nota ini ya!\n`;
+    } else {
+      message += `Estimasi Jasa Awal: *${currencyFormat.format(ticket.service_fee)}*\n`;
+      message += `_(Biaya akhir akan dikonfirmasi setelah selesai)_\n\n`;
+      message += `Kami akan segera mengabari Kakak kembali jika ada perkembangan lebih lanjut. Mohon ditunggu ya Kak. 🙏\n`;
+    }
+
+    message += `\nTerima kasih atas kepercayaannya.\n_Salam hangat, Tim Unida Technology Centere_`;
 
     return this.sendMessage(ticket.customer.phone, message);
   }
@@ -77,22 +103,40 @@ class WhatsAppService {
    */
   async notifyOrderStatus(order) {
     const statusMap = {
-      'Pending': 'Antrian',
-      'Searching': 'Sedang Kami Cari',
-      'Ordered': 'Sudah Dipesan ke Supplier',
+      'Pending': 'Dalam Antrian Pesanan',
+      'Searching': 'Sedang Kami Carikan di Supplier',
+      'Ordered': 'Sudah Kami Pesan ke Supplier',
       'Arrived': 'SUDAH SAMPAI di Toko',
       'Picked_Up': 'Sudah Diambil',
       'Cancelled': 'Dibatalkan'
     };
 
     const statusLabel = statusMap[order.status] || order.status;
-    let message = `*BENGKEL UTC - NOTIFIKASI PESANAN*\n\nHalo Kak *${order.customer.name}*,\n\nUpdate untuk pesanan barang Anda:\n🛒 *${order.item_name}*\n🎫 No. Order: #${order.order_number}\n\nStatus saat ini: ✅ *${statusLabel}*`;
+    const currencyFormat = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 });
+    const remaining = Math.max(0, (order.estimated_price || 0) - (order.down_payment || 0));
+
+    let message = `*UNIDA TECHNOLOGY CENTERE - NOTIFIKASI PESANAN*\n\n`;
+    message += `Halo Kak *${order.customer.name}*, selamat hari yang luar biasa! 😊\n\n`;
+    message += `Kami ingin mengabarkan status pesanan barang Anda:\n`;
+    message += `🛒 *${order.item_name}*\n`;
+    message += `🎫 No. Order: #${order.order_number}\n\n`;
+    message += `Status Pesanan: ✅ *${statusLabel}*\n\n`;
+
+    message += `*DETAIL KEUANGAN:*\n`;
+    message += `• Estimasi Harga: ${currencyFormat.format(order.estimated_price)}\n`;
+    message += `• DP Masuk: ${currencyFormat.format(order.down_payment)}\n`;
+    message += `• *SISA BAYAR: ${currencyFormat.format(remaining)}*\n\n`;
 
     if (order.status === 'Arrived') {
-      message += `\n\nBarang sudah siap di toko. Silakan datang untuk pengambilan dan pelunasan sisa bayar sebesar *${new Intl.NumberFormat('id-ID', {style:'currency',currency:'IDR', maximumFractionDigits:0}).format(order.remaining_payment)}*.`;
+      message += `🎉 Kabar gembira! Barang pesanan Kakak sudah sampai di toko kami.\n`;
+      message += `Kakak bisa segera mengambilnya di jam operasional toko dengan melunasi sisa pembayaran di atas ya. Sampai jumpa di toko! 👋\n`;
+    } else if (order.status === 'Pending') {
+      message += `Pesanan Kakak sudah kami terima dan akan segera kami proses pencariannya. Mohon ditunggu ya Kak. 🙏\n`;
+    } else {
+      message += `Kami akan segera mengabari Kakak kembali saat barang sudah mendarat di toko kami. 😊\n`;
     }
 
-    message += `\n\nTerima kasih.\n_Pesan otomatis dari Sistem UTC_`;
+    message += `\nSalam sukses,\n_Tim Unida Technology Centere_`;
 
     return this.sendMessage(order.customer.phone, message);
   }

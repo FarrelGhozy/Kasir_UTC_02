@@ -218,7 +218,7 @@ class Service {
                                     <label class="form-label small fw-bold">Estimasi Biaya Jasa</label>
                                     <div class="input-group">
                                         <span class="input-group-text">Rp</span>
-                                        <input type="text" class="form-control currency-input" id="service-fee" value="0" inputmode="numeric">
+                                        <input type="text" class="form-control currency-input" id="service-fee" placeholder="0" inputmode="numeric">
                                     </div>
                                     <div class="form-text">Biaya final ditentukan saat selesai.</div>
                                 </div>
