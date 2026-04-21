@@ -209,19 +209,26 @@ exports.updateServiceFee = async (req, res, next) => {
 };
 
 /**
- * @desc    Hapus tiket servis
+ * @desc    Hapus tiket servis (Hard delete untuk Admin, Cancel untuk yang lain)
  */
 exports.deleteTicket = async (req, res, next) => {
   try {
     const ticket = await ServiceTicket.findById(req.params.id);
     if (!ticket) return res.status(404).json({ success: false, message: 'Tiket tidak ditemukan' });
 
+    // JIKA USER ADALAH ADMIN: Bisa hapus permanen (Overpower)
+    if (req.user && req.user.role === 'admin') {
+      await ServiceTicket.findByIdAndDelete(req.params.id);
+      return res.status(200).json({ success: true, message: 'Tiket servis berhasil dihapus permanen oleh Admin' });
+    }
+
+    // JIKA BUKAN ADMIN: Hanya bisa membatalkan jika status belum final
     if (['Completed', 'Picked_Up', 'Cancelled'].includes(ticket.status)) {
-      return res.status(400).json({ success: false, message: 'Tiket ini tidak dapat dibatalkan (status final)' });
+      return res.status(400).json({ success: false, message: 'Tiket ini tidak dapat dibatalkan (status final). Hanya Admin yang dapat menghapus data ini.' });
     }
 
     await ticket.updateStatus('Cancelled');
-    res.status(200).json({ success: true, message: 'Tiket dibatalkan' });
+    res.status(200).json({ success: true, message: 'Tiket berhasil dibatalkan' });
   } catch (error) {
     next(error);
   }

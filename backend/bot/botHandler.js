@@ -25,10 +25,15 @@ function isWorkingHours() {
   return { open: true };
 }
 
+function getClosedMessage(reason) {
+  if (reason === 'event') return "*PEMBERITAHUAN:* Saat ini kami sedang tutup sementara karena ada *Acara Wajib Kampus*. 🎓";
+  if (reason === 'friday') return "*PEMBERITAHUAN:* Hari ini adalah hari Jumat, jadwal kami *Libur Mingguan*. 🕌";
+  return "*PEMBERITAHUAN:* Kakak menghubungi kami di luar jam operasional. 🌙";
+}
+
 async function handleIncomingMessage(payload) {
   const { from, fromMe, isGroup, isStatus } = payload;
 
-  // 1. Filter: Abaikan jika dari grup, status, atau pesan dari bot sendiri
   if (fromMe || isGroup || isStatus || from.includes('@g.us')) return;
 
   const now = Date.now();
@@ -37,11 +42,17 @@ async function handleIncomingMessage(payload) {
 
   // 2. Logika Session (12 Jam)
   if (lastChat && (now - lastChat < config.SESSION_LIMIT)) {
-    // Cek apakah kita baru saja mengirim pesan "tunggu" (Throttle)
     const lastWaitSent = waitMessageThrottling.get(from);
 
     if (!lastWaitSent || (now - lastWaitSent > WAIT_THROTTLE_TIME)) {
-      await sendReply(from, "Pesan Kakak sudah masuk di sistem kami ya. Mohon tunggu sebentar, Admin *Unida Technology Centre* akan membalas satu per satu sesuai antrean. 🙏😊");
+      let waitMsg = "Pesan Kakak sudah masuk di sistem kami ya. Mohon tunggu sebentar, Admin *Unida Technology Centre* akan membalas satu per satu sesuai antrean. 🙏😊";
+      
+      // Jika chat saat tutup, ingatkan kembali statusnya
+      if (!status.open) {
+        waitMsg = `${getClosedMessage(status.reason)}\n\n${waitMsg}`;
+      }
+
+      await sendReply(from, waitMsg);
       waitMessageThrottling.set(from, now);
     }
     return;
@@ -55,13 +66,7 @@ async function handleIncomingMessage(payload) {
   let welcomeMsg = `Assalamualaikum Warahmatullahi Wabarakatuh / Halo Kak! 👋\n\nSelamat datang di *${config.BUSINESS_NAME}*.\n\nKami melayani:\n${config.SERVICES.map(s => `• ${s}`).join('\n')}\n\n`;
 
   if (!status.open) {
-    if (status.reason === 'event') {
-      welcomeMsg += `*PEMBERITAHUAN:* Saat ini kami sedang tutup sementara karena ada *Acara Wajib Kampus*. 🎓\n\n`;
-    } else if (status.reason === 'friday') {
-      welcomeMsg += `*PEMBERITAHUAN:* Hari ini adalah hari Jumat, jadwal kami *Libur Mingguan*. 🕌\n\n`;
-    } else {
-      welcomeMsg += `*PEMBERITAHUAN:* Kakak menghubungi kami di luar jam operasional. 🌙\n\n`;
-    }
+    welcomeMsg += `${getClosedMessage(status.reason)}\n\n`;
   }
 
   welcomeMsg += `*Jam Operasional UTC:*\n🗓️ Setiap Hari (Kecuali Jumat)\n🕗 08.00 - 15.00 WIB\n\nPesan Kakak sudah kami terima. Mohon ditunggu ya, Admin kami akan segera merespons pesan Kakak. Terima kasih atas kesabarannya. 😊🙏`;

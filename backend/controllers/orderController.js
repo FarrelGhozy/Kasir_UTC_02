@@ -138,11 +138,17 @@ exports.deleteOrder = async (req, res, next) => {
     const order = await SpecialOrder.findById(req.params.id);
     if (!order) return res.status(404).json({ success: false, message: 'Pesanan tidak ditemukan' });
     
-    // Instead of hard delete, maybe just cancel? User might want to keep records.
+    // JIKA USER ADALAH ADMIN: Bisa hapus permanen (Overpower)
+    if (req.user && req.user.role === 'admin') {
+      await SpecialOrder.findByIdAndDelete(req.params.id);
+      return res.status(200).json({ success: true, message: 'Pesanan barang berhasil dihapus permanen oleh Admin' });
+    }
+
+    // JIKA BUKAN ADMIN: Hanya ubah status jadi Cancelled
     order.status = 'Cancelled';
     await order.save();
     
-    res.status(200).json({ success: true, message: 'Pesanan dibatalkan' });
+    res.status(200).json({ success: true, message: 'Pesanan berhasil dibatalkan' });
   } catch (error) {
     next(error);
   }
