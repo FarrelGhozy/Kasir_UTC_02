@@ -1,4 +1,4 @@
-# 🔧 Unida Technology Centere (UTC) — Workshop & POS Management System
+# 🔧 Unida Technology Centre (UTC) — Workshop & POS Management System
 
 <p align="center">
   <img src="https://img.shields.io/badge/Node.js-18%2B-green?logo=node.js" alt="Node.js">
@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/badge/Docker-Ready-blue?logo=docker" alt="Docker">
 </p>
 
-**Bengkel UTC** (Unida Technology Centere) adalah sistem manajemen operasional terintegrasi yang dirancang khusus untuk mengelola servis perangkat (komputer, laptop, HP, printer) dan transaksi kasir dalam satu platform modern.
+**Bengkel UTC** (Unida Technology Centre) adalah sistem manajemen operasional terintegrasi yang dirancang khusus untuk mengelola servis perangkat (komputer, laptop, HP, printer) dan transaksi kasir dalam satu platform modern.
 
 ---
 
@@ -68,5 +68,5 @@ Untuk informasi teknis lebih mendalam mengenai struktur kode, alur bot WhatsApp,
 ---
 
 ## 🤝 Lokasi
-**Unida Technology Centere (UTC)**
+**Unida Technology Centre (UTC)**
 Universitas Darussalam Gontor, Siman, Ponorogo.

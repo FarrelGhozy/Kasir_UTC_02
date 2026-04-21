@@ -1,4 +1,4 @@
-# Dokumentasi Sistem Kasir & Workshop - Unida Technology Centere (UTC)
+# Dokumentasi Sistem Kasir & Workshop - Unida Technology Centre (UTC)
 
 Selamat datang di dokumentasi teknis sistem manajemen Bengkel UTC. Dokumen ini disusun untuk membantu pengembang dan pengelola sistem generasi berikutnya agar dapat memahami, merawat, dan mengembangkan sistem ini dengan lancar.
 
@@ -96,7 +96,7 @@ Dikelola di `backend/bot/`. Memiliki fitur:
 ---
 
 ## 💡 Pesan untuk Generasi Penerus
-> "Sistem ini dibangun untuk mempermudah pekerjaan manusia, bukan menggantikannya. Pastikan untuk selalu menjaga keramahan dalam pesan WhatsApp karena teknologi hanyalah alat, tapi pelayanan adalah hati dari Unida Technology Centere."
+> "Sistem ini dibangun untuk mempermudah pekerjaan manusia, bukan menggantikannya. Pastikan untuk selalu menjaga keramahan dalam pesan WhatsApp karena teknologi hanyalah alat, tapi pelayanan adalah hati dari Unida Technology Centre."
 
 Dibuat pada: April 2026
-Lokasi: Unida Technology Centere (UTC)
+Lokasi: Unida Technology Centre (UTC)
