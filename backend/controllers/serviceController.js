@@ -268,11 +268,19 @@ exports.updateTicketDetails = async (req, res, next) => {
     if (service_fee !== undefined) ticket.service_fee = service_fee;
 
     if (technician_id) {
+      // Cek apakah ada perubahan teknisi
+      const isReassigned = ticket.technician && ticket.technician.id && ticket.technician.id.toString() !== technician_id;
+
       const technician = await User.findById(technician_id);
       if (!technician || technician.role !== 'teknisi') {
         return res.status(400).json({ success: false, message: 'ID Teknisi tidak valid' });
       }
       ticket.technician = { id: technician._id, name: technician.name };
+
+      // Jika ditugaskan ke orang baru, beri notifikasi ke teknisi tersebut
+      if (isReassigned) {
+        whatsappService.notifyTechnicianAssignment(technician, ticket);
+      }
     }
 
     await ticket.save();
