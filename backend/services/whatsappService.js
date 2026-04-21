@@ -7,7 +7,7 @@ class WhatsAppService {
   constructor() {
     // URL WAHA di dalam network docker adalah http://waha:3000
     // Jika diakses dari luar docker (saat development) gunakan http://localhost:3000
-    this.baseURL = process.env.WAHA_URL || 'http://waha:3000';
+    this.baseURL = process.env.WAHA_URL || 'http://waha:8000';
     this.session = process.env.WAHA_SESSION || 'default';
     this.apiKey = process.env.WAHA_API_KEY || 'adminutc28';
   }

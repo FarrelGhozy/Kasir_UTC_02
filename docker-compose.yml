@@ -77,7 +77,7 @@ services:
     container_name: utc_waha
     restart: always
     ports:
-      - "3000:3000"
+      - "8000:3000"
     environment:
       - WAHA_WHATSAPP_DEFAULT_SESSION=default
       - WAHA_PRINT_QR=true
