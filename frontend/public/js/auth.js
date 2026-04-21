@@ -113,10 +113,20 @@ class Auth {
         // Tampilkan semua item navigasi untuk semua peran (Akses Maksimal)
         const navPos = document.getElementById('nav-pos');
         const navService = document.getElementById('nav-service');
+        const navAdminTech = document.getElementById('nav-admin-tech');
 
         // Pastikan semua menu terlihat
         if (navPos) navPos.classList.remove('d-none');
         if (navService) navService.classList.remove('d-none');
+
+        // Hanya tampilkan Menu Admin Khusus jika role adalah admin
+        if (navAdminTech) {
+            if (role === 'admin') {
+                navAdminTech.style.display = 'block';
+            } else {
+                navAdminTech.style.display = 'none';
+            }
+        }
         
         // Catatan: Admin tetap memiliki akses ke semua hal.
         // Kasir dan Teknisi kini dapat mengakses modul satu sama lain untuk melihat data.

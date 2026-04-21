@@ -4,6 +4,7 @@ const express = require('express');
 const cors = require('cors');
 const connectDB = require('./config/db');
 const apiRoutes = require('./routes/api');
+const webhookRoutes = require('./routes/webhook');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
@@ -52,6 +53,7 @@ app.use((req, res, next) => {
 // ==========================================
 
 app.use('/api', apiRoutes);
+app.use('/api', webhookRoutes);
 
 // Health Check
 app.get('/health', (req, res) => {

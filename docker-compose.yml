@@ -34,8 +34,9 @@ services:
       - MONGODB_URI=mongodb://mongo_db:27017/bengkel_utc
       - JWT_SECRET=${JWT_SECRET:-change_this_in_production}
       - NODE_ENV=production
-      - WAHA_URL=http://waha:3000
+      - WAHA_URL=http://waha:8000
       - WAHA_API_KEY=adminutc28
+      - IS_CAMPUS_EVENT=false
     depends_on:
       - mongo_db
     networks:
@@ -77,8 +78,9 @@ services:
     container_name: utc_waha
     restart: always
     ports:
-      - "8000:3000"
+      - "8000:8000"
     environment:
+      - PORT=8000
       - WAHA_WHATSAPP_DEFAULT_SESSION=default
       - WAHA_PRINT_QR=true
       - WAHA_API_KEY=adminutc28

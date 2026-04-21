@@ -9,6 +9,7 @@ const serviceController = require('../controllers/serviceController');
 const transactionController = require('../controllers/transactionController');
 const reportController = require('../controllers/reportController');
 const orderController = require('../controllers/orderController');
+const adminController = require('../controllers/adminController');
 
 // Impor middleware
 const { protect, authorize } = require('../middleware/auth');
@@ -100,4 +101,13 @@ router.get('/reports/full-recap', protect, authorize('admin'), reportController.
 router.get('/reports/top-items', protect, authorize('admin'), reportController.getTopSellingItems);
 router.get('/reports/cashier-performance', protect, authorize('admin'), reportController.getCashierPerformance);
 router.get('/reports/technician-performance', protect, authorize('admin'), reportController.getTechnicianPerformance);
+
+// ============================================
+// RUTE ADMIN (PENGELOLAAN DATA TEKNISI)
+// ============================================
+router.get('/admin/technicians', protect, authorize('admin'), adminController.getAllTechnicians);
+router.post('/admin/technicians', protect, authorize('admin'), adminController.createTechnician);
+router.put('/admin/technicians/:id', protect, authorize('admin'), adminController.updateTechnician);
+router.delete('/admin/technicians/:id', protect, authorize('admin'), adminController.deleteTechnician);
+
 module.exports = router;

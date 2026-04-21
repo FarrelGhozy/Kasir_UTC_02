@@ -5,8 +5,8 @@ const axios = require('axios');
  */
 class WhatsAppService {
   constructor() {
-    // URL WAHA di dalam network docker adalah http://waha:3000
-    // Jika diakses dari luar docker (saat development) gunakan http://localhost:3000
+    // URL WAHA di dalam network docker adalah http://waha:8000
+    // Jika diakses dari luar docker (saat development) gunakan http://localhost:8000
     this.baseURL = process.env.WAHA_URL || 'http://waha:8000';
     this.session = process.env.WAHA_SESSION || 'default';
     this.apiKey = process.env.WAHA_API_KEY || 'adminutc28';
@@ -139,6 +139,17 @@ class WhatsAppService {
     message += `\nSalam sukses,\n_Tim Unida Technology Centere_`;
 
     return this.sendMessage(order.customer.phone, message);
+  }
+
+  /**
+   * Notifikasi Penugasan Teknisi (Internal)
+   */
+  async notifyTechnicianAssignment(technician, ticket) {
+    if (!technician.phone) return null;
+
+    const message = `🛠️ *TUGAS BARU MASUK!* 🛠️\n\nHalo *${technician.name}*,\nAda tugas baru yang ditugaskan kepada Anda:\n\n💻 Barang: *${ticket.device.type} ${ticket.device.brand || ''} ${ticket.device.model || ''}*\n🩹 Kerusakan: *${ticket.device.symptoms}*\n👤 Pelanggan: *${ticket.customer.name}*\n🎫 No. Tiket: #${ticket.ticket_number}\n\nSilakan cek dashboard *Unida Technology Centere* untuk detail lebih lanjut. Semangat kerja! 💪🔧`;
+
+    return this.sendMessage(technician.phone, message);
   }
 }
 

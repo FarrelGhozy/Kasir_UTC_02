@@ -27,8 +27,13 @@ exports.createTicket = async (req, res, next) => {
       notes
     });
 
-    // Kirim notifikasi WA
+    // Kirim notifikasi WA ke Pelanggan
     whatsappService.notifyServiceStatus(ticket);
+
+    // Kirim notifikasi WA ke Teknisi (Asynchronous)
+    if (technician && technician.phone) {
+      whatsappService.notifyTechnicianAssignment(technician, ticket);
+    }
 
     res.status(201).json({ success: true, message: 'Tiket servis berhasil dibuat', data: ticket });
   } catch (error) {

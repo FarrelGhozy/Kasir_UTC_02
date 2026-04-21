@@ -55,9 +55,13 @@ class App {
 
         navLinks.forEach(link => {
             link.addEventListener('click', (e) => {
-                e.preventDefault();
-
                 const page = link.getAttribute('data-page');
+                
+                // Jika link tidak memiliki data-page (misal link ke file .html lain), 
+                // biarkan navigasi browser normal berjalan.
+                if (!page) return;
+
+                e.preventDefault();
 
                 // Update status aktif (highlight menu)
                 navLinks.forEach(l => l.classList.remove('active'));
