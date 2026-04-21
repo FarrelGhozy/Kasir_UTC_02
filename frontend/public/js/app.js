@@ -9,6 +9,7 @@ import POS from './modules/pos.js';
 import Service from './modules/service.js';
 import Inventory from './modules/inventory.js';
 import Reports from './modules/reports.js';
+import Order from './modules/order.js';
 
 class App {
     constructor() {
@@ -19,7 +20,8 @@ class App {
             pos: new POS(),
             service: new Service(),
             inventory: new Inventory(),
-            reports: new Reports()
+            reports: new Reports(),
+            orders: new Order()
         };
 
         this.init();
@@ -53,9 +55,13 @@ class App {
 
         navLinks.forEach(link => {
             link.addEventListener('click', (e) => {
-                e.preventDefault();
-
                 const page = link.getAttribute('data-page');
+                
+                // Jika link tidak memiliki data-page (misal link ke file .html lain), 
+                // biarkan navigasi browser normal berjalan.
+                if (!page) return;
+
+                e.preventDefault();
 
                 // Update status aktif (highlight menu)
                 navLinks.forEach(l => l.classList.remove('active'));
@@ -77,6 +83,7 @@ class App {
             dashboard: 'Dashboard',
             pos: 'Kasir (POS)',
             service: 'Servis (Workshop)',
+            orders: 'Pesanan Barang',
             inventory: 'Gudang (Inventaris)',
             reports: 'Laporan'
         };

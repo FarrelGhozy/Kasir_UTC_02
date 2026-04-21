@@ -33,6 +33,16 @@ const userSchema = new mongoose.Schema({
     required: [true, 'Peran (Role) wajib diisi'],
     default: 'kasir'
   },
+  phone: {
+    type: String,
+    trim: true,
+    default: ''
+  },
+  status: {
+    type: String,
+    enum: ['active', 'inactive'],
+    default: 'active'
+  },
   isActive: {
     type: Boolean,
     default: true

@@ -1,6 +1,6 @@
 // public/js/modules/inventory.js - Modul Manajemen Gudang (Inventaris) - REVISI
 
-import api, { formatCurrency, showToast, confirmDialog } from '../api.js';
+import api, { formatCurrency, showToast, confirmDialog, setupCurrencyInput, parseCurrencyValue } from '../api.js';
 
 class Inventory {
     constructor() {
@@ -121,14 +121,14 @@ class Inventory {
                                         <label class="form-label">Harga Beli (HPP) *</label>
                                         <div class="input-group">
                                             <span class="input-group-text">Rp</span>
-                                            <input type="number" class="form-control" id="item-purchase-price" min="0" required>
+                                            <input type="text" class="form-control currency-input" id="item-purchase-price" placeholder="0" inputmode="numeric" required>
                                         </div>
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label">Harga Jual *</label>
                                         <div class="input-group">
                                             <span class="input-group-text">Rp</span>
-                                            <input type="number" class="form-control" id="item-selling-price" min="0" required>
+                                            <input type="text" class="form-control currency-input" id="item-selling-price" placeholder="0" inputmode="numeric" required>
                                         </div>
                                     </div>
                                     <div class="col-md-6">
@@ -198,6 +198,10 @@ class Inventory {
         `;
 
         await this.loadItems();
+        
+        // Initialize currency inputs
+        document.querySelectorAll('.currency-input').forEach(input => setupCurrencyInput(input));
+
         this.setupEventListeners();
     }
 
@@ -442,8 +446,14 @@ class Inventory {
                 document.getElementById('item-sku').value = item.sku;
                 document.getElementById('item-name').value = item.name;
                 document.getElementById('item-category').value = item.category;
-                document.getElementById('item-purchase-price').value = item.purchase_price;
-                document.getElementById('item-selling-price').value = item.selling_price;
+                
+                const purchasePriceInput = document.getElementById('item-purchase-price');
+                const sellingPriceInput = document.getElementById('item-selling-price');
+                purchasePriceInput.value = item.purchase_price;
+                sellingPriceInput.value = item.selling_price;
+                
+                setupCurrencyInput(purchasePriceInput);
+                setupCurrencyInput(sellingPriceInput);
                 
                 // Set nilai stok tapi matikan inputnya
                 stockInput.value = item.stock; 
@@ -461,6 +471,10 @@ class Inventory {
             stockInput.disabled = false;
             stockInput.value = 0;
             stockHint.classList.add('d-none');
+            
+            // Format 0 for empty form
+            setupCurrencyInput(document.getElementById('item-purchase-price'));
+            setupCurrencyInput(document.getElementById('item-selling-price'));
         }
         
         modal.show();
@@ -481,9 +495,8 @@ class Inventory {
         const currentStockVal = document.getElementById('item-stock').value;
 
         // 2. Ambil nilai dan pastikan jadi ANGKA (Number)
-        // Kita hapus karakter non-angka jaga-jaga ada format aneh
-        const purchasePrice = parseFloat(document.getElementById('item-purchase-price').value) || 0;
-        const sellingPrice = parseFloat(document.getElementById('item-selling-price').value) || 0;
+        const purchasePrice = parseCurrencyValue(document.getElementById('item-purchase-price').value);
+        const sellingPrice = parseCurrencyValue(document.getElementById('item-selling-price').value);
         const minStock = parseInt(document.getElementById('item-min-stock').value) || 0;
         const stock = parseInt(currentStockVal) || 0;
 

@@ -1,6 +1,6 @@
 // public/js/modules/service.js - Modul Manajemen Servis (FIXED: Add Part & Detail View)
 
-import api, { formatCurrency, formatDateTime, showToast, showError } from '../api.js';
+import api, { formatCurrency, formatDateTime, showToast, showError, setupCurrencyInput, parseCurrencyValue } from '../api.js';
 
 /**
  * Helper class for Pattern Lock UI
@@ -165,19 +165,23 @@ class Service {
                                 <h6 class="border-bottom pb-2 mb-3 mt-4 fw-bold text-secondary">Perangkat & Masalah</h6>
 
                                 <div class="row g-2 mb-3">
-                                    <div class="col-6">
+                                    <div class="col-4">
                                         <label class="form-label small fw-bold">Tipe *</label>
                                         <input type="text" class="form-control" id="device-type" placeholder="Laptop/PC" required>
                                     </div>
-                                    <div class="col-6">
+                                    <div class="col-4">
                                         <label class="form-label small fw-bold">Merek</label>
                                         <input type="text" class="form-control" id="device-brand" placeholder="Asus/HP">
+                                    </div>
+                                    <div class="col-4">
+                                        <label class="form-label small fw-bold">Model/Seri</label>
+                                        <input type="text" class="form-control" id="device-model">
                                     </div>
                                 </div>
 
                                 <div class="mb-3">
-                                    <label class="form-label small fw-bold">Model / Seri</label>
-                                    <input type="text" class="form-control" id="device-model">
+                                    <label class="form-label small fw-bold">Serial Number (SN)</label>
+                                    <input type="text" class="form-control" id="device-serial-number" placeholder="SN: xxxxxxx">
                                 </div>
 
                                 <div class="mb-3">
@@ -214,7 +218,7 @@ class Service {
                                     <label class="form-label small fw-bold">Estimasi Biaya Jasa</label>
                                     <div class="input-group">
                                         <span class="input-group-text">Rp</span>
-                                        <input type="number" class="form-control" id="service-fee" value="0" min="0">
+                                        <input type="text" class="form-control currency-input" id="service-fee" placeholder="0" inputmode="numeric">
                                     </div>
                                     <div class="form-text">Biaya final ditentukan saat selesai.</div>
                                 </div>
@@ -268,6 +272,9 @@ class Service {
         this.mainPatternLock = new PatternLock('main-pattern-selector', 'device-pattern');
         this.mainPatternLock.init();
 
+        // Initialize currency inputs
+        document.querySelectorAll('.currency-input').forEach(input => setupCurrencyInput(input));
+
         await this.loadTechnicians();
         await this.loadTickets();
         await this.loadItems();
@@ -277,7 +284,7 @@ class Service {
     renderModals() {
         return `
             <div class="modal fade" id="editTicketModal" tabindex="-1">
-                <div class="modal-dialog">
+                <div class="modal-dialog modal-lg">
                     <div class="modal-content">
                         <div class="modal-header">
                             <h5 class="modal-title">Edit Data Tiket</h5>
@@ -286,36 +293,90 @@ class Service {
                         <div class="modal-body">
                             <form id="edit-ticket-form">
                                 <input type="hidden" id="edit-ticket-id">
-                                <div class="mb-3">
-                                    <label class="form-label">Nama Pelanggan</label>
-                                    <input type="text" class="form-control" id="edit-customer-name" required>
+                                
+                                <h6 class="border-bottom pb-2 mb-3 fw-bold text-secondary">Informasi Pelanggan</h6>
+                                <div class="row g-3 mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-bold">Nama Pelanggan</label>
+                                        <input type="text" class="form-control" id="edit-customer-name" required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-bold">No. Telepon (WhatsApp)</label>
+                                        <input type="text" class="form-control" id="edit-customer-phone" required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-bold">Tipe Pelanggan</label>
+                                        <select class="form-select" id="edit-customer-type">
+                                            <option value="Umum">Umum</option>
+                                            <option value="Mahasiswa">Mahasiswa</option>
+                                            <option value="Dosen">Dosen</option>
+                                        </select>
+                                    </div>
                                 </div>
-                                <div class="mb-3">
-                                    <label class="form-label">No. Telepon</label>
-                                    <input type="text" class="form-control" id="edit-customer-phone" required>
+
+                                <h6 class="border-bottom pb-2 mb-3 mt-4 fw-bold text-secondary">Perangkat & Masalah</h6>
+                                <div class="row g-3 mb-3">
+                                    <div class="col-md-3">
+                                        <label class="form-label small fw-bold">Tipe Perangkat</label>
+                                        <input type="text" class="form-control" id="edit-device-type">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label small fw-bold">Merek</label>
+                                        <input type="text" class="form-control" id="edit-device-brand">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label small fw-bold">Model / Seri</label>
+                                        <input type="text" class="form-control" id="edit-device-model">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label small fw-bold">Serial Number</label>
+                                        <input type="text" class="form-control" id="edit-device-serial-number">
+                                    </div>
                                 </div>
+
                                 <div class="mb-3">
-                                    <label class="form-label">Perangkat (Tipe/Merek)</label>
-                                    <input type="text" class="form-control" id="edit-device-full">
+                                    <label class="form-label small fw-bold">Keluhan / Kerusakan</label>
+                                    <textarea class="form-control" id="edit-symptoms" rows="2"></textarea>
                                 </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Keluhan</label>
-                                    <textarea class="form-control" id="edit-symptoms" rows="3"></textarea>
+
+                                <div class="row g-3 mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-bold">Kelengkapan</label>
+                                        <input type="text" class="form-control" id="edit-device-accessories">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-bold">Password / Sandi</label>
+                                        <input type="text" class="form-control" id="edit-device-password">
+                                    </div>
                                 </div>
+
                                 <div class="mb-3">
-                                    <label class="form-label">Password</label>
-                                    <input type="text" class="form-control" id="edit-device-password">
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Pola Keamanan</label>
+                                    <label class="form-label small fw-bold">Pola Keamanan</label>
                                     <input type="hidden" id="edit-device-pattern">
                                     <div id="edit-pattern-selector"></div>
+                                </div>
+
+                                <h6 class="border-bottom pb-2 mb-3 mt-4 fw-bold text-secondary">Petugas & Biaya</h6>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-bold">Teknisi</label>
+                                        <select class="form-select" id="edit-technician-select"></select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-bold">Estimasi Biaya Jasa (Awal)</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">Rp</span>
+                                            <input type="text" class="form-control currency-input" id="edit-service-fee" placeholder="0" inputmode="numeric">
+                                        </div>
+                                    </div>
                                 </div>
                             </form>
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                            <button type="button" class="btn btn-primary" id="save-edit-btn">Simpan Perubahan</button>
+                            <button type="button" class="btn btn-primary fw-bold" id="save-edit-btn">
+                                <i class="bi bi-save me-2"></i>Simpan Perubahan
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -366,7 +427,7 @@ class Service {
                                 <label class="form-label fw-bold">Biaya Jasa Final</label>
                                 <div class="input-group">
                                     <span class="input-group-text bg-white">Rp</span>
-                                    <input type="number" class="form-control form-control-lg fw-bold text-end" id="final-service-fee" min="0">
+                                    <input type="text" class="form-control form-control-lg fw-bold text-end currency-input" id="final-service-fee" inputmode="numeric">
                                 </div>
                             </div>
                             <div class="d-flex justify-content-between p-3 bg-light rounded border">
@@ -606,15 +667,31 @@ class Service {
         if(!t) return;
         
         document.getElementById('edit-ticket-id').value = t._id;
+        
+        // Customer fields
         document.getElementById('edit-customer-name').value = t.customer.name;
         document.getElementById('edit-customer-phone').value = t.customer.phone;
-        document.getElementById('edit-device-full').value = `${t.device.type} ${t.device.brand || ''} ${t.device.model || ''}`.trim().replace(/\s+/g, ' ');
-        document.getElementById('edit-symptoms').value = t.device.symptoms;
+        document.getElementById('edit-customer-type').value = t.customer.type || 'Umum';
         
-        // Populate Password
-        if (document.getElementById('edit-device-password')) {
-            document.getElementById('edit-device-password').value = t.device.password || '';
-        }
+        // Device fields
+        document.getElementById('edit-device-type').value = t.device.type || '';
+        document.getElementById('edit-device-brand').value = t.device.brand || '';
+        document.getElementById('edit-device-model').value = t.device.model || '';
+        document.getElementById('edit-device-serial-number').value = t.device.serial_number || '';
+        document.getElementById('edit-symptoms').value = t.device.symptoms || '';
+        document.getElementById('edit-device-accessories').value = t.device.accessories || '';
+        document.getElementById('edit-device-password').value = t.device.password || '';
+
+        // Technician select
+        const techSelect = document.getElementById('edit-technician-select');
+        techSelect.innerHTML = this.technicians.map(tech => 
+            `<option value="${tech._id}" ${t.technician.id === tech._id ? 'selected' : ''}>${tech.name}</option>`
+        ).join('');
+
+        // Service Fee with formatting
+        const feeInput = document.getElementById('edit-service-fee');
+        feeInput.value = t.service_fee || 0;
+        setupCurrencyInput(feeInput);
 
         // Initialize and populate Pattern Lock for Edit
         if (!this.editPatternLock) {
@@ -629,22 +706,37 @@ class Service {
     async saveEdit() {
         const id = document.getElementById('edit-ticket-id').value;
         const t = this.tickets.find(x => x._id === id);
+        if (!t) return;
+
         const newData = {
-            customer: { ...t.customer, name: document.getElementById('edit-customer-name').value, phone: document.getElementById('edit-customer-phone').value },
+            customer: { 
+                name: document.getElementById('edit-customer-name').value, 
+                phone: document.getElementById('edit-customer-phone').value,
+                type: document.getElementById('edit-customer-type').value
+            },
             device: { 
-                ...t.device, 
+                type: document.getElementById('edit-device-type').value,
+                brand: document.getElementById('edit-device-brand').value,
+                model: document.getElementById('edit-device-model').value,
+                serial_number: document.getElementById('edit-device-serial-number').value,
                 symptoms: document.getElementById('edit-symptoms').value,
-                password: document.getElementById('edit-device-password') ? document.getElementById('edit-device-password').value : t.device.password,
-                pattern: document.getElementById('edit-device-pattern') ? document.getElementById('edit-device-pattern').value : t.device.pattern
-            }, 
+                accessories: document.getElementById('edit-device-accessories').value,
+                password: document.getElementById('edit-device-password').value,
+                pattern: document.getElementById('edit-device-pattern').value
+            },
+            technician_id: document.getElementById('edit-technician-select').value,
+            service_fee: parseCurrencyValue(document.getElementById('edit-service-fee').value),
             notes: t.notes
         };
+
         try {
             await api.updateTicketDetails(id, newData);
-            showToast('Data diupdate');
+            showToast('Data tiket berhasil diperbarui', 'success');
             bootstrap.Modal.getInstance(document.getElementById('editTicketModal')).hide();
-            this.loadTickets();
-        } catch(e) { showToast(e.message, 'error'); }
+            await this.loadTickets();
+        } catch(e) { 
+            showToast(e.message, 'error'); 
+        }
     }
 
     openAddPart(id) {
@@ -658,20 +750,25 @@ class Service {
         document.getElementById('final-ticket-id').value = id;
         const partTotal = t.parts_used.reduce((sum, p) => sum + p.subtotal, 0);
         document.getElementById('final-part-cost').textContent = formatCurrency(partTotal);
+        
         const feeInput = document.getElementById('final-service-fee');
         feeInput.value = t.service_fee;
+        setupCurrencyInput(feeInput);
+
         const updateGrandTotal = () => {
-            const fee = parseFloat(feeInput.value) || 0;
+            const fee = parseCurrencyValue(feeInput.value);
             document.getElementById('final-grand-total').textContent = formatCurrency(partTotal + fee);
         };
-        feeInput.oninput = updateGrandTotal;
+        feeInput.oninput = (e) => {
+            updateGrandTotal();
+        };
         updateGrandTotal();
         new bootstrap.Modal(document.getElementById('finalizeModal')).show();
     }
 
     async confirmFinish() {
         const id = document.getElementById('final-ticket-id').value;
-        const finalFee = document.getElementById('final-service-fee').value;
+        const finalFee = parseCurrencyValue(document.getElementById('final-service-fee').value);
         try {
             await api.updateServiceFee(id, finalFee);
             await api.updateTicketStatus(id, 'Completed');
@@ -838,13 +935,14 @@ class Service {
                     type: document.getElementById('device-type').value, 
                     brand: document.getElementById('device-brand').value, 
                     model: document.getElementById('device-model').value, 
+                    serial_number: document.getElementById('device-serial-number').value,
                     symptoms: document.getElementById('device-symptoms').value, 
                     accessories: document.getElementById('device-accessories').value,
                     password: document.getElementById('device-password').value,
                     pattern: document.getElementById('device-pattern').value
                 },
                 technician_id: document.getElementById('technician-select').value,
-                service_fee: document.getElementById('service-fee').value,
+                service_fee: parseCurrencyValue(document.getElementById('service-fee').value),
                 notes: ''
             };
             try { 

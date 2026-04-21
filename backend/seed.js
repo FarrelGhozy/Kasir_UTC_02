@@ -17,54 +17,50 @@ const connectDB = async () => {
 
 // --- DATA TEKNISI ---
 const TECHNICIANS = [
-  'Farrel',
-  'Kaukab',
-  'Rasya',
-  'Tamam',
-  'Syamsi',
-  'Baso',
-  'Fahri',
-  'Sultan',
-  'Akhmad',
-  'Fayyadh'
+  { name: 'Wildan', username: 'wildan_utc', password: 'password_wildan_123', phone: '6281234567890' },
+  { name: 'Kaukab', username: 'kaukab_utc', password: 'password_kaukab_456', phone: '6281234567891' },
+  { name: 'Rasya', username: 'rasya_utc', password: 'password_rasya_789', phone: '6281234567892' },
+  { name: 'Tamam', username: 'tamam_utc', password: 'password_tamam_012', phone: '6281234567893' },
+  { name: 'Noer Syamsi', username: 'syamsi_utc', password: 'password_syamsi_345', phone: '6281234567894' },
+  { name: 'Baso Akbar', username: 'akbar_utc', password: 'password_akbar_678', phone: '6281234567895' }
 ];
 
 const seedTechnicians = async () => {
   console.log('\n🔧 Menyeimbangkan Data Teknisi...');
   
   let createdCount = 0;
-  let skippedCount = 0;
+  let updatedCount = 0;
 
   // 1. Ambil daftar username yang seharusnya ada
-  const validUsernames = TECHNICIANS.map(name => name.toLowerCase().replace(/\s+/g, '_'));
+  const validUsernames = TECHNICIANS.map(t => t.username);
 
   // 2. Tambahkan atau update teknisi dari list
-  for (const techName of TECHNICIANS) {
-    const username = techName.toLowerCase().replace(/\s+/g, '_');
-    const existingTech = await User.findOne({ username });
+  for (const tech of TECHNICIANS) {
+    const existingTech = await User.findOne({ username: tech.username });
     
     if (existingTech) {
-      // Pastikan role-nya benar jika sudah ada
-      if (existingTech.role !== 'teknisi') {
-        existingTech.role = 'teknisi';
-        await existingTech.save();
-      }
-      console.log(`   ⏭️  Dilewati: ${techName} (sudah ada)`);
-      skippedCount++;
+      // Update data teknisi yang sudah ada
+      existingTech.name = tech.name;
+      existingTech.phone = tech.phone;
+      existingTech.role = 'teknisi';
+      existingTech.isActive = true;
+      // Jangan paksa ganti password jika sudah ada agar user tidak ter-logout paksa
+      // kecuali jika ingin mereset password melalui seed
+      await existingTech.save();
+      console.log(`   ⏭️  Diperbarui: ${tech.name} (username: ${tech.username})`);
+      updatedCount++;
     } else {
       await User.create({
-        name: techName,
-        username: username,
-        password: 'teknisiutc26',
+        ...tech,
         role: 'teknisi',
         isActive: true
       });
-      console.log(`   ✅ Dibuat: ${techName} (username: ${username})`);
+      console.log(`   ✅ Dibuat: ${tech.name} (username: ${tech.username})`);
       createdCount++;
     }
   }
 
-  // 3. Opsional: Nonaktifkan teknisi yang TIDAK ada di list (untuk membersihkan data sampah/dobel)
+  // 3. Opsional: Nonaktifkan teknisi yang TIDAK ada di list
   const strayTechs = await User.find({ 
     role: 'teknisi', 
     username: { $nin: validUsernames } 
@@ -78,7 +74,7 @@ const seedTechnicians = async () => {
     );
   }
 
-  console.log(`\n📊 Ringkasan Teknisi: +${createdCount} Baru, ${skippedCount} Tetap, ${strayTechs.length} Dinonaktifkan`);
+  console.log(`\n📊 Ringkasan Teknisi: +${createdCount} Baru, ${updatedCount} Diperbarui, ${strayTechs.length} Dinonaktifkan`);
 };
 
 // --- DATA USER DEFAULT (ADMIN & KASIR) ---

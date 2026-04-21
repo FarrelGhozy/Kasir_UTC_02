@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kelola Teknisi - Unida Technology Centere</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-50 min-vh-100">
+
+    <!-- Navbar -->
+    <nav class="bg-white border-b border-gray-200 px-6 py-4">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="bg-blue-600 p-2 rounded-lg">
+                    <i class="bi bi-person-gear text-white text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-gray-900 text-lg leading-tight">Admin UTC</h1>
+                    <p class="text-xs text-gray-500">Kelola Data Teknisi</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <a href="index.html" class="text-sm font-medium text-gray-600 hover:text-blue-600 flex items-center gap-1">
+                    <i class="bi bi-arrow-left"></i> Kembali ke Dashboard
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-6 py-8">
+        <!-- Header Actions -->
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+            <div>
+                <h2 class="text-2xl font-bold text-gray-900">Daftar Teknisi</h2>
+                <p class="text-sm text-gray-500">Total <span id="count-technicians">0</span> teknisi terdaftar</p>
+            </div>
+            <button onclick="openModal()" class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-semibold transition-all shadow-lg shadow-blue-200">
+                <i class="bi bi-plus-lg"></i> Tambah Teknisi
+            </button>
+        </div>
+
+        <!-- Table Card -->
+        <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-gray-50/50 border-b border-gray-100">
+                        <tr>
+                            <th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Nama Lengkap</th>
+                            <th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Username</th>
+                            <th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">No. WhatsApp</th>
+                            <th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
+                            <th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="technician-table-body" class="divide-y divide-gray-100">
+                        <!-- Content will be rendered here via JS -->
+                        <tr>
+                            <td colspan="5" class="px-6 py-12 text-center">
+                                <div class="flex flex-col items-center gap-2 text-gray-400">
+                                    <div class="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                                    <p class="text-sm">Memuat data...</p>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal Form -->
+    <div id="tech-modal" class="fixed inset-0 z-50 hidden overflow-y-auto">
+        <div class="flex items-center justify-center min-h-screen px-4 p-4 text-center sm:p-0">
+            <div class="fixed inset-0 transition-opacity bg-gray-900/60" onclick="closeModal()"></div>
+
+            <div class="relative inline-block w-full max-w-md overflow-hidden text-left align-middle transition-all transform bg-white shadow-2xl rounded-2xl">
+                <div class="px-6 py-6 border-b border-gray-100">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xl font-bold text-gray-900" id="modal-title">Tambah Teknisi</h3>
+                        <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 transition-colors">
+                            <i class="bi bi-x-lg text-xl"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <form id="tech-form" onsubmit="handleFormSubmit(event)" class="px-6 py-6 space-y-5">
+                    <input type="hidden" id="tech-id">
+                    
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Nama Lengkap</label>
+                        <input type="text" id="full_name" required class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none" placeholder="Masukkan nama teknisi">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Username</label>
+                        <input type="text" id="username" required class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none" placeholder="Contoh: akbar_utc">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">No. WhatsApp</label>
+                        <div class="relative">
+                            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium">+62</span>
+                            <input type="tel" id="phone" required class="w-full pl-14 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none" placeholder="812xxxxxxx">
+                        </div>
+                        <p class="mt-1.5 text-[11px] text-gray-400">Nomor akan otomatis diformat untuk WAHA.</p>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Password</label>
+                        <input type="password" id="password" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none" placeholder="Kosongkan jika tidak ingin ganti">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Status Akun</label>
+                        <select id="status" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none">
+                            <option value="active">Aktif</option>
+                            <option value="inactive">Nonaktif</option>
+                        </select>
+                    </div>
+
+                    <div class="pt-4">
+                        <button type="submit" id="btn-save" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-lg shadow-blue-200 transition-all flex items-center justify-center gap-2">
+                            <span>Simpan Teknisi</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script type="module">
+        import api from './js/api.js';
+
+        let allTechnicians = [];
+
+        // 1. Auth Check (Hanya Admin)
+        function checkAuth() {
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            const token = localStorage.getItem('token');
+
+            if (!token || user.role !== 'admin') {
+                alert('Akses Ditolak: Hanya Superadmin yang dapat mengelola data teknisi.');
+                window.location.href = 'index.html';
+                return false;
+            }
+            return true;
+        }
+
+        // 2. Fetch Data
+        async function loadTechnicians() {
+            if (!checkAuth()) return;
+
+            try {
+                const result = await api.get('/admin/technicians');
+                
+                if (result.success) {
+                    allTechnicians = result.data;
+                    renderTable(result.data);
+                    document.getElementById('count-technicians').textContent = result.data.length;
+                }
+            } catch (err) {
+                console.error('API Error:', err);
+                alert('Gagal memuat data teknisi: ' + err.message);
+            }
+        }
+
+        // 3. Render Table
+        function renderTable(data) {
+            const tbody = document.getElementById('technician-table-body');
+            
+            if (data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-12 text-center text-gray-500 text-sm">Belum ada data teknisi.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = data.map(tech => `
+                <tr class="hover:bg-gray-50/50 transition-colors">
+                    <td class="px-6 py-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-sm">
+                                ${tech.name.charAt(0)}
+                            </div>
+                            <span class="text-sm font-semibold text-gray-900">${tech.name}</span>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 text-sm text-gray-600 font-mono">${tech.username}</td>
+                    <td class="px-6 py-4 text-sm text-gray-600">${tech.phone || '-'}</td>
+                    <td class="px-6 py-4">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${tech.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">
+                            ${tech.status === 'active' ? 'Aktif' : 'Nonaktif'}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 text-right">
+                        <div class="flex justify-end gap-2">
+                            <button data-id="${tech._id}" class="btn-edit p-2 text-gray-400 hover:text-blue-600 transition-colors" title="Edit">
+                                <i class="bi bi-pencil-square"></i>
+                            </button>
+                            <button data-id="${tech._id}" data-name="${tech.name}" class="btn-delete p-2 text-gray-400 hover:text-red-600 transition-colors" title="Hapus">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+
+            // Add Event Listeners to Buttons
+            document.querySelectorAll('.btn-edit').forEach(btn => {
+                btn.onclick = () => editTech(btn.dataset.id);
+            });
+            document.querySelectorAll('.btn-delete').forEach(btn => {
+                btn.onclick = () => deleteTech(btn.dataset.id, btn.dataset.name);
+            });
+        }
+
+        // 4. Modal Logic
+        window.openModal = function(tech = null) {
+            const modal = document.getElementById('tech-modal');
+            const form = document.getElementById('tech-form');
+            form.reset();
+
+            if (tech) {
+                document.getElementById('modal-title').textContent = 'Edit Teknisi';
+                document.getElementById('tech-id').value = tech._id;
+                document.getElementById('full_name').value = tech.name;
+                document.getElementById('username').value = tech.username;
+                
+                // Format phone display: Buang awalan 62 atau 0 agar pas dengan label +62
+                let phone = tech.phone || '';
+                if (phone.startsWith('62')) phone = phone.substring(2);
+                if (phone.startsWith('0')) phone = phone.substring(1);
+                document.getElementById('phone').value = phone;
+
+                document.getElementById('status').value = tech.status || 'active';
+                document.getElementById('password').required = false;
+                document.getElementById('btn-save').innerHTML = '<span>Update Data</span>';
+            } else {
+                document.getElementById('modal-title').textContent = 'Tambah Teknisi Baru';
+                document.getElementById('tech-id').value = '';
+                document.getElementById('password').required = true;
+                document.getElementById('btn-save').innerHTML = '<span>Simpan Teknisi</span>';
+            }
+
+            modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+
+        window.closeModal = function() {
+            document.getElementById('tech-modal').classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        }
+
+        // 5. Phone Validation & Formatting
+        function formatPhone(input) {
+            let num = input.replace(/\D/g, ''); 
+
+            if (num.startsWith('620')) {
+                num = '62' + num.substring(3); 
+            } else if (num.startsWith('0')) {
+                num = '62' + num.substring(1); 
+            } else if (num.startsWith('8')) {
+                num = '62' + num;
+            }
+            return num;
+        }
+        // 6. Handle Form Submit (Create & Update)
+        window.handleFormSubmit = async function(e) {
+            e.preventDefault();
+            const techId = document.getElementById('tech-id').value;
+            const btn = document.getElementById('btn-save');
+            
+            const rawPhone = document.getElementById('phone').value;
+            const formattedPhone = formatPhone(rawPhone);
+
+            if (formattedPhone.length < 10) {
+                alert('Nomor WhatsApp tidak valid!');
+                return;
+            }
+
+            const data = {
+                name: document.getElementById('full_name').value,
+                username: document.getElementById('username').value,
+                phone: formattedPhone,
+                status: document.getElementById('status').value,
+                password: document.getElementById('password').value
+            };
+
+            btn.disabled = true;
+            btn.innerHTML = '<div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>';
+
+            try {
+                if (techId) {
+                    await api.put(`/admin/technicians/${techId}`, data);
+                } else {
+                    await api.post('/admin/technicians', data);
+                }
+                closeModal();
+                loadTechnicians();
+            } catch (err) {
+                alert(err.message || 'Gagal menyimpan data.');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<span>${techId ? 'Update Data' : 'Simpan Teknisi'}</span>`;
+            }
+        }
+
+        // 7. Actions
+        function editTech(id) {
+            const tech = allTechnicians.find(t => t._id === id);
+            if (tech) openModal(tech);
+        }
+
+        async function deleteTech(id, name) {
+            if (!confirm(`Hapus teknisi "${name}"?`)) return;
+            try {
+                await api.delete(`/admin/technicians/${id}`);
+                loadTechnicians();
+            } catch (err) {
+                alert(err.message);
+            }
+        }
+
+        // Init
+        loadTechnicians();
+    </script>
+</body>
+</html>
