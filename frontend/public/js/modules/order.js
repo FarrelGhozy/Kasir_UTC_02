@@ -1,4 +1,4 @@
-import api, { formatCurrency, formatDateTime, showToast, setupCurrencyInput, parseCurrencyValue } from '../api.js';
+import api, { formatCurrency, formatDateTime, showToast, setupCurrencyInput, parseCurrencyValue, calculateElapsedTime } from '../api.js';
 
 class Order {
     constructor() {
@@ -204,6 +204,21 @@ class Order {
                 'Cancelled': 'bg-danger'
             }[o.status] || 'bg-light text-dark';
 
+            // Logika Durasi
+            let durationLabel = 'Dipesan Sejak';
+            let durationValue = calculateElapsedTime(o.timestamps.created_at);
+            let durationColor = 'text-muted';
+
+            if (o.status === 'Arrived') {
+                durationLabel = 'Sampai Sejak';
+                durationValue = calculateElapsedTime(o.timestamps.arrived_at);
+                durationColor = 'text-success fw-bold';
+            } else if (o.status === 'Picked_Up') {
+                durationLabel = 'Total Waktu';
+                durationValue = calculateElapsedTime(o.timestamps.created_at, o.timestamps.picked_up_at);
+                durationColor = 'text-dark';
+            }
+
             return `
             <div class="col-12">
                 <div class="card border-0 shadow-sm mb-2 border-start border-4 ${o.status === 'Arrived' ? 'border-success' : 'border-info'}">
@@ -213,7 +228,13 @@ class Order {
                                 <h6 class="fw-bold mb-0 text-primary">${o.item_name}</h6>
                                 <small class="text-muted">#${o.order_number} | ${formatDateTime(o.timestamps.created_at)}</small>
                             </div>
-                            <span class="badge ${badgeClass}">${o.status}</span>
+                            <div class="text-end">
+                                <span class="badge ${badgeClass}">${o.status}</span>
+                                <div class="small mt-1 ${durationColor}" style="font-size: 0.75rem">
+                                    <i class="bi bi-clock me-1"></i>${durationValue}
+                                </div>
+                                <div class="text-muted" style="font-size: 0.65rem">${durationLabel}</div>
+                            </div>
                         </div>
                         <div class="row small mb-3">
                             <div class="col-md-4">

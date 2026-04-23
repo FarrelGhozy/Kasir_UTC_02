@@ -1,6 +1,6 @@
 // public/js/modules/service.js - Modul Manajemen Servis (FIXED: Add Part & Detail View)
 
-import api, { formatCurrency, formatDateTime, showToast, showError, setupCurrencyInput, parseCurrencyValue } from '../api.js';
+import api, { formatCurrency, formatDateTime, showToast, showError, setupCurrencyInput, parseCurrencyValue, calculateElapsedTime } from '../api.js';
 
 /**
  * Helper class for Pattern Lock UI
@@ -519,6 +519,26 @@ class Service {
         container.innerHTML = filteredTickets.map(t => {
             const isCompleted = t.status === 'Completed' || t.status === 'Picked_Up';
             
+            // Logika Durasi
+            let durationLabel = 'Durasi Masuk';
+            let durationValue = calculateElapsedTime(t.timestamps.created_at);
+            let durationColor = 'text-muted';
+
+            if (t.status === 'Completed') {
+                durationLabel = 'Selesai Sejak';
+                durationValue = calculateElapsedTime(t.timestamps.completed_at);
+                durationColor = 'text-success';
+            } else if (t.status === 'Picked_Up') {
+                durationLabel = 'Total Servis';
+                durationValue = calculateElapsedTime(t.timestamps.created_at, t.timestamps.picked_up_at);
+                durationColor = 'text-dark';
+            } else {
+                // Untuk status aktif (Queue, Diagnosing, etc)
+                const hours = (new Date() - new Date(t.timestamps.created_at)) / (1000 * 60 * 60);
+                if (hours > 48) durationColor = 'text-danger fw-bold';
+                else if (hours > 24) durationColor = 'text-warning fw-bold';
+            }
+
             let statusSelect = '';
             if (!isCompleted) {
                 const stages = [
@@ -582,10 +602,18 @@ class Service {
                                 <div class="small text-muted">${t.customer.phone}</div>
                             </div>
                             <div class="col-6">
-                                <small class="text-secondary fw-bold" style="font-size:0.7rem">PERANGKAT</small>
-                                <div class="fw-bold text-truncate">${t.device.type} ${t.device.brand || ''}</div>
-                                <div class="small text-muted text-truncate">${t.device.symptoms}</div>
+                                <small class="text-secondary fw-bold" style="font-size:0.7rem">DURASI</small>
+                                <div class="${durationColor} text-truncate" style="font-size:0.85rem">
+                                    ${durationValue}
+                                </div>
+                                <div class="small text-muted" style="font-size: 0.7rem">${durationLabel}</div>
                             </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <small class="text-secondary fw-bold" style="font-size:0.7rem">PERANGKAT</small>
+                            <div class="fw-bold text-truncate">${t.device.type} ${t.device.brand || ''}</div>
+                            <div class="small text-muted text-truncate">${t.device.symptoms}</div>
                         </div>
 
                         ${statusSelect}

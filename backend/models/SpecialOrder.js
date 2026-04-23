@@ -65,7 +65,8 @@ const specialOrderSchema = new mongoose.Schema({
     created_at: { type: Date, default: Date.now },
     ordered_at: Date,
     arrived_at: Date,
-    picked_up_at: Date
+    picked_up_at: Date,
+    last_customer_reminder_at: Date
   }
 });
 
