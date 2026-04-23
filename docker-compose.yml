@@ -62,12 +62,12 @@ services:
     networks:
       - utc_network
     mem_limit: 128m
-    cpus: 0.25
+    cpus: 0.5
     # --- LIMITASI RESOURCE (Docker Swarm) ---
     deploy:
       resources:
         limits:
-          cpus: '0.25'        # Frontend statis (Nginx) sangat ringan, 25% CPU cukup
+          cpus: '0.50'        # Frontend statis (Nginx) sangat ringan, 50% CPU cukup
           memory: 128M        # 128MB sangat cukup untuk serve file statis
         reservations:
           memory: 32M
@@ -88,10 +88,11 @@ services:
       - WHATSAPP_SWAGGER_PASSWORD=adminutc28
       - WAHA_DASHBOARD_USERNAME=admin-utc01
       - WAHA_DASHBOARD_PASSWORD=adminutc28
+      - WAHA_WHATSAPP_READ_MESSAGES=false
     networks:
       - utc_network
-    mem_limit: 512m
-    cpus: 0.50
+    mem_limit: 1512m
+    cpus: 1.5
 
 networks:
   utc_network:

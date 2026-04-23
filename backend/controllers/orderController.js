@@ -99,8 +99,34 @@ exports.updateOrderStatus = async (req, res, next) => {
 
 exports.updateOrderDetails = async (req, res, next) => {
   try {
-    const order = await SpecialOrder.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+    const { customer, item_name, item_description, estimated_price, down_payment, handled_by_id, notes } = req.body;
+    
+    const order = await SpecialOrder.findById(req.params.id);
     if (!order) return res.status(404).json({ success: false, message: 'Pesanan tidak ditemukan' });
+
+    if (customer) order.customer = { ...order.customer.toObject(), ...customer };
+    if (item_name) order.item_name = item_name;
+    if (item_description !== undefined) order.item_description = item_description;
+    if (estimated_price !== undefined) order.estimated_price = estimated_price;
+    if (down_payment !== undefined) order.down_payment = down_payment;
+    if (notes !== undefined) order.notes = notes;
+
+    if (handled_by_id) {
+      // Cek apakah ada perubahan penanggung jawab
+      const isReassigned = order.handled_by && order.handled_by.id && order.handled_by.id.toString() !== handled_by_id;
+      
+      const user = await User.findById(handled_by_id);
+      if (user) {
+        order.handled_by = { id: user._id, name: user.name };
+        
+        // Jika dipindah tugas ke orang baru, beri notifikasi
+        if (isReassigned) {
+          whatsappService.notifyOrderAssignment(user, order);
+        }
+      }
+    }
+
+    await order.save();
     res.status(200).json({ success: true, data: order });
   } catch (error) {
     next(error);
@@ -112,11 +138,17 @@ exports.deleteOrder = async (req, res, next) => {
     const order = await SpecialOrder.findById(req.params.id);
     if (!order) return res.status(404).json({ success: false, message: 'Pesanan tidak ditemukan' });
     
-    // Instead of hard delete, maybe just cancel? User might want to keep records.
+    // JIKA USER ADALAH ADMIN: Bisa hapus permanen (Overpower)
+    if (req.user && req.user.role === 'admin') {
+      await SpecialOrder.findByIdAndDelete(req.params.id);
+      return res.status(200).json({ success: true, message: 'Pesanan barang berhasil dihapus permanen oleh Admin' });
+    }
+
+    // JIKA BUKAN ADMIN: Hanya ubah status jadi Cancelled
     order.status = 'Cancelled';
     await order.save();
     
-    res.status(200).json({ success: true, message: 'Pesanan dibatalkan' });
+    res.status(200).json({ success: true, message: 'Pesanan berhasil dibatalkan' });
   } catch (error) {
     next(error);
   }

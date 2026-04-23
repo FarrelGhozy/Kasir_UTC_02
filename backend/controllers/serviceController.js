@@ -209,19 +209,26 @@ exports.updateServiceFee = async (req, res, next) => {
 };
 
 /**
- * @desc    Hapus tiket servis
+ * @desc    Hapus tiket servis (Hard delete untuk Admin, Cancel untuk yang lain)
  */
 exports.deleteTicket = async (req, res, next) => {
   try {
     const ticket = await ServiceTicket.findById(req.params.id);
     if (!ticket) return res.status(404).json({ success: false, message: 'Tiket tidak ditemukan' });
 
+    // JIKA USER ADALAH ADMIN: Bisa hapus permanen (Overpower)
+    if (req.user && req.user.role === 'admin') {
+      await ServiceTicket.findByIdAndDelete(req.params.id);
+      return res.status(200).json({ success: true, message: 'Tiket servis berhasil dihapus permanen oleh Admin' });
+    }
+
+    // JIKA BUKAN ADMIN: Hanya bisa membatalkan jika status belum final
     if (['Completed', 'Picked_Up', 'Cancelled'].includes(ticket.status)) {
-      return res.status(400).json({ success: false, message: 'Tiket ini tidak dapat dibatalkan (status final)' });
+      return res.status(400).json({ success: false, message: 'Tiket ini tidak dapat dibatalkan (status final). Hanya Admin yang dapat menghapus data ini.' });
     }
 
     await ticket.updateStatus('Cancelled');
-    res.status(200).json({ success: true, message: 'Tiket dibatalkan' });
+    res.status(200).json({ success: true, message: 'Tiket berhasil dibatalkan' });
   } catch (error) {
     next(error);
   }
@@ -268,11 +275,19 @@ exports.updateTicketDetails = async (req, res, next) => {
     if (service_fee !== undefined) ticket.service_fee = service_fee;
 
     if (technician_id) {
+      // Cek apakah ada perubahan teknisi
+      const isReassigned = ticket.technician && ticket.technician.id && ticket.technician.id.toString() !== technician_id;
+
       const technician = await User.findById(technician_id);
       if (!technician || technician.role !== 'teknisi') {
         return res.status(400).json({ success: false, message: 'ID Teknisi tidak valid' });
       }
       ticket.technician = { id: technician._id, name: technician.name };
+
+      // Jika ditugaskan ke orang baru, beri notifikasi ke teknisi tersebut
+      if (isReassigned) {
+        whatsappService.notifyTechnicianAssignment(technician, ticket);
+      }
     }
 
     await ticket.save();

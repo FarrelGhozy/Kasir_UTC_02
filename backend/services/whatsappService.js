@@ -69,7 +69,7 @@ class WhatsAppService {
     const statusLabel = statusMap[ticket.status] || ticket.status;
     const currencyFormat = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 });
 
-    let message = `*UNIDA TECHNOLOGY CENTERE - UPDATE SERVIS*\n\n`;
+    let message = `*UNIDA TECHNOLOGY CENTRE - UPDATE SERVIS*\n\n`;
     message += `Halo Kak *${ticket.customer.name}*, apa kabarnya? Semoga sehat selalu 😊\n\n`;
     message += `Kami ingin menginformasikan update terbaru untuk perbaikan perangkat Anda:\n`;
     message += `📦 *${ticket.device.type} ${ticket.device.brand || ''} ${ticket.device.model || ''}*\n`;
@@ -93,7 +93,7 @@ class WhatsAppService {
       message += `Kami akan segera mengabari Kakak kembali jika ada perkembangan lebih lanjut. Mohon ditunggu ya Kak. 🙏\n`;
     }
 
-    message += `\nTerima kasih atas kepercayaannya.\n_Salam hangat, Tim Unida Technology Centere_`;
+    message += `\nTerima kasih atas kepercayaannya.\n_Salam hangat, Tim Unida Technology Centre_`;
 
     return this.sendMessage(ticket.customer.phone, message);
   }
@@ -115,7 +115,7 @@ class WhatsAppService {
     const currencyFormat = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 });
     const remaining = Math.max(0, (order.estimated_price || 0) - (order.down_payment || 0));
 
-    let message = `*UNIDA TECHNOLOGY CENTERE - NOTIFIKASI PESANAN*\n\n`;
+    let message = `*UNIDA TECHNOLOGY CENTRE - NOTIFIKASI PESANAN*\n\n`;
     message += `Halo Kak *${order.customer.name}*, selamat hari yang luar biasa! 😊\n\n`;
     message += `Kami ingin mengabarkan status pesanan barang Anda:\n`;
     message += `🛒 *${order.item_name}*\n`;
@@ -136,7 +136,7 @@ class WhatsAppService {
       message += `Kami akan segera mengabari Kakak kembali saat barang sudah mendarat di toko kami. 😊\n`;
     }
 
-    message += `\nSalam sukses,\n_Tim Unida Technology Centere_`;
+    message += `\nSalam sukses,\n_Tim Unida Technology Centre_`;
 
     return this.sendMessage(order.customer.phone, message);
   }
@@ -147,9 +147,20 @@ class WhatsAppService {
   async notifyTechnicianAssignment(technician, ticket) {
     if (!technician.phone) return null;
 
-    const message = `🛠️ *TUGAS BARU MASUK!* 🛠️\n\nHalo *${technician.name}*,\nAda tugas baru yang ditugaskan kepada Anda:\n\n💻 Barang: *${ticket.device.type} ${ticket.device.brand || ''} ${ticket.device.model || ''}*\n🩹 Kerusakan: *${ticket.device.symptoms}*\n👤 Pelanggan: *${ticket.customer.name}*\n🎫 No. Tiket: #${ticket.ticket_number}\n\nSilakan cek dashboard *Unida Technology Centere* untuk detail lebih lanjut. Semangat kerja! 💪🔧`;
+    const message = `🛠️ *TUGAS BARU MASUK!* 🛠️\n\nHalo *${technician.name}*,\nAda tugas baru yang ditugaskan kepada Anda:\n\n💻 Barang: *${ticket.device.type} ${ticket.device.brand || ''} ${ticket.device.model || ''}*\n🩹 Kerusakan: *${ticket.device.symptoms}*\n👤 Pelanggan: *${ticket.customer.name}*\n🎫 No. Tiket: #${ticket.ticket_number}\n\nSilakan cek dashboard *Unida Technology Centre* untuk detail lebih lanjut. Semangat kerja! 💪🔧`;
 
     return this.sendMessage(technician.phone, message);
+  }
+
+  /**
+   * Notifikasi Penugasan Pesanan Barang (Internal)
+   */
+  async notifyOrderAssignment(staff, order) {
+    if (!staff.phone) return null;
+
+    const message = `🛒 *TUGAS PESANAN BARU!* 🛒\n\nHalo *${staff.name}*,\nAnda ditugaskan untuk mencari/mengelola pesanan barang berikut:\n\n📦 Barang: *${order.item_name}*\n👤 Pelanggan: *${order.customer.name}*\n🎫 No. Order: #${order.order_number}\n\nSilakan segera diproses dan update statusnya di dashboard *Unida Technology Centre*. Semangat! 🚀`;
+
+    return this.sendMessage(staff.phone, message);
   }
 }
 
