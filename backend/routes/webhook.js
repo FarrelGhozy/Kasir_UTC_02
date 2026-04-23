@@ -17,7 +17,7 @@ router.post('/waha-webhook', async (req, res) => {
     const payload = req.body;
     
     // LOG UNTUK DEBUGGING (PENTING)
-    console.log(`[WAHA Webhook] Event diterima: ${payload.event || 'Unknown Event'}`);
+    console.log(`[WAHA Webhook] Data Diterima:`, JSON.stringify(payload, null, 2));
 
     // Mendukung 'message' (Core) atau 'message.upsert' (Plus/Newer)
     if (payload.event === 'message' || payload.event === 'message.upsert' || payload.event === 'message.any') {
