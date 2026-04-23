@@ -162,6 +162,56 @@ class WhatsAppService {
 
     return this.sendMessage(staff.phone, message);
   }
+
+  /**
+   * Pengingat Pengambilan Barang untuk Customer (Sopan & Jam Operasional)
+   */
+  async sendCustomerPickupReminder(ticket) {
+    let message = `*PENGINGAT - UNIDA TECHNOLOGY CENTRE*\n\n`;
+    message += `Halo Kak *${ticket.customer.name}*, selamat siang. 😊\n\n`;
+    message += `Mohon maaf mengganggu waktunya. Kami ingin mengingatkan kembali bahwa perangkat Kakak:\n`;
+    message += `📦 *${ticket.device.type} ${ticket.device.brand || ''} ${ticket.device.model || ''}*\n`;
+    message += `🎫 No. Tiket: #${ticket.ticket_number}\n\n`;
+    message += `Sudah selesai diperbaiki dan siap untuk diambil. ✅\n\n`;
+    message += `Kakak bisa mengambilnya di kantor kami pada jam operasional:\n`;
+    message += `🕒 *Senin - Kamis & Sabtu: 08.00 - 15.00 WIB*\n`;
+    message += `_(Hari Jumat kantor kami libur)_\n\n`;
+    message += `Terima kasih atas perhatiannya Kak. Kami tunggu kehadirannya! 🙏✨`;
+
+    return this.sendMessage(ticket.customer.phone, message);
+  }
+
+  /**
+   * Pengingat Pengambilan Pesanan untuk Customer
+   */
+  async sendOrderPickupReminder(order) {
+    let message = `*PENGINGAT PESANAN - UNIDA TECHNOLOGY CENTRE*\n\n`;
+    message += `Halo Kak *${order.customer.name}*, apa kabarnya? 😊\n\n`;
+    message += `Sekedar menginformasikan kembali bahwa pesanan Kakak:\n`;
+    message += `🛒 *${order.item_name}*\n`;
+    message += `🎫 No. Order: #${order.order_number}\n\n`;
+    message += `Sudah tersedia di toko kami dan menunggu untuk dijemput. 🛍️\n\n`;
+    message += `Silakan Kakak datang ke kantor kami pada jam kerja:\n`;
+    message += `🕒 *08.00 - 15.00 WIB* (Kecuali hari Jumat)\n\n`;
+    message += `Sampai jumpa di toko Kak! Terima kasih. 🙏`;
+
+    return this.sendMessage(order.customer.phone, message);
+  }
+
+  /**
+   * Pengingat Tugas untuk Teknisi (Setiap 12 Jam)
+   */
+  async sendTechnicianTaskReminder(techUser, ticket) {
+    const statusMap = {
+      'Queue': 'Dalam Antrian',
+      'Diagnosing': 'Tahap Diagnosa',
+      'In_Progress': 'Sedang Dikerjakan'
+    };
+    
+    const message = `⏰ *PENGINGAT TUGAS TEKNISI* ⏰\n\nHalo *${techUser.name}*,\nSekedar mengingatkan ada tugas yang masih dalam status *${statusMap[ticket.status]}*:\n\n💻 Barang: *${ticket.device.type} ${ticket.device.brand || ''} ${ticket.device.model || ''}*\n👤 Pelanggan: *${ticket.customer.name}*\n🎫 No. Tiket: #${ticket.ticket_number}\n\nMohon segera ditindaklanjuti agar pelayanan kita tetap prima. Semangat! 🛠️💪`;
+
+    return this.sendMessage(techUser.phone, message);
+  }
 }
 
 module.exports = new WhatsAppService();

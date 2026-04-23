@@ -465,3 +465,26 @@ export function setupCurrencyInput(inputElement) {
         e.target.setSelectionRange(newCursorP, newCursorP);
     });
 }
+
+/**
+ * Hitung selisih waktu dalam format yang mudah dibaca (Hari, Jam, Menit)
+ */
+export function calculateElapsedTime(startTime, endTime = new Date()) {
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    const diffMs = end - start;
+    
+    if (diffMs < 0) return 'Baru saja';
+    
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    if (diffDays > 0) {
+        return `${diffDays} hari ${diffHours % 24} jam`;
+    } else if (diffHours > 0) {
+        return `${diffHours} jam ${diffMins % 60} menit`;
+    } else {
+        return `${diffMins} menit`;
+    }
+}
