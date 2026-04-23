@@ -25,7 +25,7 @@ const TECHNICIANS = [
   { name: 'Baso Akbar', username: 'akbar_utc', password: 'Teknisiutc26', phone: '6285385500382' },
   { name: 'Fahri', username: 'fahri_utc', password: 'Teknisiutc26', phone: '6285281762499' },
   { name: 'Albi', username: 'albi_utc', password: 'Teknisiutc26', phone: '6281515153321' },
-  { name: 'Lutfiansyah', username: 'lutfiansyah_utc', password: 'Teknisiutc26', phone: '6282156614855' },
+  { name: 'Lutfiansyah', username: 'lutfiansyah_utc', password: 'Teknisiutc26', phone: '6285716696578' },
   { name: 'Fayad', username: 'fayad_utc', password: 'Teknisiutc26', phone: '62895320648811' },
   { name: 'Raffael Akbar', username: 'raffael_utc', password: 'Teknisiutc26', phone: '6282325571742' }
 ];
