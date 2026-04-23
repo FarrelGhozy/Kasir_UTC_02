@@ -20,17 +20,17 @@ class WhatsAppService {
   async sendMessage(phone, message) {
     try {
       // Bersihkan nomor HP agar sesuai format WAHA (628xxxxxxxx@c.us)
-      let formattedPhone = phone.replace(/\D/g, '');
-      if (formattedPhone.startsWith('0')) {
-        formattedPhone = '62' + formattedPhone.slice(1);
+      let cleanPhone = phone.toString().replace(/\D/g, '');
+      if (cleanPhone.startsWith('0')) {
+        cleanPhone = '62' + cleanPhone.slice(1);
       }
-      if (!formattedPhone.endsWith('@c.us')) {
-        formattedPhone = formattedPhone + '@c.us';
-      }
+      
+      // Pastikan format chatId benar (628... tanpa @c.us jika engine tertentu, tapi WEBJS butuh @c.us)
+      const chatId = cleanPhone.includes('@') ? cleanPhone : `${cleanPhone}@c.us`;
 
       const url = `${this.baseURL}/api/sendText`;
       const data = {
-        chatId: formattedPhone,
+        chatId: chatId,
         text: message,
         session: this.session
       };
@@ -38,16 +38,17 @@ class WhatsAppService {
       const config = {
         headers: {
           'X-Api-Key': this.apiKey
-        }
+        },
+        timeout: 10000 // Beri waktu 10 detik
       };
 
-      console.log(`[WhatsApp] Mengirim pesan ke ${formattedPhone}...`);
+      console.log(`[WhatsApp] Mencoba mengirim ke ${chatId}...`);
       
       const response = await axios.post(url, data, config);
+      console.log(`[WhatsApp] Sukses kirim ke ${chatId}.`);
       return response.data;
     } catch (error) {
-      console.error('[WhatsApp] Gagal mengirim pesan:', error.response?.data || error.message);
-      // Jangan throw error agar tidak mengganggu flow utama aplikasi jika WA mati
+      console.error(`[WhatsApp] Gagal mengirim ke ${phone}:`, error.response?.data || error.message);
       return null;
     }
   }
