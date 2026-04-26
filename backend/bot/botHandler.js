@@ -5,7 +5,7 @@ const { sendReply } = require('./wahaClient');
 const chatSessions = new Map();
 const waitMessageThrottling = new Map(); // Untuk mencegah spam pesan "tunggu"
 
-const WAIT_THROTTLE_TIME = 2 * 60 * 60 * 1000; // 2 Jam (Jangan kirim pesan "tunggu" berulang dalam 2 jam)
+const WAIT_THROTTLE_TIME = 15 * 60 * 1000; // 15 Menit
 
 function isWorkingHours() {
   if (process.env.IS_CAMPUS_EVENT === 'true') return { open: false, reason: 'event' };

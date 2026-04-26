@@ -5,6 +5,7 @@ const cors = require('cors');
 const connectDB = require('./config/db');
 const apiRoutes = require('./routes/api');
 const webhookRoutes = require('./routes/webhook');
+const reminderService = require('./services/reminderService');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
@@ -77,7 +78,10 @@ const startServer = async () => {
     // 1. Hubungkan Database
     await connectDB();
     
-    // 2. Jalankan Listen Port
+    // 2. Jalankan Scheduler Pengingat
+    reminderService.init();
+    
+    // 3. Jalankan Listen Port
     app.listen(PORT, () => {
       console.log('='.repeat(50));
       console.log(`🚀 Server API Bengkel UTC Berjalan`);

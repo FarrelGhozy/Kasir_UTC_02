@@ -20,17 +20,17 @@ class WhatsAppService {
   async sendMessage(phone, message) {
     try {
       // Bersihkan nomor HP agar sesuai format WAHA (628xxxxxxxx@c.us)
-      let formattedPhone = phone.replace(/\D/g, '');
-      if (formattedPhone.startsWith('0')) {
-        formattedPhone = '62' + formattedPhone.slice(1);
+      let cleanPhone = phone.toString().replace(/\D/g, '');
+      if (cleanPhone.startsWith('0')) {
+        cleanPhone = '62' + cleanPhone.slice(1);
       }
-      if (!formattedPhone.endsWith('@c.us')) {
-        formattedPhone = formattedPhone + '@c.us';
-      }
+      
+      // Pastikan format chatId benar (628... tanpa @c.us jika engine tertentu, tapi WEBJS butuh @c.us)
+      const chatId = cleanPhone.includes('@') ? cleanPhone : `${cleanPhone}@c.us`;
 
       const url = `${this.baseURL}/api/sendText`;
       const data = {
-        chatId: formattedPhone,
+        chatId: chatId,
         text: message,
         session: this.session
       };
@@ -38,16 +38,17 @@ class WhatsAppService {
       const config = {
         headers: {
           'X-Api-Key': this.apiKey
-        }
+        },
+        timeout: 10000 // Beri waktu 10 detik
       };
 
-      console.log(`[WhatsApp] Mengirim pesan ke ${formattedPhone}...`);
+      console.log(`[WhatsApp] Mencoba mengirim ke ${chatId}...`);
       
       const response = await axios.post(url, data, config);
+      console.log(`[WhatsApp] Sukses kirim ke ${chatId}.`);
       return response.data;
     } catch (error) {
-      console.error('[WhatsApp] Gagal mengirim pesan:', error.response?.data || error.message);
-      // Jangan throw error agar tidak mengganggu flow utama aplikasi jika WA mati
+      console.error(`[WhatsApp] Gagal mengirim ke ${phone}:`, error.response?.data || error.message);
       return null;
     }
   }
@@ -161,6 +162,56 @@ class WhatsAppService {
     const message = `🛒 *TUGAS PESANAN BARU!* 🛒\n\nHalo *${staff.name}*,\nAnda ditugaskan untuk mencari/mengelola pesanan barang berikut:\n\n📦 Barang: *${order.item_name}*\n👤 Pelanggan: *${order.customer.name}*\n🎫 No. Order: #${order.order_number}\n\nSilakan segera diproses dan update statusnya di dashboard *Unida Technology Centre*. Semangat! 🚀`;
 
     return this.sendMessage(staff.phone, message);
+  }
+
+  /**
+   * Pengingat Pengambilan Barang untuk Customer (Sopan & Jam Operasional)
+   */
+  async sendCustomerPickupReminder(ticket) {
+    let message = `*PENGINGAT - UNIDA TECHNOLOGY CENTRE*\n\n`;
+    message += `Halo Kak *${ticket.customer.name}*, selamat siang. 😊\n\n`;
+    message += `Mohon maaf mengganggu waktunya. Kami ingin mengingatkan kembali bahwa perangkat Kakak:\n`;
+    message += `📦 *${ticket.device.type} ${ticket.device.brand || ''} ${ticket.device.model || ''}*\n`;
+    message += `🎫 No. Tiket: #${ticket.ticket_number}\n\n`;
+    message += `Sudah selesai diperbaiki dan siap untuk diambil. ✅\n\n`;
+    message += `Kakak bisa mengambilnya di kantor kami pada jam operasional:\n`;
+    message += `🕒 *Senin - Kamis & Sabtu: 08.00 - 15.00 WIB*\n`;
+    message += `_(Hari Jumat kantor kami libur)_\n\n`;
+    message += `Terima kasih atas perhatiannya Kak. Kami tunggu kehadirannya! 🙏✨`;
+
+    return this.sendMessage(ticket.customer.phone, message);
+  }
+
+  /**
+   * Pengingat Pengambilan Pesanan untuk Customer
+   */
+  async sendOrderPickupReminder(order) {
+    let message = `*PENGINGAT PESANAN - UNIDA TECHNOLOGY CENTRE*\n\n`;
+    message += `Halo Kak *${order.customer.name}*, apa kabarnya? 😊\n\n`;
+    message += `Sekedar menginformasikan kembali bahwa pesanan Kakak:\n`;
+    message += `🛒 *${order.item_name}*\n`;
+    message += `🎫 No. Order: #${order.order_number}\n\n`;
+    message += `Sudah tersedia di toko kami dan menunggu untuk dijemput. 🛍️\n\n`;
+    message += `Silakan Kakak datang ke kantor kami pada jam kerja:\n`;
+    message += `🕒 *08.00 - 15.00 WIB* (Kecuali hari Jumat)\n\n`;
+    message += `Sampai jumpa di toko Kak! Terima kasih. 🙏`;
+
+    return this.sendMessage(order.customer.phone, message);
+  }
+
+  /**
+   * Pengingat Tugas untuk Teknisi (Setiap 12 Jam)
+   */
+  async sendTechnicianTaskReminder(techUser, ticket) {
+    const statusMap = {
+      'Queue': 'Dalam Antrian',
+      'Diagnosing': 'Tahap Diagnosa',
+      'In_Progress': 'Sedang Dikerjakan'
+    };
+    
+    const message = `⏰ *PENGINGAT TUGAS TEKNISI* ⏰\n\nHalo *${techUser.name}*,\nSekedar mengingatkan ada tugas yang masih dalam status *${statusMap[ticket.status]}*:\n\n💻 Barang: *${ticket.device.type} ${ticket.device.brand || ''} ${ticket.device.model || ''}*\n👤 Pelanggan: *${ticket.customer.name}*\n🎫 No. Tiket: #${ticket.ticket_number}\n\nMohon segera ditindaklanjuti agar pelayanan kita tetap prima. Semangat! 🛠️💪`;
+
+    return this.sendMessage(techUser.phone, message);
   }
 }
 

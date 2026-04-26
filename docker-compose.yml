@@ -88,7 +88,9 @@ services:
       - WHATSAPP_SWAGGER_PASSWORD=adminutc28
       - WAHA_DASHBOARD_USERNAME=admin-utc01
       - WAHA_DASHBOARD_PASSWORD=adminutc28
-      - WAHA_WHATSAPP_READ_MESSAGES=false
+      - WAHA_WHATSAPP_READ_MESSAGES=true
+      - WAHA_WHATSAPP_SEND_MESSAGES=true
+      - WAHA_WHATSAPP_READ_CONTACTS=true
     networks:
       - utc_network
     mem_limit: 1512m

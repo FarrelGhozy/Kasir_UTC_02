@@ -165,6 +165,12 @@ const serviceTicketSchema = new mongoose.Schema({
     },
     picked_up_at: {
       type: Date
+    },
+    last_customer_reminder_at: {
+      type: Date
+    },
+    last_technician_reminder_at: {
+      type: Date
     }
   }
 });
