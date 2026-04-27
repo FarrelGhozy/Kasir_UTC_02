@@ -6,7 +6,7 @@ import { showLoading } from './api.js';
 // Import modul-modul
 import Dashboard from './modules/dashboard.js';
 import POS from './modules/pos.js';
-import Service from './modules/service.js';
+import Service from './modules/service.js?v=2';
 import Inventory from './modules/inventory.js';
 import Reports from './modules/reports.js';
 import Order from './modules/order.js';

@@ -65,7 +65,21 @@ Dikelola di `backend/bot/`. Memiliki fitur:
 
 ---
 
-## 🔑 5. Akun & Keamanan
+## 📧 5. Sistem Notifikasi Email (Nota Otomatis)
+Sistem menggunakan **Nodemailer** dengan layanan SMTP Gmail.
+
+### **A. Alur Pengiriman**
+1.  **Input Email:** Admin/Kasir memasukkan email pelanggan saat membuat tiket baru atau mengedit tiket.
+2.  **Trigger:** Saat teknisi mengubah status tiket menjadi **"Completed"**, sistem secara otomatis memicu fungsi `sendInvoiceEmail`.
+3.  **Konten:** Email berisi rincian perangkat, rincian sparepart yang digunakan, biaya jasa, dan total yang harus dibayar dalam format HTML yang rapi.
+
+### **B. Prasyarat Teknis**
+*   **Variabel ENV:** Membutuhkan `EMAIL_USER` (akun Gmail) dan `EMAIL_PASS` (App Password 16 digit).
+*   **Keamanan:** Pastikan akun Gmail pengirim sudah mengaktifkan Verifikasi 2 Langkah.
+
+---
+
+## 🔑 6. Akun & Keamanan
 *   **Role User:** `admin`, `kasir`, `teknisi`.
 *   **Akses Admin Khusus:** Mengelola teknisi di `admin-teknisi.html`.
 *   **Auth WAHA:** Dashboard dilindungi password (lihat docker-compose.yml).
@@ -73,7 +87,7 @@ Dikelola di `backend/bot/`. Memiliki fitur:
 
 ---
 
-## 🚀 6. Cara Menjalankan Sistem
+## 🚀 7. Cara Menjalankan Sistem
 1.  Pastikan Docker sudah terinstal.
 2.  Jalankan perintah:
     ```bash
@@ -88,7 +102,8 @@ Dikelola di `backend/bot/`. Memiliki fitur:
 
 ---
 
-## 📝 7. Panduan Pemeliharaan
+## 📝 8. Panduan Pemeliharaan
+
 *   **Menambah Teknisi:** Gunakan halaman `admin-teknisi.html` atau edit array `TECHNICIANS` di `seed.js` lalu jalankan ulang seeder.
 *   **Mengubah Jam Operasional:** Edit file `backend/bot/botConfig.js`.
 *   **Ganti Password WAHA:** Ubah di `docker-compose.yml` pada bagian `utc_waha` (environment variables).

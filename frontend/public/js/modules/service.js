@@ -155,6 +155,14 @@ class Service {
                                 </div>
 
                                 <div class="mb-3">
+                                    <label class="form-label small fw-bold">Email (Opsional - Untuk Nota)</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                                        <input type="email" class="form-control" id="customer-email" placeholder="email@contoh.com">
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
                                     <label class="form-label small fw-bold">Tipe Pelanggan *</label>
                                     <select class="form-select" id="customer-type" required>
                                         <option value="Umum">Umum</option>
@@ -994,6 +1002,7 @@ class Service {
                         <table class="table table-sm table-borderless mb-0">
                             <tr><td width="110" class="text-secondary">Nama</td><td>: <strong>${t.customer.name}</strong></td></tr>
                             <tr><td class="text-secondary">Telepon</td><td>: ${t.customer.phone}</td></tr>
+                            <tr><td class="text-secondary">Email</td><td>: ${t.customer.email || '-'}</td></tr>
                             <tr><td class="text-secondary">Tipe</td><td>: <span class="badge bg-info text-dark">${t.customer.type}</span></td></tr>
                         </table>
                     </div>
@@ -1230,6 +1239,7 @@ class Service {
             const customerData = {
                 name: document.getElementById('customer-name').value,
                 phone: document.getElementById('customer-phone').value,
+                email: document.getElementById('customer-email').value,
                 type: document.getElementById('customer-type').value
             };
             formData.append('customer', JSON.stringify(customerData));
