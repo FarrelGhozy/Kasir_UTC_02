@@ -14,9 +14,18 @@ exports.createTicket = async (req, res, next) => {
   try {
     let { customer, device, technician_id, service_fee, notes } = req.body;
 
-    // Parse JSON strings if they come from FormData
-    if (typeof customer === 'string') customer = JSON.parse(customer);
-    if (typeof device === 'string') device = JSON.parse(device);
+    // Robust parsing for JSON strings if they come from FormData
+    try {
+        if (typeof customer === 'string') customer = JSON.parse(customer);
+        if (typeof device === 'string') device = JSON.parse(device);
+    } catch (parseError) {
+        console.error('Error parsing customer/device data:', parseError);
+        return res.status(400).json({ success: false, message: 'Format data customer atau device tidak valid' });
+    }
+
+    if (!customer || !device) {
+        return res.status(400).json({ success: false, message: 'Data pelanggan dan perangkat wajib diisi' });
+    }
 
     const technician = await User.findById(technician_id);
     if (!technician || technician.role !== 'teknisi') {
@@ -26,13 +35,20 @@ exports.createTicket = async (req, res, next) => {
     const ticket_number = await ServiceTicket.generateTicketNumber();
 
     // Handling photos if uploaded
-    const photos = {};
+    const photos = { front: '', back: '', left: '', right: '' };
     if (req.files) {
-      const baseURL = `${req.protocol}://${req.get('host')}`;
-      if (req.files.front) photos.front = `${baseURL}/${req.files.front[0].path.replace(/\\/g, '/')}`;
-      if (req.files.back) photos.back = `${baseURL}/${req.files.back[0].path.replace(/\\/g, '/')}`;
-      if (req.files.left) photos.left = `${baseURL}/${req.files.left[0].path.replace(/\\/g, '/')}`;
-      if (req.files.right) photos.right = `${baseURL}/${req.files.right[0].path.replace(/\\/g, '/')}`;
+      const host = req.get('host');
+      const protocol = req.protocol;
+      const baseURL = `${protocol}://${host}`;
+      
+      const sides = ['front', 'back', 'left', 'right'];
+      sides.forEach(side => {
+        if (req.files[side] && req.files[side][0]) {
+          photos[side] = `${baseURL}/backend/uploads/services/${req.files[side][0].filename}`;
+        }
+      });
+      
+      console.log('Photos processed:', photos);
     }
 
     const ticket = await ServiceTicket.create({
@@ -43,6 +59,8 @@ exports.createTicket = async (req, res, next) => {
       service_fee: service_fee || 0,
       notes
     });
+
+    console.log(`Ticket created: ${ticket.ticket_number}`);
 
     // Kirim notifikasi WA ke Pelanggan (Jika ada nomor WA)
     if (ticket.customer.phone) {
@@ -330,23 +348,47 @@ exports.updateTicketDetails = async (req, res, next) => {
     }
 
     if (customer) {
-        const customerData = typeof customer === 'string' ? JSON.parse(customer) : customer;
-        ticket.customer = { ...ticket.customer.toObject(), ...customerData };
+        try {
+            const customerData = typeof customer === 'string' ? JSON.parse(customer) : customer;
+            ticket.customer = { ...ticket.customer.toObject(), ...customerData };
+        } catch (e) {
+            console.error('Error parsing customer in update:', e);
+        }
     }
     
     // Update device fields
     if (device) {
-        const deviceData = typeof device === 'string' ? JSON.parse(device) : device;
-        ticket.device = { ...ticket.device.toObject(), ...deviceData };
+        try {
+            const deviceData = typeof device === 'string' ? JSON.parse(device) : device;
+            // Ensure photos object exists
+            if (!ticket.device.photos) {
+                ticket.device.photos = { front: '', back: '', left: '', right: '' };
+            }
+            ticket.device = { ...ticket.device.toObject(), ...deviceData, photos: ticket.device.photos };
+        } catch (e) {
+            console.error('Error parsing device in update:', e);
+        }
     }
 
     // Handling photos updates if uploaded
     if (req.files) {
-      const baseURL = `${req.protocol}://${req.get('host')}`;
-      if (req.files.front) ticket.device.photos.front = `${baseURL}/${req.files.front[0].path.replace(/\\/g, '/')}`;
-      if (req.files.back) ticket.device.photos.back = `${baseURL}/${req.files.back[0].path.replace(/\\/g, '/')}`;
-      if (req.files.left) ticket.device.photos.left = `${baseURL}/${req.files.left[0].path.replace(/\\/g, '/')}`;
-      if (req.files.right) ticket.device.photos.right = `${baseURL}/${req.files.right[0].path.replace(/\\/g, '/')}`;
+      const host = req.get('host');
+      const protocol = req.protocol;
+      const baseURL = `${protocol}://${host}`;
+      
+      if (!ticket.device.photos) {
+          ticket.device.photos = { front: '', back: '', left: '', right: '' };
+      }
+
+      const sides = ['front', 'back', 'left', 'right'];
+      sides.forEach(side => {
+        if (req.files[side] && req.files[side][0]) {
+          ticket.device.photos[side] = `${baseURL}/backend/uploads/services/${req.files[side][0].filename}`;
+        }
+      });
+      
+      // Mark as modified if it's a nested object
+      ticket.markModified('device.photos');
     }
 
     if (notes !== undefined) ticket.notes = notes;

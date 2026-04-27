@@ -3,7 +3,7 @@
 
 const isLocalHost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
 const API_BASE_URL = isLocalHost
-    ? `${window.location.protocol}//${window.location.hostname}:5000/api`
+    ? `${window.location.protocol}//${window.location.hostname}:5200/api`
     : 'https://api-kasir.utc.web.id/api';
 
 
