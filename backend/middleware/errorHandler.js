@@ -1,10 +1,30 @@
+const SystemLog = require('../models/SystemLog');
+
 // middleware/errorHandler.js - Middleware Penanganan Error Global
-const errorHandler = (err, req, res, next) => {
+const errorHandler = async (err, req, res, next) => {
   let error = { ...err };
   error.message = err.message;
 
-  // Log error untuk debugging
-  console.error('Error:', err);
+  // Log ke Konsol untuk Debugging
+  console.error('❌ GLOBAL ERROR:', err);
+
+  // LOG KE DATABASE SYSTEMLOGS SECARA OTOMATIS
+  try {
+    await SystemLog.create({
+      level: 'ERROR',
+      source: 'GlobalErrorHandler',
+      message: err.message || 'Kesalahan Server',
+      details: {
+        path: req.originalUrl,
+        method: req.method,
+        body: req.body,
+        stack: err.stack,
+        user: req.user ? req.user.id : 'Guest'
+      }
+    });
+  } catch (logErr) {
+    console.error('Gagal mencatat log ke DB:', logErr);
+  }
 
   // Mongoose bad ObjectId (ID tidak valid)
   if (err.name === 'CastError') {

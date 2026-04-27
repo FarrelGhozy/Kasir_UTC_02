@@ -2,6 +2,21 @@
 
 A complete RESTful API for managing computer workshop services and retail point-of-sale operations with MongoDB as the database backend.
 
+## 🛠️ Stack Teknologi (Tech Stack)
+
+- **Runtime Environment**: [Node.js](https://nodejs.org/) (v16+)
+- **Web Framework**: [Express.js](https://expressjs.com/) (v5.2.1)
+- **Database**: [MongoDB](https://www.mongodb.com/) dengan [Mongoose](https://mongoosejs.com/) (v9.1.5)
+- **Keamanan & Auth**: 
+  - [JSON Web Token (JWT)](https://jwt.io/) untuk autentikasi token
+  - [Bcrypt](https://github.com/kelektiv/node.bcrypt.js) untuk hashing password
+- **Library Pendukung**: 
+  - **Axios**: HTTP Client untuk integrasi API
+  - **Node-cron**: Penjadwalan tugas otomatis (automation)
+  - **Dotenv**: Manajemen variabel lingkungan (.env)
+  - **CORS**: Pengaturan akses lintas domain
+- **Development Tools**: [Nodemon](https://nodemon.io/) untuk auto-reload saat pengembangan.
+
 ## 🚀 Features
 
 ### Core Modules

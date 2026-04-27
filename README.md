@@ -30,11 +30,26 @@
 
 ---
 
-## 🏗️ Tech Stack
-- **Backend:** Node.js (Express.js) + MongoDB (Mongoose).
-- **Frontend:** Vanilla JS (ES6 Modules), Bootstrap 5, & Tailwind CSS.
-- **WhatsApp Gateway:** WAHA (WhatsApp HTTP API).
-- **Orchestration:** Docker Compose.
+## 🏗️ Stack Teknologi (Tech Stack)
+
+### Backend
+- **Runtime**: [Node.js](https://nodejs.org/) (Express.js v5.2.1)
+- **Database**: [MongoDB](https://www.mongodb.com/) (Mongoose v9.1.5)
+- **Security**: JWT Authentication & Bcrypt Hashing
+- **Automation**: Node-cron untuk penjadwalan tugas
+- **WhatsApp Gateway**: [WAHA](https://waha.dev/) (WhatsApp HTTP API) untuk otomasi notifikasi
+
+### Frontend
+- **Core**: Vanilla JS (ES6+ Modules)
+- **UI Frameworks**: 
+  - [Bootstrap 5.3](https://getbootstrap.com/) (Digunakan di aplikasi utama/Dashboard)
+  - [Tailwind CSS](https://tailwindcss.com/) (Digunakan di modul Kelola Teknisi)
+- **Data Visualization**: [Chart.js](https://www.chartjs.org/) (v4.4.3)
+- **Icons**: Bootstrap Icons
+
+### Infrastruktur
+- **Containerization**: [Docker](https://www.docker.com/) & Docker Compose
+- **Orchestration**: Docker Compose untuk menghubungkan Backend, Frontend, MongoDB, dan WAHA.
 
 ---
 
