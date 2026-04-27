@@ -13,6 +13,7 @@ const adminController = require('../controllers/adminController');
 
 // Impor middleware
 const { protect, authorize } = require('../middleware/auth');
+const upload = require('../utils/upload');
 
 // ============================================
 // RUTE PUBLIK (Tanpa Login)
@@ -56,11 +57,27 @@ router.delete('/inventory/:id', protect, authorize('admin'), inventoryController
 router.get('/services', protect, serviceController.getAllTickets);
 // Rute spesifik harus didefinisikan SEBELUM rute dengan parameter (:id)
 router.get('/services/technician/:id/workload', protect, serviceController.getTechnicianWorkload);
+router.get('/services/logs', protect, authorize('admin'), serviceController.getSystemLogs);
+router.post('/services/validate-wa', protect, serviceController.validateWA);
+router.post('/services/:id/resend-wa', protect, serviceController.resendWANotification);
+router.post('/services/:id/claim-warranty', protect, authorize('teknisi', 'kasir', 'admin'), serviceController.claimWarranty);
 router.get('/services/:id', protect, serviceController.getTicketById);
 
 // Teknisi, Kasir & Admin dapat mengelola servis
-router.post('/services', protect, authorize('teknisi', 'kasir', 'admin'), serviceController.createTicket);
-router.put('/services/:id', protect, authorize('teknisi', 'kasir', 'admin'), serviceController.updateTicketDetails);
+router.post('/services', protect, authorize('teknisi', 'kasir', 'admin'), upload.fields([
+  { name: 'front', maxCount: 1 },
+  { name: 'back', maxCount: 1 },
+  { name: 'left', maxCount: 1 },
+  { name: 'right', maxCount: 1 }
+]), serviceController.createTicket);
+
+router.put('/services/:id', protect, authorize('teknisi', 'kasir', 'admin'), upload.fields([
+  { name: 'front', maxCount: 1 },
+  { name: 'back', maxCount: 1 },
+  { name: 'left', maxCount: 1 },
+  { name: 'right', maxCount: 1 }
+]), serviceController.updateTicketDetails);
+
 router.patch('/services/:id/status', protect, authorize('teknisi', 'kasir', 'admin'), serviceController.updateStatus);
 router.post('/services/:id/parts', protect, authorize('teknisi', 'kasir', 'admin'), serviceController.addPartToService);
 router.patch('/services/:id/service-fee', protect, authorize('teknisi', 'kasir', 'admin'), serviceController.updateServiceFee);

@@ -3,7 +3,7 @@
 
 const isLocalHost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
 const API_BASE_URL = isLocalHost
-    ? `${window.location.protocol}//${window.location.hostname}:5200/api`
+    ? `${window.location.protocol}//${window.location.hostname}:5000/api`
     : 'https://api-kasir.utc.web.id/api';
 
 
@@ -84,8 +84,11 @@ class API {
             headers: this.getHeaders(authenticated),
         };
 
-        // Tambahkan body jika ada
-        if (options.body) {
+        // Jika body adalah FormData, jangan set Content-Type JSON
+        if (options.body instanceof FormData) {
+            delete config.headers['Content-Type'];
+            config.body = options.body;
+        } else if (options.body) {
             config.body = JSON.stringify(options.body);
         }
 
@@ -208,6 +211,9 @@ class API {
     // ==================== ENDPOINT TIKET SERVIS ====================
 
     async createServiceTicket(data) {
+        if (data instanceof FormData) {
+            return this.request('/services', { method: 'POST', body: data });
+        }
         return this.post('/services', data);
     }
 
@@ -234,6 +240,34 @@ class API {
     async updateServiceFee(id, serviceFee) {
         return this.patch(`/services/${id}/service-fee`, { service_fee: serviceFee });
     }
+
+    async updateTicketDetails(id, data) {
+        if (data instanceof FormData) {
+            return this.request(`/services/${id}`, { method: 'PUT', body: data });
+        }
+        return this.put(`/services/${id}`, data);
+    }
+
+    async validateWA(phone) {
+        return this.post('/services/validate-wa', { phone });
+    }
+
+    async resendWA(id) {
+        return this.post(`/services/${id}/resend-wa`, {});
+    }
+
+    async claimWarranty(id) {
+        return this.post(`/services/${id}/claim-warranty`, {});
+    }
+
+    async getSystemLogs() {
+        return this.get('/services/logs');
+    }
+
+    async deleteServiceTicket(id) {
+        return this.delete(`/services/${id}`);
+    }
+
 
     // ==================== ENDPOINT PEMESANAN BARANG ====================
 
@@ -291,21 +325,7 @@ class API {
         const queryString = new URLSearchParams(params).toString();
         return this.get(`/reports/technician-performance${queryString ? '?' + queryString : ''}`);
     }
-
-// public/js/api.js
-
-    // ... endpoint service lainnya ...
-
-    async updateTicketDetails(id, data) {
-        return this.put(`/services/${id}`, data);
     }
-    
-    // ... (pastikan updateServiceFee, addPartToService dll tetap ada)
-    // Tambahkan ini di bawah updateTicketDetails
-    async deleteServiceTicket(id) {
-        return this.delete(`/services/${id}`);
-    }
-}
 
 // Ekspor instance singleton
 const api = new API(API_BASE_URL);

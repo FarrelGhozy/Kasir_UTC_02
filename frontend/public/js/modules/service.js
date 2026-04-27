@@ -146,11 +146,12 @@ class Service {
                                 </div>
 
                                 <div class="mb-3">
-                                    <label class="form-label small fw-bold">Nomor Telepon *</label>
+                                    <label class="form-label small fw-bold">Nomor Telepon (WhatsApp)</label>
                                     <div class="input-group">
                                         <span class="input-group-text"><i class="bi bi-whatsapp"></i></span>
-                                        <input type="tel" class="form-control" id="customer-phone" required>
+                                        <input type="tel" class="form-control" id="customer-phone" placeholder="08xxxxxxxx">
                                     </div>
+                                    <div id="wa-validation-msg" class="mt-1"></div>
                                 </div>
 
                                 <div class="mb-3">
@@ -160,6 +161,29 @@ class Service {
                                         <option value="Mahasiswa">Mahasiswa</option>
                                         <option value="Dosen">Dosen</option>
                                     </select>
+                                </div>
+
+                                <h6 class="border-bottom pb-2 mb-3 mt-4 fw-bold text-secondary">Foto Perangkat (Opsional)</h6>
+                                <div class="row g-2 mb-3">
+                                    <div class="col-6">
+                                        <label class="form-label extra-small fw-bold">Depan</label>
+                                        <input type="file" class="form-control form-control-sm device-photo" data-side="front" accept="image/*">
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label extra-small fw-bold">Belakang</label>
+                                        <input type="file" class="form-control form-control-sm device-photo" data-side="back" accept="image/*">
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label extra-small fw-bold">Kiri</label>
+                                        <input type="file" class="form-control form-control-sm device-photo" data-side="left" accept="image/*">
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label extra-small fw-bold">Kanan</label>
+                                        <input type="file" class="form-control form-control-sm device-photo" data-side="right" accept="image/*">
+                                    </div>
+                                </div>
+                                <div id="photo-compression-msg" class="small text-muted mb-3 d-none">
+                                    <div class="spinner-border spinner-border-sm text-primary me-1"></div> Mengompres foto...
                                 </div>
 
                                 <h6 class="border-bottom pb-2 mb-3 mt-4 fw-bold text-secondary">Perangkat & Masalah</h6>
@@ -186,8 +210,9 @@ class Service {
 
                                 <div class="mb-3">
                                     <label class="form-label small fw-bold">Keluhan / Kerusakan *</label>
-                                    <textarea class="form-control" id="device-symptoms" rows="2" required></textarea>
+                                    <textarea class="form-control auto-expand" id="device-symptoms" rows="4" required placeholder="Jelaskan detail kerusakan..."></textarea>
                                 </div>
+
 
                                 <div class="mb-3">
                                     <label class="form-label small fw-bold">Kelengkapan</label>
@@ -254,6 +279,9 @@ class Service {
                                     <button class="btn btn-sm btn-outline-primary" id="refresh-tickets-btn">
                                         <i class="bi bi-arrow-clockwise"></i>
                                     </button>
+                                    <button class="btn btn-sm btn-outline-danger admin-only" id="view-logs-btn" style="display:none;" title="System Logs">
+                                        <i class="bi bi-bug"></i>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -302,7 +330,11 @@ class Service {
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label small fw-bold">No. Telepon (WhatsApp)</label>
-                                        <input type="text" class="form-control" id="edit-customer-phone" required>
+                                        <input type="text" class="form-control" id="edit-customer-phone">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-bold">Email (Untuk Nota)</label>
+                                        <input type="email" class="form-control" id="edit-customer-email">
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label small fw-bold">Tipe Pelanggan</label>
@@ -311,6 +343,29 @@ class Service {
                                             <option value="Mahasiswa">Mahasiswa</option>
                                             <option value="Dosen">Dosen</option>
                                         </select>
+                                    </div>
+                                </div>
+
+                                <h6 class="border-bottom pb-2 mb-3 mt-4 fw-bold text-secondary">Foto Perangkat</h6>
+                                <div class="row g-2 mb-3" id="edit-photos-preview">
+                                    <!-- Preview foto lama akan muncul di sini -->
+                                </div>
+                                <div class="row g-2 mb-3">
+                                    <div class="col-6 col-md-3">
+                                        <label class="form-label extra-small fw-bold">Ganti Depan</label>
+                                        <input type="file" class="form-control form-control-sm edit-device-photo" data-side="front" accept="image/*">
+                                    </div>
+                                    <div class="col-6 col-md-3">
+                                        <label class="form-label extra-small fw-bold">Ganti Belakang</label>
+                                        <input type="file" class="form-control form-control-sm edit-device-photo" data-side="back" accept="image/*">
+                                    </div>
+                                    <div class="col-6 col-md-3">
+                                        <label class="form-label extra-small fw-bold">Ganti Kiri</label>
+                                        <input type="file" class="form-control form-control-sm edit-device-photo" data-side="left" accept="image/*">
+                                    </div>
+                                    <div class="col-6 col-md-3">
+                                        <label class="form-label extra-small fw-bold">Ganti Kanan</label>
+                                        <input type="file" class="form-control form-control-sm edit-device-photo" data-side="right" accept="image/*">
                                     </div>
                                 </div>
 
@@ -335,9 +390,10 @@ class Service {
                                 </div>
 
                                 <div class="mb-3">
-                                    <label class="form-label small fw-bold">Keluhan / Kerusakan</label>
-                                    <textarea class="form-control" id="edit-symptoms" rows="2"></textarea>
+                                    <label class="form-label small fw-bold">Keluhan / Kerusakan *</label>
+                                    <textarea class="form-control auto-expand" id="edit-symptoms" rows="4" required placeholder="Jelaskan detail kerusakan..."></textarea>
                                 </div>
+
 
                                 <div class="row g-3 mb-3">
                                     <div class="col-md-6">
@@ -458,6 +514,38 @@ class Service {
                             <button type="button" class="btn btn-primary" id="print-copy-btn">
                                 <i class="bi bi-printer me-2"></i>Cetak Salinan
                             </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal fade" id="logsModal" tabindex="-1">
+                <div class="modal-dialog modal-xl">
+                    <div class="modal-content">
+                        <div class="modal-header bg-dark text-white">
+                            <h5 class="modal-title"><i class="bi bi-bug me-2"></i>System Logs (Error Tracking)</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-hover table-sm mb-0">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <th>Waktu</th>
+                                            <th>Level</th>
+                                            <th>Sumber</th>
+                                            <th>Pesan</th>
+                                            <th>Detail</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="logs-content">
+                                        <tr><td colspan="5" class="text-center py-4">Memuat log...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
                         </div>
                     </div>
                 </div>
@@ -599,10 +687,17 @@ class Service {
                                     ${t.customer.name} 
                                     <span class="badge bg-light text-dark border ms-1" style="font-size:0.6rem; font-weight: normal;">${t.customer.type}</span>
                                 </div>
-                                <div class="small text-muted">${t.customer.phone}</div>
+                                <div class="small text-muted d-flex align-items-center gap-1">
+                                    ${t.customer.phone || 'N/A'}
+                                    ${t.customer.phone ? `
+                                        <button class="btn btn-success btn-xs ms-1 px-1 py-0 shadow-sm" onclick="service.resendWA('${t._id}')" title="Kirim Ulang WA" style="font-size: 0.65rem; border-radius: 4px;">
+                                            <i class="bi bi-whatsapp me-1"></i>Kirim WA
+                                        </button>
+                                    ` : ''}
+                                </div>
                             </div>
-                            <div class="col-6">
-                                <small class="text-secondary fw-bold" style="font-size:0.7rem">DURASI</small>
+                            <div class="col-6 text-end">
+                                ${this.getWarrantyBadge(t)}
                                 <div class="${durationColor} text-truncate" style="font-size:0.85rem">
                                     ${durationValue}
                                 </div>
@@ -610,17 +705,33 @@ class Service {
                             </div>
                         </div>
 
-                        <div class="mb-3">
-                            <small class="text-secondary fw-bold" style="font-size:0.7rem">PERANGKAT</small>
-                            <div class="fw-bold text-truncate">${t.device.type} ${t.device.brand || ''}</div>
-                            <div class="small text-muted text-truncate">${t.device.symptoms}</div>
+                        <div class="row align-items-start mt-2">
+                            <div class="col-7">
+                                <small class="text-secondary fw-bold" style="font-size:0.7rem">PERANGKAT</small>
+                                <div class="fw-bold text-primary mb-1" style="font-size: 1.1rem; line-height: 1.2;">
+                                    ${t.device.type} ${t.device.brand || ''} ${t.device.model || ''}
+                                </div>
+                                <div class="small text-danger fw-semibold" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                                    <i class="bi bi-exclamation-circle me-1"></i>${t.device.symptoms}
+                                </div>
+                            </div>
+                            <div class="col-5 text-end">
+                                ${t.device.photos && t.device.photos.front ? `
+                                    <img src="${t.device.photos.front}" class="rounded-3 shadow-sm border" style="width: 100%; max-width: 160px; height: 100px; object-fit: cover; cursor: pointer;" onclick="window.open('${t.device.photos.front}', '_blank')">
+                                ` : `
+                                    <div class="bg-light rounded-3 border d-flex align-items-center justify-content-center ms-auto" style="width: 100%; max-width: 160px; height: 100px;">
+                                        <i class="bi bi-image text-muted fs-1"></i>
+                                    </div>
+                                `}
+                            </div>
                         </div>
+
 
                         ${statusSelect}
 
-                        <div class="d-flex gap-2 mt-3 pt-2 border-top">
-                            <button class="btn btn-sm btn-outline-secondary flex-grow-1" onclick="service.openDetail('${t._id}')">
-                                <i class="bi bi-eye"></i> Detail
+                        <div class="d-flex gap-2 mt-3 pt-2 border-top justify-content-end">
+                            <button class="btn btn-sm btn-outline-secondary" onclick="service.openDetail('${t._id}')" title="Detail">
+                                <i class="bi bi-eye"></i>
                             </button>
 
                             <button class="btn btn-sm btn-outline-warning" onclick="service.openEdit('${t._id}')" title="Edit">
@@ -639,6 +750,12 @@ class Service {
                                 <i class="bi bi-check-lg"></i>
                             </button>
 
+                            ${t.warranty_expires_at && new Date() < new Date(t.warranty_expires_at) ? `
+                                <button class="btn btn-sm btn-warning fw-bold" onclick="service.claimWarranty('${t._id}')" title="Klaim Garansi">
+                                    <i class="bi bi-shield-check"></i>
+                                </button>
+                            ` : ''}
+
                             ${isCompleted ? `
                                 <button class="btn btn-sm btn-outline-dark" onclick="service.printInvoice('${t._id}')" title="Nota">
                                     <i class="bi bi-printer"></i>
@@ -649,6 +766,16 @@ class Service {
                 </div>
             </div>`;
         }).join('');
+    }
+
+    getWarrantyBadge(ticket) {
+        if (!ticket.warranty_expires_at) return '';
+        const now = new Date();
+        const expiry = new Date(ticket.warranty_expires_at);
+        if (now < expiry) {
+            return `<span class="badge bg-success-subtle text-success border border-success-subtle mb-1" style="font-size: 0.65rem;">Garansi Aktif</span>`;
+        }
+        return `<span class="badge bg-light text-muted border mb-1" style="font-size: 0.65rem;">Garansi Habis</span>`;
     }
 
     getStatusBadge(status) {
@@ -698,8 +825,25 @@ class Service {
         
         // Customer fields
         document.getElementById('edit-customer-name').value = t.customer.name;
-        document.getElementById('edit-customer-phone').value = t.customer.phone;
+        document.getElementById('edit-customer-phone').value = t.customer.phone || '';
+        document.getElementById('edit-customer-email').value = t.customer.email || '';
         document.getElementById('edit-customer-type').value = t.customer.type || 'Umum';
+        
+        // Photos Preview
+        const photosPreview = document.getElementById('edit-photos-preview');
+        const photos = t.device.photos || {};
+        photosPreview.innerHTML = `
+            ${['front', 'back', 'left', 'right'].map(side => `
+                <div class="col-3">
+                    <div class="border rounded p-1 text-center bg-white h-100">
+                        <small class="d-block text-muted extra-small uppercase">${side}</small>
+                        ${photos[side] ? `
+                            <img src="${photos[side]}" class="img-fluid rounded mt-1" style="max-height: 50px; cursor: pointer;" onclick="window.open('${photos[side]}', '_blank')">
+                        ` : `<div class="py-2"><i class="bi bi-image text-light fs-4"></i></div>`}
+                    </div>
+                </div>
+            `).join('')}
+        `;
         
         // Device fields
         document.getElementById('edit-device-type').value = t.device.type || '';
@@ -736,29 +880,41 @@ class Service {
         const t = this.tickets.find(x => x._id === id);
         if (!t) return;
 
-        const newData = {
-            customer: { 
-                name: document.getElementById('edit-customer-name').value, 
-                phone: document.getElementById('edit-customer-phone').value,
-                type: document.getElementById('edit-customer-type').value
-            },
-            device: { 
-                type: document.getElementById('edit-device-type').value,
-                brand: document.getElementById('edit-device-brand').value,
-                model: document.getElementById('edit-device-model').value,
-                serial_number: document.getElementById('edit-device-serial-number').value,
-                symptoms: document.getElementById('edit-symptoms').value,
-                accessories: document.getElementById('edit-device-accessories').value,
-                password: document.getElementById('edit-device-password').value,
-                pattern: document.getElementById('edit-device-pattern').value
-            },
-            technician_id: document.getElementById('edit-technician-select').value,
-            service_fee: parseCurrencyValue(document.getElementById('edit-service-fee').value),
-            notes: t.notes
+        const formData = new FormData();
+        const customerData = {
+            name: document.getElementById('edit-customer-name').value,
+            phone: document.getElementById('edit-customer-phone').value,
+            email: document.getElementById('edit-customer-email').value,
+            type: document.getElementById('edit-customer-type').value
         };
+        formData.append('customer', JSON.stringify(customerData));
+
+        const deviceData = {
+            type: document.getElementById('edit-device-type').value,
+            brand: document.getElementById('edit-device-brand').value,
+            model: document.getElementById('edit-device-model').value,
+            serial_number: document.getElementById('edit-device-serial-number').value,
+            symptoms: document.getElementById('edit-symptoms').value,
+            accessories: document.getElementById('edit-device-accessories').value,
+            password: document.getElementById('edit-device-password').value,
+            pattern: document.getElementById('edit-device-pattern').value
+        };
+        formData.append('device', JSON.stringify(deviceData));
+        formData.append('technician_id', document.getElementById('edit-technician-select').value);
+        formData.append('service_fee', parseCurrencyValue(document.getElementById('edit-service-fee').value));
+        formData.append('notes', t.notes || '');
+
+        // Handle new photo uploads
+        const photoInputs = document.querySelectorAll('.edit-device-photo');
+        for (const input of photoInputs) {
+            if (input.files[0]) {
+                const compressed = await this.compressImage(input.files[0]);
+                formData.append(input.dataset.side, compressed);
+            }
+        }
 
         try {
-            await api.updateTicketDetails(id, newData);
+            await api.updateTicketDetails(id, formData);
             showToast('Data tiket berhasil diperbarui', 'success');
             bootstrap.Modal.getInstance(document.getElementById('editTicketModal')).hide();
             await this.loadTickets();
@@ -766,6 +922,7 @@ class Service {
             showToast(e.message, 'error'); 
         }
     }
+
 
     openAddPart(id) {
         document.getElementById('part-ticket-id').value = id;
@@ -856,6 +1013,25 @@ class Service {
                             <tr><td class="text-secondary">Keluhan</td><td>: <span class="text-danger">${t.device.symptoms}</span></td></tr>
                             <tr><td class="text-secondary">Kelengkapan</td><td>: ${t.device.accessories || '-'}</td></tr>
                         </table>
+                    </div>
+                </div>
+                <div class="col-12">
+                    <div class="p-3 bg-light rounded shadow-sm">
+                        <h6 class="fw-bold text-primary border-bottom pb-2 mb-3"><i class="bi bi-images me-2"></i>FOTO PERANGKAT</h6>
+                        <div class="row g-2">
+                            ${['front', 'back', 'left', 'right'].map(side => `
+                                <div class="col-3">
+                                    <div class="border rounded p-1 bg-white text-center">
+                                        <small class="d-block text-muted extra-small uppercase mb-1">${side}</small>
+                                        ${t.device.photos && t.device.photos[side] ? `
+                                            <img src="${t.device.photos[side]}" class="img-fluid rounded" style="max-height: 120px; object-fit: contain; cursor: pointer;" onclick="window.open('${t.device.photos[side]}', '_blank')">
+                                        ` : `
+                                            <div class="py-3 text-light"><i class="bi bi-image fs-2"></i></div>
+                                        `}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
                     </div>
                 </div>
                 <div class="col-md-6">
@@ -954,32 +1130,172 @@ class Service {
         setTimeout(() => document.body.removeChild(iframe), 5000);
     }
 
+    async compressImage(file) {
+        if (!window.imageCompression) {
+            console.error('Library image-compression tidak ditemukan');
+            return file;
+        }
+        const options = {
+            maxSizeMB: 1,
+            maxWidthOrHeight: 1280,
+            useWebWorker: true
+        };
+        try {
+            return await window.imageCompression(file, options);
+        } catch (error) {
+            console.error('Gagal mengompres gambar:', error);
+            return file;
+        }
+    }
+
+    async validateWA(phone) {
+        if (!phone || phone.length < 10) return;
+        const msgEl = document.getElementById('wa-validation-msg');
+        msgEl.innerHTML = '<small class="text-muted"><i class="spinner-border spinner-border-sm me-1"></i>Memvalidasi WhatsApp...</small>';
+        
+        try {
+            const res = await api.validateWA(phone);
+            if (res.data && res.data.exists) {
+                msgEl.innerHTML = '<small class="text-success"><i class="bi bi-check-circle-fill me-1"></i>Nomor terdaftar di WhatsApp</small>';
+            } else {
+                msgEl.innerHTML = '<div class="alert alert-warning py-1 px-2 small mt-1 mb-0"><i class="bi bi-exclamation-triangle-fill me-1"></i>Nomor tidak terdeteksi di WhatsApp. Pelanggan mungkin tidak akan menerima notifikasi otomatis.</div>';
+            }
+        } catch (error) {
+            msgEl.innerHTML = '';
+        }
+    }
+
+    async resendWA(id) {
+        try {
+            showToast('Mengirim ulang notifikasi...', 'info');
+            await api.resendWA(id);
+            showToast('Notifikasi WA berhasil dikirim ulang');
+        } catch (error) {
+            showToast(error.message, 'error');
+        }
+    }
+
+    async claimWarranty(id) {
+        if (!confirm('Buat tiket klaim garansi baru berdasarkan tiket ini?')) return;
+        try {
+            await api.claimWarranty(id);
+            showToast('Tiket klaim garansi berhasil dibuat');
+            await this.loadTickets();
+        } catch (error) {
+            showToast(error.message, 'error');
+        }
+    }
+
+    async loadLogs() {
+        const content = document.getElementById('logs-content');
+        content.innerHTML = '<tr><td colspan="5" class="text-center py-4"><div class="spinner-border spinner-border-sm"></div> Memuat...</td></tr>';
+        
+        try {
+            const res = await api.getSystemLogs();
+            if (res.data.length === 0) {
+                content.innerHTML = '<tr><td colspan="5" class="text-center py-4">Tidak ada log sistem.</td></tr>';
+                return;
+            }
+            
+            content.innerHTML = res.data.map(log => `
+                <tr class="${log.level === 'ERROR' ? 'table-danger' : log.level === 'WARN' ? 'table-warning' : ''}">
+                    <td class="small">${formatDateTime(log.timestamp)}</td>
+                    <td><span class="badge ${log.level === 'ERROR' ? 'bg-danger' : log.level === 'WARN' ? 'bg-warning text-dark' : 'bg-info text-dark'}">${log.level}</span></td>
+                    <td class="small fw-bold">${log.source}</td>
+                    <td class="small">${log.message}</td>
+                    <td class="small text-truncate" style="max-width: 200px;" title='${JSON.stringify(log.details)}'>${log.details ? JSON.stringify(log.details) : '-'}</td>
+                </tr>
+            `).join('');
+        } catch (error) {
+            content.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-4">${error.message}</td></tr>`;
+        }
+    }
+
     setupEventListeners() {
+        // Cek Role untuk tombol Admin
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        if (user.role === 'admin') {
+            document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'block');
+        }
+
         document.getElementById('service-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const data = {
-                customer: { name: document.getElementById('customer-name').value, phone: document.getElementById('customer-phone').value, type: document.getElementById('customer-type').value },
-                device: { 
-                    type: document.getElementById('device-type').value, 
-                    brand: document.getElementById('device-brand').value, 
-                    model: document.getElementById('device-model').value, 
-                    serial_number: document.getElementById('device-serial-number').value,
-                    symptoms: document.getElementById('device-symptoms').value, 
-                    accessories: document.getElementById('device-accessories').value,
-                    password: document.getElementById('device-password').value,
-                    pattern: document.getElementById('device-pattern').value
-                },
-                technician_id: document.getElementById('technician-select').value,
-                service_fee: parseCurrencyValue(document.getElementById('service-fee').value),
-                notes: ''
+            
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Memproses...';
+
+            const formData = new FormData();
+            
+            const customerData = {
+                name: document.getElementById('customer-name').value,
+                phone: document.getElementById('customer-phone').value,
+                type: document.getElementById('customer-type').value
             };
+            formData.append('customer', JSON.stringify(customerData));
+
+            const deviceData = {
+                type: document.getElementById('device-type').value,
+                brand: document.getElementById('device-brand').value,
+                model: document.getElementById('device-model').value,
+                serial_number: document.getElementById('device-serial-number').value,
+                symptoms: document.getElementById('device-symptoms').value,
+                accessories: document.getElementById('device-accessories').value,
+                password: document.getElementById('device-password').value,
+                pattern: document.getElementById('device-pattern').value
+            };
+            formData.append('device', JSON.stringify(deviceData));
+            formData.append('technician_id', document.getElementById('technician-select').value);
+            formData.append('service_fee', parseCurrencyValue(document.getElementById('service-fee').value));
+
+            // Handle Photo Uploads with Compression
+            const photoMsg = document.getElementById('photo-compression-msg');
+            const photoInputs = document.querySelectorAll('.device-photo');
+            let hasPhotos = false;
+            for (const input of photoInputs) { if (input.files[0]) hasPhotos = true; }
+
+            if (hasPhotos) {
+                photoMsg.classList.remove('d-none');
+                for (const input of photoInputs) {
+                    if (input.files[0]) {
+                        const compressed = await this.compressImage(input.files[0]);
+                        formData.append(input.dataset.side, compressed);
+                    }
+                }
+                photoMsg.classList.add('d-none');
+            }
+
             try { 
-                await api.createServiceTicket(data); 
+                await api.createServiceTicket(formData); 
                 showToast('Tiket Dibuat'); 
                 document.getElementById('service-form').reset(); 
                 if (this.mainPatternLock) this.mainPatternLock.reset();
+                document.getElementById('wa-validation-msg').innerHTML = '';
                 this.loadTickets(); 
-            } catch(e){ showToast(e.message, 'error'); }
+            } catch(e){ 
+                showToast(e.message, 'error'); 
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="bi bi-save me-2"></i>Buat Tiket';
+            }
+        });
+
+        // WA Validation on blur
+        document.getElementById('customer-phone').addEventListener('blur', (e) => {
+            this.validateWA(e.target.value);
+        });
+
+        document.getElementById('view-logs-btn').addEventListener('click', () => {
+            this.loadLogs();
+            new bootstrap.Modal(document.getElementById('logsModal')).show();
+        });
+
+        // Auto-expand textarea logic
+        document.addEventListener('input', (e) => {
+            if (e.target.classList.contains('auto-expand')) {
+                e.target.style.height = 'auto';
+                e.target.style.height = (e.target.scrollHeight) + 'px';
+            }
         });
         document.getElementById('status-filter').addEventListener('change', () => this.loadTickets());
         document.getElementById('refresh-tickets-btn').addEventListener('click', () => this.loadTickets());
