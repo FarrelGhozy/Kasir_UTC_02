@@ -127,13 +127,17 @@ class ReminderService {
         
         if (hoursSinceLastReminder >= 12) {
           // Cari user teknisi untuk mendapatkan nomor HP
-          const techUser = await User.findById(ticket.technician.id);
+          const technicianId = ticket.technician.id || ticket.technician._id;
+          const techUser = await User.findById(technicianId);
+          
           if (techUser && techUser.phone) {
             console.log(`[ReminderService] Mengirim pengingat teknisi (${techUser.name}) untuk tiket: ${ticket.ticket_number}`);
             await whatsappService.sendTechnicianTaskReminder(techUser, ticket);
             
             ticket.timestamps.last_technician_reminder_at = now;
             await ticket.save();
+          } else {
+            console.warn(`[ReminderService] Tidak bisa mengirim pengingat: Teknisi ${ticket.technician.name} tidak ditemukan atau tidak punya nomor HP. ID: ${technicianId}`);
           }
         }
       }
