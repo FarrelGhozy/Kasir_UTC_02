@@ -1400,7 +1400,8 @@ class Service {
             }
 
             try { 
-                await api.createServiceTicket(formData); 
+                const response = await api.createServiceTicket(formData); 
+                console.log('Ticket creation success:', response);
                 showToast('Tiket Dibuat'); 
                 document.getElementById('service-form').reset(); 
                 // Clear photo previews
@@ -1413,7 +1414,8 @@ class Service {
                 document.getElementById('wa-validation-msg').innerHTML = '';
                 this.loadTickets(); 
             } catch(e){ 
-                showToast(e.message, 'error'); 
+                console.error('Ticket creation failed:', e);
+                showToast(e.message || 'Gagal membuat tiket', 'error'); 
             } finally {
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = '<i class="bi bi-save me-2"></i>Buat Tiket';
