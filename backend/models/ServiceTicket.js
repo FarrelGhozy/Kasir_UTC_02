@@ -91,7 +91,7 @@ const technicianSchema = new mongoose.Schema({
     type: String,
     required: true
   }
-}, { _id: false });
+}, { _id: false, id: false });
 
 const partUsedSchema = new mongoose.Schema({
   item_id: {

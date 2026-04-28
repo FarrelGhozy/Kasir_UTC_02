@@ -395,12 +395,24 @@ exports.updateTicketDetails = async (req, res, next) => {
     if (service_fee !== undefined) ticket.service_fee = service_fee;
 
     if (technician_id) {
-      const isReassigned = ticket.technician && ticket.technician.id && ticket.technician.id.toString() !== technician_id;
+      const oldTechId = ticket.technician && ticket.technician.id ? ticket.technician.id.toString() : null;
+      const isReassigned = oldTechId !== technician_id;
+      
       const technician = await User.findById(technician_id);
       if (technician && technician.role === 'teknisi') {
         ticket.technician = { id: technician._id, name: technician.name };
+        
         if (isReassigned) {
-          whatsappService.notifyTechnicianAssignment(technician, ticket).catch(err => console.error(err));
+          console.log(`Technician reassigned from ${oldTechId} to ${technician_id}. Sending notification...`);
+          whatsappService.notifyTechnicianAssignment(technician, ticket).catch(err => {
+            console.error('Failed to send reassignment notification:', err);
+            SystemLog.create({
+              level: 'ERROR',
+              source: 'WhatsAppService',
+              message: 'Gagal kirim notifikasi pergantian teknisi',
+              details: { ticket_id: ticket._id, technician_id: technician._id, error: err.message }
+            });
+          });
         }
       }
     }

@@ -962,7 +962,7 @@ class Service {
         // Technician select
         const techSelect = document.getElementById('edit-technician-select');
         techSelect.innerHTML = this.technicians.map(tech => 
-            `<option value="${tech._id}" ${t.technician.id === tech._id ? 'selected' : ''}>${tech.name}</option>`
+            `<option value="${tech._id}" ${ (t.technician.id === tech._id || t.technician._id === tech._id) ? 'selected' : ''}>${tech.name}</option>`
         ).join('');
 
         // Service Fee with formatting
