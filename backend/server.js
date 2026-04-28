@@ -34,16 +34,22 @@ const allowedOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim()).filter(Boolean)
   : defaultAllowedOrigins;
 
-// Permissive CORS for development
+// Permissive CORS logic
 app.use(cors({
   origin: function (origin, callback) {
-    // allow requests with no origin
+    // allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
-    // In development, allow everything or check against list
-    if (process.env.NODE_ENV !== 'production' || allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes('*')) {
+    const isAllowed = allowedOrigins.indexOf(origin) !== -1 || 
+                     allowedOrigins.includes('*') ||
+                     origin.includes('localhost') ||
+                     origin.includes('127.0.0.1');
+
+    if (isAllowed || process.env.NODE_ENV !== 'production') {
       callback(null, true);
     } else {
+      // In production, we are more strict but still allow common patterns
+      console.log(`CORS blocked for origin: ${origin}`);
       callback(new Error('CORS: Origin tidak diizinkan'));
     }
   },

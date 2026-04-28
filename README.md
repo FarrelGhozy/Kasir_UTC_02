@@ -131,15 +131,21 @@ docker compose exec backend npm run seed
 
 ---
 
-## 🛠️ Langkah Setelah Instalasi (Penting!)
+### 🛠️ Langkah Setelah Instalasi (Penting!)
 
-### 📱 Menghubungkan WhatsApp
+### 📱 Menghubungkan WhatsApp & Webhook
 1. Buka `http://localhost:8000` di browser.
 2. Login dengan username/password di atas.
 3. Klik pada session `default`.
-4. Pilih tab **Screenshot** atau **QR Code**.
-5. Scan QR Code menggunakan WhatsApp di HP Anda (seperti masuk WA Web).
-6. Jika status sudah `CONNECTED`, bot sudah siap bekerja!
+4. Pilih tab **Screenshot** atau **QR Code** dan scan menggunakan WhatsApp HP Anda.
+5. **PENTING: Pengaturan Webhook** agar Bot Balas Otomatis bekerja:
+   - Pilih tab **Webhooks** di dashboard WAHA.
+   - Klik **Add Webhook**.
+   - **URL:** `http://backend:5000/api/waha-webhook` (Jika menggunakan Docker) atau URL domain Anda.
+   - **Events:** Pilih `message` atau `message.any`.
+   - **Retries:** Biarkan default (atau set ke 15 attempts jika ingin tangguh).
+   - Klik **Save**.
+6. Jika status sudah `CONNECTED` dan Webhook aktif, bot sudah siap bekerja!
 
 ### 📧 Testing Email
 1. Buat **Tiket Servis Baru**.
