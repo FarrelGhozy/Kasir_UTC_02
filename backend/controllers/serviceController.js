@@ -12,24 +12,50 @@ const mongoose = require('mongoose');
  */
 exports.createTicket = async (req, res, next) => {
   try {
-    // Debugging untuk production
-    console.log('Incoming request body keys:', Object.keys(req.body));
+    // Debugging: Lihat apa yang sebenarnya diterima server
+    console.log('Body received:', req.body);
     
-    let { customer, device, technician_id, service_fee, notes } = req.body;
+    let customer = req.body.customer;
+    let device = req.body.device;
+    let technician_id = req.body.technician_id;
+    let service_fee = req.body.service_fee;
+    let notes = req.body.notes;
 
-    // Robust parsing for JSON strings if they come from FormData (Sering terjadi di Production)
+    // Jika data datang dari FormData, biasanya dikirim sebagai string JSON
     if (typeof customer === 'string') {
-        try { customer = JSON.parse(customer); } catch (e) { console.error('Failed to parse customer string'); }
+        try { customer = JSON.parse(customer); } catch (e) { console.log('Customer is not a JSON string'); }
     }
     if (typeof device === 'string') {
-        try { device = JSON.parse(device); } catch (e) { console.error('Failed to parse device string'); }
+        try { device = JSON.parse(device); } catch (e) { console.log('Device is not a JSON string'); }
+    }
+
+    // FALLBACK: Jika customer/device masih kosong, coba ambil langsung dari body (format flat)
+    if (!customer && req.body.customer_name) {
+        customer = {
+            name: req.body.customer_name,
+            phone: req.body.customer_phone,
+            email: req.body.customer_email,
+            type: req.body.customer_type
+        };
+    }
+    
+    if (!device && req.body.device_type) {
+        device = {
+            type: req.body.device_type,
+            brand: req.body.device_brand,
+            model: req.body.device_model,
+            serial_number: req.body.device_serial_number,
+            symptoms: req.body.device_symptoms,
+            accessories: req.body.device_accessories,
+            password: req.body.device_password,
+            pattern: req.body.device_pattern
+        };
     }
 
     if (!customer || !device || !customer.name) {
-        console.error('Validation failed. Customer or Device missing:', { customer, device });
         return res.status(400).json({ 
             success: false, 
-            message: 'Data pelanggan dan perangkat wajib diisi. Pastikan semua kolom bertanda * sudah terisi.' 
+            message: 'Data pelanggan dan perangkat wajib diisi. Coba refresh halaman jika masalah berlanjut.' 
         });
     }
 

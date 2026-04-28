@@ -1408,19 +1408,31 @@ class Service {
             let hasPhotos = false;
             for (const input of photoInputs) { if (input.files[0]) hasPhotos = true; }
 
-            if (hasPhotos) {
-                photoMsg.classList.remove('d-none');
-                for (const input of photoInputs) {
-                    if (input.files[0]) {
-                        const compressed = await this.compressImage(input.files[0]);
-                        formData.append(input.dataset.side, compressed);
-                    }
-                }
-                photoMsg.classList.add('d-none');
-            }
-
             try { 
-                const response = await api.createServiceTicket(formData); 
+                let response;
+                
+                if (!hasPhotos) {
+                    // JIKA TIDAK ADA FOTO: Kirim sebagai JSON biasa (Paling Stabil di Online)
+                    const payload = {
+                        customer: customerData,
+                        device: deviceData,
+                        technician_id: techId,
+                        service_fee: fee
+                    };
+                    response = await api.post('/services', payload);
+                } else {
+                    // JIKA ADA FOTO: Gunakan FormData
+                    photoMsg.classList.remove('d-none');
+                    for (const input of photoInputs) {
+                        if (input.files[0]) {
+                            const compressed = await this.compressImage(input.files[0]);
+                            formData.append(input.dataset.side, compressed);
+                        }
+                    }
+                    photoMsg.classList.add('d-none');
+                    response = await api.createServiceTicket(formData);
+                }
+
                 console.log('Ticket creation success:', response);
                 showToast('Tiket Dibuat'); 
                 document.getElementById('service-form').reset(); 
