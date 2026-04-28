@@ -13,6 +13,10 @@
 
 ## 🚀 Fitur Unggulan Baru
 
+### 📧 Notifikasi Email & Nota Digital (Baru!)
+- **Nota Otomatis** — Sistem secara otomatis mengirimkan rincian biaya dan nota servis ke email pelanggan saat status servis diubah menjadi "Completed".
+- **Formulir Terintegrasi** — Input email pelanggan kini tersedia langsung di formulir tiket servis baru dan menu edit.
+
 ### 🤖 WhatsApp Automation (WAHA)
 - **Auto-Reply Bot** — Salam ramah, info layanan, dan jam operasional otomatis.
 - **Notifikasi Penugasan** — Teknisi langsung menerima WA saat ada tugas servis baru.
@@ -38,6 +42,7 @@
 - **Security**: JWT Authentication & Bcrypt Hashing
 - **Automation**: Node-cron untuk penjadwalan tugas
 - **WhatsApp Gateway**: [WAHA](https://waha.dev/) (WhatsApp HTTP API) untuk otomasi notifikasi
+- **Email**: Nodemailer (SMTP Gmail) untuk pengiriman nota otomatis
 
 ### Frontend
 - **Core**: Vanilla JS (ES6+ Modules)
@@ -53,17 +58,40 @@
 
 ---
 
-## ⚡ Instalasi Cepat
+## ⚡ Panduan Instalasi Detail
 
-1.  **Jalankan Docker:**
+### A. Persiapan (Prerequisites)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Sudah termasuk Docker Compose)
+- Akun Gmail untuk pengiriman email otomatis.
+
+### B. Konfigurasi Email (SMTP Gmail)
+Agar fitur pengiriman nota via email berfungsi, Anda perlu mengatur **App Password** di akun Google Anda:
+1. Aktifkan **2-Step Verification** pada akun Google Anda.
+2. Cari menu **App Passwords** di pengaturan keamanan akun Google.
+3. Pilih App: `Mail` dan Device: `Other (Custom Name: Kasir UTC)`.
+4. Salin kode 16 digit yang diberikan.
+
+### C. Langkah Instalasi
+1.  **Clone Repositori:**
+    ```bash
+    git clone https://github.com/username/Kasir_UTC_02.git
+    cd Kasir_UTC_02
+    ```
+2.  **Konfigurasi Environment:**
+    Edit file `docker-compose.yml` pada bagian environment `backend` atau buat file `.env` di folder `backend/`:
+    ```env
+    EMAIL_USER=email-anda@gmail.com
+    EMAIL_PASS=kode-app-password-16-digit
+    ```
+3.  **Jalankan dengan Docker:**
     ```bash
     docker compose up -d --build
     ```
-2.  **Isi Data Awal (Seeding):**
+4.  **Isi Data Awal (Seeding):**
     ```bash
     docker compose exec backend npm run seed
     ```
-3.  **Akses Sistem:**
+5.  **Akses Sistem:**
     *   **Aplikasi Utama:** `http://localhost:8080`
     *   **Dashboard WAHA:** `http://localhost:8000` (User: `admin-utc01`, Pass: `adminutc28`)
 

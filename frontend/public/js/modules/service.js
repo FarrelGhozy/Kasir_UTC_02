@@ -114,15 +114,83 @@ class Service {
         window.service = this;
 
         // CSS Hack — inject only once
-        if (!document.getElementById('service-number-style')) {
+        if (!document.getElementById('service-module-styles')) {
             const style = document.createElement('style');
-            style.id = 'service-number-style';
+            style.id = 'service-module-styles';
             style.innerHTML = `
                 input[type=number]::-webkit-inner-spin-button, 
                 input[type=number]::-webkit-outer-spin-button { 
                     -webkit-appearance: none; margin: 0; 
                 }
                 input[type=number] { -moz-appearance: textfield; }
+
+                /* Photo Upload UI */
+                .photo-grid-input {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 10px;
+                }
+                .photo-upload-box {
+                    position: relative;
+                    height: 100px;
+                    border: 2px dashed #dee2e6;
+                    border-radius: 8px;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                    overflow: hidden;
+                    transition: all 0.2s ease;
+                    background: #f8f9fa;
+                }
+                .photo-upload-box:hover {
+                    border-color: #0d6efd;
+                    background: #f0f7ff;
+                }
+                .photo-upload-box i {
+                    font-size: 1.5rem;
+                    color: #adb5bd;
+                    margin-bottom: 4px;
+                }
+                .photo-upload-box span {
+                    font-size: 0.65rem;
+                    font-weight: bold;
+                    color: #6c757d;
+                    text-transform: uppercase;
+                }
+                .photo-upload-box img {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
+                    z-index: 2;
+                }
+                .photo-upload-box .remove-photo {
+                    position: absolute;
+                    top: 5px;
+                    right: 5px;
+                    z-index: 3;
+                    background: rgba(220, 53, 69, 0.8);
+                    color: white;
+                    border: none;
+                    border-radius: 50%;
+                    width: 20px;
+                    height: 20px;
+                    font-size: 10px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    display: none;
+                }
+                .photo-upload-box.has-image {
+                    border-style: solid;
+                }
+                .photo-upload-box.has-image .remove-photo {
+                    display: flex;
+                }
             `;
             document.head.appendChild(style);
         }
@@ -155,6 +223,14 @@ class Service {
                                 </div>
 
                                 <div class="mb-3">
+                                    <label class="form-label small fw-bold">Email (Opsional - Untuk Nota)</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                                        <input type="email" class="form-control" id="customer-email" placeholder="email@contoh.com">
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
                                     <label class="form-label small fw-bold">Tipe Pelanggan *</label>
                                     <select class="form-select" id="customer-type" required>
                                         <option value="Umum">Umum</option>
@@ -164,22 +240,34 @@ class Service {
                                 </div>
 
                                 <h6 class="border-bottom pb-2 mb-3 mt-4 fw-bold text-secondary">Foto Perangkat (Opsional)</h6>
-                                <div class="row g-2 mb-3">
-                                    <div class="col-6">
-                                        <label class="form-label extra-small fw-bold">Depan</label>
-                                        <input type="file" class="form-control form-control-sm device-photo" data-side="front" accept="image/*">
+                                <div class="photo-grid-input mb-3">
+                                    <div class="photo-upload-box" onclick="this.querySelector('input').click()">
+                                        <i class="bi bi-camera"></i>
+                                        <span>Depan</span>
+                                        <input type="file" class="d-none device-photo" data-side="front" accept="image/*" onchange="service.handlePhotoInput(this)">
+                                        <img class="d-none">
+                                        <button type="button" class="remove-photo" onclick="event.stopPropagation(); service.removePhoto(this)"><i class="bi bi-x"></i></button>
                                     </div>
-                                    <div class="col-6">
-                                        <label class="form-label extra-small fw-bold">Belakang</label>
-                                        <input type="file" class="form-control form-control-sm device-photo" data-side="back" accept="image/*">
+                                    <div class="photo-upload-box" onclick="this.querySelector('input').click()">
+                                        <i class="bi bi-camera"></i>
+                                        <span>Belakang</span>
+                                        <input type="file" class="d-none device-photo" data-side="back" accept="image/*" onchange="service.handlePhotoInput(this)">
+                                        <img class="d-none">
+                                        <button type="button" class="remove-photo" onclick="event.stopPropagation(); service.removePhoto(this)"><i class="bi bi-x"></i></button>
                                     </div>
-                                    <div class="col-6">
-                                        <label class="form-label extra-small fw-bold">Kiri</label>
-                                        <input type="file" class="form-control form-control-sm device-photo" data-side="left" accept="image/*">
+                                    <div class="photo-upload-box" onclick="this.querySelector('input').click()">
+                                        <i class="bi bi-camera"></i>
+                                        <span>Kiri</span>
+                                        <input type="file" class="d-none device-photo" data-side="left" accept="image/*" onchange="service.handlePhotoInput(this)">
+                                        <img class="d-none">
+                                        <button type="button" class="remove-photo" onclick="event.stopPropagation(); service.removePhoto(this)"><i class="bi bi-x"></i></button>
                                     </div>
-                                    <div class="col-6">
-                                        <label class="form-label extra-small fw-bold">Kanan</label>
-                                        <input type="file" class="form-control form-control-sm device-photo" data-side="right" accept="image/*">
+                                    <div class="photo-upload-box" onclick="this.querySelector('input').click()">
+                                        <i class="bi bi-camera"></i>
+                                        <span>Kanan</span>
+                                        <input type="file" class="d-none device-photo" data-side="right" accept="image/*" onchange="service.handlePhotoInput(this)">
+                                        <img class="d-none">
+                                        <button type="button" class="remove-photo" onclick="event.stopPropagation(); service.removePhoto(this)"><i class="bi bi-x"></i></button>
                                     </div>
                                 </div>
                                 <div id="photo-compression-msg" class="small text-muted mb-3 d-none">
@@ -350,22 +438,34 @@ class Service {
                                 <div class="row g-2 mb-3" id="edit-photos-preview">
                                     <!-- Preview foto lama akan muncul di sini -->
                                 </div>
-                                <div class="row g-2 mb-3">
-                                    <div class="col-6 col-md-3">
-                                        <label class="form-label extra-small fw-bold">Ganti Depan</label>
-                                        <input type="file" class="form-control form-control-sm edit-device-photo" data-side="front" accept="image/*">
+                                <div class="photo-grid-input mb-3">
+                                    <div class="photo-upload-box" onclick="this.querySelector('input').click()">
+                                        <i class="bi bi-camera"></i>
+                                        <span>Ganti Depan</span>
+                                        <input type="file" class="d-none edit-device-photo" data-side="front" accept="image/*" onchange="service.handlePhotoInput(this)">
+                                        <img class="d-none">
+                                        <button type="button" class="remove-photo" onclick="event.stopPropagation(); service.removePhoto(this)"><i class="bi bi-x"></i></button>
                                     </div>
-                                    <div class="col-6 col-md-3">
-                                        <label class="form-label extra-small fw-bold">Ganti Belakang</label>
-                                        <input type="file" class="form-control form-control-sm edit-device-photo" data-side="back" accept="image/*">
+                                    <div class="photo-upload-box" onclick="this.querySelector('input').click()">
+                                        <i class="bi bi-camera"></i>
+                                        <span>Ganti Belakang</span>
+                                        <input type="file" class="d-none edit-device-photo" data-side="back" accept="image/*" onchange="service.handlePhotoInput(this)">
+                                        <img class="d-none">
+                                        <button type="button" class="remove-photo" onclick="event.stopPropagation(); service.removePhoto(this)"><i class="bi bi-x"></i></button>
                                     </div>
-                                    <div class="col-6 col-md-3">
-                                        <label class="form-label extra-small fw-bold">Ganti Kiri</label>
-                                        <input type="file" class="form-control form-control-sm edit-device-photo" data-side="left" accept="image/*">
+                                    <div class="photo-upload-box" onclick="this.querySelector('input').click()">
+                                        <i class="bi bi-camera"></i>
+                                        <span>Ganti Kiri</span>
+                                        <input type="file" class="d-none edit-device-photo" data-side="left" accept="image/*" onchange="service.handlePhotoInput(this)">
+                                        <img class="d-none">
+                                        <button type="button" class="remove-photo" onclick="event.stopPropagation(); service.removePhoto(this)"><i class="bi bi-x"></i></button>
                                     </div>
-                                    <div class="col-6 col-md-3">
-                                        <label class="form-label extra-small fw-bold">Ganti Kanan</label>
-                                        <input type="file" class="form-control form-control-sm edit-device-photo" data-side="right" accept="image/*">
+                                    <div class="photo-upload-box" onclick="this.querySelector('input').click()">
+                                        <i class="bi bi-camera"></i>
+                                        <span>Ganti Kanan</span>
+                                        <input type="file" class="d-none edit-device-photo" data-side="right" accept="image/*" onchange="service.handlePhotoInput(this)">
+                                        <img class="d-none">
+                                        <button type="button" class="remove-photo" onclick="event.stopPropagation(); service.removePhoto(this)"><i class="bi bi-x"></i></button>
                                     </div>
                                 </div>
 
@@ -695,6 +795,11 @@ class Service {
                                         </button>
                                     ` : ''}
                                 </div>
+                                ${t.customer.email ? `
+                                    <div class="small text-muted mt-1 text-truncate" style="font-size: 0.7rem;">
+                                        <i class="bi bi-envelope me-1"></i>${t.customer.email}
+                                    </div>
+                                ` : ''}
                             </div>
                             <div class="col-6 text-end">
                                 ${this.getWarrantyBadge(t)}
@@ -994,6 +1099,7 @@ class Service {
                         <table class="table table-sm table-borderless mb-0">
                             <tr><td width="110" class="text-secondary">Nama</td><td>: <strong>${t.customer.name}</strong></td></tr>
                             <tr><td class="text-secondary">Telepon</td><td>: ${t.customer.phone}</td></tr>
+                            <tr><td class="text-secondary">Email</td><td>: ${t.customer.email || '-'}</td></tr>
                             <tr><td class="text-secondary">Tipe</td><td>: <span class="badge bg-info text-dark">${t.customer.type}</span></td></tr>
                         </table>
                     </div>
@@ -1130,6 +1236,33 @@ class Service {
         setTimeout(() => document.body.removeChild(iframe), 5000);
     }
 
+    handlePhotoInput(input) {
+        const file = input.files[0];
+        const box = input.closest('.photo-upload-box');
+        const img = box.querySelector('img');
+        
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                img.src = e.target.result;
+                img.classList.remove('d-none');
+                box.classList.add('has-image');
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    removePhoto(btn) {
+        const box = btn.closest('.photo-upload-box');
+        const input = box.querySelector('input');
+        const img = box.querySelector('img');
+        
+        input.value = '';
+        img.src = '';
+        img.classList.add('d-none');
+        box.classList.remove('has-image');
+    }
+
     async compressImage(file) {
         if (!window.imageCompression) {
             console.error('Library image-compression tidak ditemukan');
@@ -1230,6 +1363,7 @@ class Service {
             const customerData = {
                 name: document.getElementById('customer-name').value,
                 phone: document.getElementById('customer-phone').value,
+                email: document.getElementById('customer-email').value,
                 type: document.getElementById('customer-type').value
             };
             formData.append('customer', JSON.stringify(customerData));
@@ -1269,6 +1403,12 @@ class Service {
                 await api.createServiceTicket(formData); 
                 showToast('Tiket Dibuat'); 
                 document.getElementById('service-form').reset(); 
+                // Clear photo previews
+                document.querySelectorAll('.photo-upload-box').forEach(box => {
+                    const img = box.querySelector('img');
+                    if (img) img.classList.add('d-none');
+                    box.classList.remove('has-image');
+                });
                 if (this.mainPatternLock) this.mainPatternLock.reset();
                 document.getElementById('wa-validation-msg').innerHTML = '';
                 this.loadTickets(); 

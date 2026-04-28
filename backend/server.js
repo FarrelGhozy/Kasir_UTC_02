@@ -2,6 +2,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const connectDB = require('./config/db');
 const apiRoutes = require('./routes/api');
 const webhookRoutes = require('./routes/webhook');
@@ -15,6 +16,12 @@ const PORT = process.env.PORT || 5000;
 // 1. SETUP MIDDLEWARE & CORS
 // ==========================================
 
+// Log all incoming requests for debugging
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} - Origin: ${req.headers.origin || 'No Origin'}`);
+  next();
+});
+
 const defaultAllowedOrigins = [
   'https://kasir.utc.web.id',
   'https://www.kasir.utc.web.id',
@@ -27,28 +34,29 @@ const allowedOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim()).filter(Boolean)
   : defaultAllowedOrigins;
 
+// Permissive CORS for development
 app.use(cors({
-  origin: (origin, callback) => {
-    // Izinkan request tanpa Origin header (curl, healthcheck, server-to-server)
+  origin: function (origin, callback) {
+    // allow requests with no origin
     if (!origin) return callback(null, true);
-
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
+    
+    // In development, allow everything or check against list
+    if (process.env.NODE_ENV !== 'production' || allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes('*')) {
+      callback(null, true);
+    } else {
+      callback(new Error('CORS: Origin tidak diizinkan'));
     }
-    return callback(new Error('CORS: Origin tidak diizinkan'));
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use('/backend/uploads', express.static('backend/uploads'));
 
-// Simple Logging Middleware
-app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
-  next();
-});
+// Static files for uploads
+app.use('/backend/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ==========================================
 // 2. ROUTES
@@ -83,10 +91,10 @@ const startServer = async () => {
     reminderService.init();
     
     // 3. Jalankan Listen Port
-    app.listen(PORT, () => {
+    app.listen(PORT, '0.0.0.0', () => {
       console.log('='.repeat(50));
       console.log(`🚀 Server API Bengkel UTC Berjalan`);
-      console.log(`📍 Port: ${PORT}`);
+      console.log(`📍 URL: http://0.0.0.0:${PORT}`);
       console.log(`🌍 Env: ${process.env.NODE_ENV || 'development'}`);
       console.log('='.repeat(50));
     });
@@ -97,7 +105,6 @@ const startServer = async () => {
   }
 };
 
-// Jalankan fungsi utama
 startServer();
 
 // Graceful Shutdown
