@@ -1,10 +1,20 @@
 # 🔧 Unida Technology Centre (UTC) — Workshop & POS Management System
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Node.js-18%2B-green?logo=node.js" alt="Node.js">
-  <img src="https://img.shields.io/badge/MongoDB-6%2B-brightgreen?logo=mongodb" alt="MongoDB">
-  <img src="https://img.shields.io/badge/WAHA-Ready-blue?logo=whatsapp" alt="WAHA">
-  <img src="https://img.shields.io/badge/Docker-Ready-blue?logo=docker" alt="Docker">
+  <img src="https://img.shields.io/badge/Node.js-18%2B-339933?style=for-the-badge&logo=node.js&logoColor=white" alt="Node.js">
+  <img src="https://img.shields.io/badge/Express.js-000000?style=for-the-badge&logo=express&logoColor=white" alt="Express.js">
+  <img src="https://img.shields.io/badge/MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white" alt="MongoDB">
+  <img src="https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black" alt="JavaScript">
+  <br>
+  <img src="https://img.shields.io/badge/Bootstrap-7952B3?style=for-the-badge&logo=bootstrap&logoColor=white" alt="Bootstrap">
+  <img src="https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white" alt="Tailwind">
+  <img src="https://img.shields.io/badge/Chart.js-FF6384?style=for-the-badge&logo=chart.js&logoColor=white" alt="Chart.js">
+  <img src="https://img.shields.io/badge/Nginx-009639?style=for-the-badge&logo=nginx&logoColor=white" alt="Nginx">
+  <br>
+  <img src="https://img.shields.io/badge/WAHA-25D366?style=for-the-badge&logo=whatsapp&logoColor=white" alt="WAHA">
+  <img src="https://img.shields.io/badge/JWT-000000?style=for-the-badge&logo=json-web-tokens&logoColor=white" alt="JWT">
+  <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker">
+  <img src="https://img.shields.io/badge/Gmail-D14836?style=for-the-badge&logo=gmail&logoColor=white" alt="Gmail">
 </p>
 
 **Bengkel UTC** (Unida Technology Centre) adalah sistem manajemen operasional terintegrasi yang dirancang khusus untuk mengelola servis perangkat (komputer, laptop, HP, printer) dan transaksi kasir dalam satu platform modern.
@@ -34,27 +44,30 @@
 
 ---
 
-## 🏗️ Stack Teknologi (Tech Stack)
+## 🏗️ Arsitektur & Stack Teknologi
 
-### Backend
-- **Runtime**: [Node.js](https://nodejs.org/) (Express.js v5.2.1)
-- **Database**: [MongoDB](https://www.mongodb.com/) (Mongoose v9.1.5)
-- **Security**: JWT Authentication & Bcrypt Hashing
-- **Automation**: Node-cron untuk penjadwalan tugas
-- **WhatsApp Gateway**: [WAHA](https://waha.dev/) (WhatsApp HTTP API) untuk otomasi notifikasi
-- **Email**: Nodemailer (SMTP Gmail) untuk pengiriman nota otomatis
+Sistem ini dibangun dengan arsitektur **Modern Monolith** yang dikemas dalam kontainer untuk performa maksimal dan kemudahan deployment.
 
-### Frontend
-- **Core**: Vanilla JS (ES6+ Modules)
-- **UI Frameworks**: 
-  - [Bootstrap 5.3](https://getbootstrap.com/) (Digunakan di aplikasi utama/Dashboard)
-  - [Tailwind CSS](https://tailwindcss.com/) (Digunakan di modul Kelola Teknisi)
-- **Data Visualization**: [Chart.js](https://www.chartjs.org/) (v4.4.3)
-- **Icons**: Bootstrap Icons
+### 🌐 Frontend (User Interface)
+| Komponen | Teknologi | Keterangan |
+| :--- | :--- | :--- |
+| **Logic** | ![JS](https://img.shields.io/badge/Vanilla_JS-ES6+-F7DF1E?logo=javascript&logoColor=black) | Pemrograman fungsional tanpa framework berat. |
+| **Styling** | ![Bootstrap](https://img.shields.io/badge/Bootstrap-5.3-7952B3?logo=bootstrap&logoColor=white) ![Tailwind](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC?logo=tailwind-css&logoColor=white) | Kombinasi Bootstrap untuk Dashboard & Tailwind untuk Admin. |
+| **Charts** | ![Chart.js](https://img.shields.io/badge/Chart.js-4.4-FF6384?logo=chart.js&logoColor=white) | Visualisasi data pendapatan dan statistik pelanggan. |
+| **Optimization**| `browser-image-compression` | Kompresi foto perangkat langsung di browser sisi klien. |
 
-### Infrastruktur
-- **Containerization**: [Docker](https://www.docker.com/) & Docker Compose
-- **Orchestration**: Docker Compose untuk menghubungkan Backend, Frontend, MongoDB, dan WAHA.
+### ⚙️ Backend (API Server)
+*   **Runtime**: ![Node.js](https://img.shields.io/badge/Node.js-18-339933?logo=node.js&logoColor=white) (Express.js v5.2.1)
+*   **Database**: ![MongoDB](https://img.shields.io/badge/MongoDB-6.0-47A248?logo=mongodb&logoColor=white) (ODM: Mongoose v9.1.5)
+*   **Security**: ![JWT](https://img.shields.io/badge/JWT-JSON_Web_Token-black?logo=json-web-tokens) ![Bcrypt](https://img.shields.io/badge/Bcrypt-Password_Hashing-blue)
+*   **File Handling**: `Multer` untuk manajemen upload foto perangkat.
+*   **Automation**: `Node-cron` untuk scheduler pengingat servis otomatis.
+*   **Email**: `Nodemailer` (SMTP) untuk pengiriman nota digital.
+
+### 🤖 Integrasi & DevOps
+*   **WhatsApp Gateway**: ![WAHA](https://img.shields.io/badge/WAHA-WhatsApp_API-25D366?logo=whatsapp&logoColor=white) Integrasi API untuk notifikasi real-time.
+*   **Containerization**: ![Docker](https://img.shields.io/badge/Docker-Containerized-2496ED?logo=docker&logoColor=white) ![Docker Compose](https://img.shields.io/badge/Docker_Compose-Infrastructure-2496ED?logo=docker)
+*   **Web Server**: ![Nginx](https://img.shields.io/badge/Nginx-Web_Server-009639?logo=nginx&logoColor=white) (Reverse Proxy & Static Serving)
 
 ---
 
