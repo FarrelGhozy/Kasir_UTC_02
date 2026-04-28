@@ -57,8 +57,14 @@ Terkirim saat:
 *   **Servis Selesai:** Rincian biaya akhir ke pelanggan.
 *   **Pemesanan Barang:** Info pesanan masuk, DP, dan kabar jika barang sudah sampai.
 
-### **B. Auto-Reply Bot**
-Dikelola di `backend/bot/`. Memiliki fitur:
+### **B. Auto-Reply Bot & Webhook**
+Dikelola di `backend/bot/`. Agar bot dapat menerima pesan, Anda harus mengonfigurasi Webhook di dashboard WAHA:
+*   **Endpoint:** `http://backend:5000/api/waha-webhook`
+*   **Method:** `POST`
+*   **Events:** `message` (Wajib)
+*   **Fungsi:** Meneruskan pesan masuk ke logika `botHandler.js` untuk diproses.
+
+**Fitur Bot:**
 *   **Session Memory:** Menyapa ramah hanya sekali dalam 12 jam (mencegah spam).
 *   **Cek Jam Operasional:** Bot tahu jika chat masuk di luar jam 08.00 - 15.00 WIB atau pada hari Jumat (Libur).
 *   **Mode Darurat:** Jika variabel `IS_CAMPUS_EVENT` diset `true`, bot akan membalas bahwa bengkel tutup karena acara kampus.
