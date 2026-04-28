@@ -39,6 +39,8 @@ services:
       - IS_CAMPUS_EVENT=false
     depends_on:
       - mongo_db
+    volumes:
+      - ./backend/uploads:/app/uploads
     networks:
       - utc_network
     mem_limit: 300m

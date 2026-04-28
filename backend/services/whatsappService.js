@@ -1,4 +1,5 @@
 const axios = require('axios');
+const SystemLog = require('../models/SystemLog');
 
 /**
  * WhatsApp Service using WAHA (WhatsApp HTTP API)
@@ -49,6 +50,19 @@ class WhatsAppService {
       return response.data;
     } catch (error) {
       console.error(`[WhatsApp] Gagal mengirim ke ${phone}:`, error.response?.data || error.message);
+      
+      // Catat kegagalan ke Log Sistem
+      SystemLog.create({
+        level: 'ERROR',
+        source: 'WhatsAppService',
+        message: `Gagal kirim pesan ke ${phone}`,
+        details: { 
+          error: error.message, 
+          response: error.response?.data,
+          target: phone
+        }
+      }).catch(err => console.error('Gagal simpan log WA:', err));
+
       return null;
     }
   }
@@ -209,9 +223,43 @@ class WhatsAppService {
       'In_Progress': 'Sedang Dikerjakan'
     };
     
-    const message = `⏰ *PENGINGAT TUGAS TEKNISI* ⏰\n\nHalo *${techUser.name}*,\nSekedar mengingatkan ada tugas yang masih dalam status *${statusMap[ticket.status]}*:\n\n💻 Barang: *${ticket.device.type} ${ticket.device.brand || ''} ${ticket.device.model || ''}*\n👤 Pelanggan: *${ticket.customer.name}*\n🎫 No. Tiket: #${ticket.ticket_number}\n\nMohon segera ditindaklanjuti agar pelayanan kita tetap prima. Semangat! 🛠️💪`;
+    const message = `⏰ *PENGINGAT TUGAS TEKNISI* ⏰\n\nHalo *${techUser.name}*,\nSekedar mengingatkan ada tugas yang masih dalam status *${statusMap[ticket.status]}*:\n\n💻 Barang: *${ticket.device.type} ${ticket.device.brand || ''} ${ticket.device.model || ''}*\n🩹 Kerusakan: *${ticket.device.symptoms}*\n👤 Pelanggan: *${ticket.customer.name}*\n🎫 No. Tiket: #${ticket.ticket_number}\n\nMohon segera ditindaklanjuti agar pelayanan kita tetap prima. Semangat! 🛠️💪`;
 
     return this.sendMessage(techUser.phone, message);
+  }
+
+  /**
+   * Cek apakah nomor WA terdaftar
+   * @param {string} phone 
+   */
+  async checkExists(phone) {
+    try {
+      let cleanPhone = phone.toString().replace(/\D/g, '');
+      if (cleanPhone.startsWith('0')) {
+        cleanPhone = '62' + cleanPhone.slice(1);
+      }
+      
+      const chatId = cleanPhone.includes('@') ? cleanPhone : `${cleanPhone}@c.us`;
+
+      const url = `${this.baseURL}/api/contacts/check-exists`;
+      const data = {
+        phone: cleanPhone,
+        session: this.session
+      };
+
+      const config = {
+        headers: {
+          'X-Api-Key': this.apiKey
+        },
+        timeout: 10000
+      };
+
+      const response = await axios.post(url, data, config);
+      return response.data;
+    } catch (error) {
+      console.error(`[WhatsApp] Gagal cek nomor ${phone}:`, error.message);
+      return { exists: false, error: error.message };
+    }
   }
 }
 

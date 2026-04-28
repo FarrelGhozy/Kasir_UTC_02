@@ -10,15 +10,25 @@ const customerSchema = new mongoose.Schema({
   },
   phone: {
     type: String,
-    required: [true, 'Nomor telepon pelanggan wajib diisi'],
     trim: true,
+    // Menghapus required: true agar nomor WA bersifat opsional
     validate: {
       validator: function(v) {
+        // Jika kosong, anggap valid (karena opsional)
+        if (!v) return true;
         // Validasi nomor telepon Indonesia: diawali 0, 62, atau +62, diikuti 8-13 digit
         return /^(\+62|62|0)[0-9]{8,13}$/.test(v.replace(/[\s\-]/g, ''));
       },
       message: 'Format nomor telepon tidak valid. Gunakan format: 08xx-xxxx-xxxx atau +628xx-xxxx-xxxx'
     }
+  },
+  is_wa_valid: {
+    type: Boolean,
+    default: false
+  },
+  email: {
+    type: String,
+    trim: true
   },
   type: {
     type: String,
@@ -62,6 +72,12 @@ const deviceSchema = new mongoose.Schema({
   pattern: {
     type: String,
     trim: true
+  },
+  photos: {
+    front: String,
+    back: String,
+    left: String,
+    right: String
   }
 }, { _id: false });
 
@@ -151,6 +167,13 @@ const serviceTicketSchema = new mongoose.Schema({
   notes: {
     type: String,
     trim: true
+  },
+  warranty_expires_at: {
+    type: Date
+  },
+  klaim_dari_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'ServiceTicket'
   },
   timestamps: {
     created_at: {

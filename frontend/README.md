@@ -2,13 +2,14 @@
 
 A professional, modular vanilla JavaScript frontend for the Bengkel UTC Workshop Management System.
 
-## 🎨 Tech Stack
+## 🎨 Stack Teknologi (Tech Stack)
 
-- **HTML5** - Semantic structure
-- **Bootstrap 5.3** - Responsive UI framework (via CDN)
-- **Bootstrap Icons** - Icon library (via CDN)
-- **Vanilla JavaScript (ES6+)** - Modular architecture with import/export
-- **No Build Tools** - Pure client-side application
+- **Bahasa**: [HTML5](https://developer.mozilla.org/en-US/docs/Web/HTML), [CSS3](https://developer.mozilla.org/en-US/docs/Web/CSS), dan [JavaScript (ES6+)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
+- **UI Framework**: [Bootstrap](https://getbootstrap.com/) (v5.3.2) - Layouting responsif dan komponen UI
+- **Icons**: [Bootstrap Icons](https://icons.getbootstrap.com/) (v1.11.3)
+- **Visualisasi Data**: [Chart.js](https://www.chartjs.org/) (v4.4.3) - Untuk laporan grafik
+- **Arsitektur**: Modular Vanilla JS - Menggunakan system [ES Modules](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Modules) (import/export) tanpa framework berat (No-Framework SPA)
+- **Komunikasi Data**: [Fetch API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) untuk interaksi dengan RESTful API Backend
 
 ## 📁 File Structure
 
