@@ -1360,27 +1360,47 @@ class Service {
 
             const formData = new FormData();
             
+            // PENTING: Ambil nilai terbaru dari elemen DOM
+            const customerName = document.getElementById('customer-name').value;
+            const customerPhone = document.getElementById('customer-phone').value;
+            const customerEmail = document.getElementById('customer-email').value;
+            const customerType = document.getElementById('customer-type').value;
+
             const customerData = {
-                name: document.getElementById('customer-name').value,
-                phone: document.getElementById('customer-phone').value,
-                email: document.getElementById('customer-email').value,
-                type: document.getElementById('customer-type').value
+                name: customerName,
+                phone: customerPhone,
+                email: customerEmail,
+                type: customerType
             };
-            formData.append('customer', JSON.stringify(customerData));
+            
+            const deviceType = document.getElementById('device-type').value;
+            const deviceBrand = document.getElementById('device-brand').value;
+            const deviceModel = document.getElementById('device-model').value;
+            const deviceSN = document.getElementById('device-serial-number').value;
+            const deviceSymptoms = document.getElementById('device-symptoms').value;
+            const deviceAcc = document.getElementById('device-accessories').value;
+            const devicePass = document.getElementById('device-password').value;
+            const devicePat = document.getElementById('device-pattern').value;
 
             const deviceData = {
-                type: document.getElementById('device-type').value,
-                brand: document.getElementById('device-brand').value,
-                model: document.getElementById('device-model').value,
-                serial_number: document.getElementById('device-serial-number').value,
-                symptoms: document.getElementById('device-symptoms').value,
-                accessories: document.getElementById('device-accessories').value,
-                password: document.getElementById('device-password').value,
-                pattern: document.getElementById('device-pattern').value
+                type: deviceType,
+                brand: deviceBrand,
+                model: deviceModel,
+                serial_number: deviceSN,
+                symptoms: deviceSymptoms,
+                accessories: deviceAcc,
+                password: devicePass,
+                pattern: devicePat
             };
+
+            const techId = document.getElementById('technician-select').value;
+            const fee = parseCurrencyValue(document.getElementById('service-fee').value);
+
+            // Append data teks DULUAN (Penting untuk beberapa server/proxy)
+            formData.append('customer', JSON.stringify(customerData));
             formData.append('device', JSON.stringify(deviceData));
-            formData.append('technician_id', document.getElementById('technician-select').value);
-            formData.append('service_fee', parseCurrencyValue(document.getElementById('service-fee').value));
+            formData.append('technician_id', techId);
+            formData.append('service_fee', fee);
 
             // Handle Photo Uploads with Compression
             const photoMsg = document.getElementById('photo-compression-msg');
