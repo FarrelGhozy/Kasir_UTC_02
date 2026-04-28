@@ -200,11 +200,11 @@ class Service {
         content.innerHTML = `
             <div class="row g-4">
                 <div class="col-lg-4">
-                    <div class="card shadow-sm border-0 sticky-top" style="top: 20px; z-index: 1;">
+                    <div class="card shadow-sm border-0 sticky-top" style="top: 20px; z-index: 1; max-height: calc(100vh - 40px); display: flex; flex-direction: column;">
                         <div class="card-header bg-primary text-white py-3">
                             <h5 class="mb-0"><i class="bi bi-plus-circle me-2"></i>Tiket Servis Baru</h5>
                         </div>
-                        <div class="card-body">
+                        <div class="card-body" style="overflow-y: auto;">
                             <form id="service-form">
                                 <h6 class="border-bottom pb-2 mb-3 fw-bold text-secondary">Informasi Pelanggan</h6>
                                 
