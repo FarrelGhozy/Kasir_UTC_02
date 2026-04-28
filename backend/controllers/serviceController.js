@@ -12,19 +12,25 @@ const mongoose = require('mongoose');
  */
 exports.createTicket = async (req, res, next) => {
   try {
+    // Debugging untuk production
+    console.log('Incoming request body keys:', Object.keys(req.body));
+    
     let { customer, device, technician_id, service_fee, notes } = req.body;
 
-    // Robust parsing for JSON strings if they come from FormData
-    try {
-        if (typeof customer === 'string') customer = JSON.parse(customer);
-        if (typeof device === 'string') device = JSON.parse(device);
-    } catch (parseError) {
-        console.error('Error parsing customer/device data:', parseError);
-        return res.status(400).json({ success: false, message: 'Format data customer atau device tidak valid' });
+    // Robust parsing for JSON strings if they come from FormData (Sering terjadi di Production)
+    if (typeof customer === 'string') {
+        try { customer = JSON.parse(customer); } catch (e) { console.error('Failed to parse customer string'); }
+    }
+    if (typeof device === 'string') {
+        try { device = JSON.parse(device); } catch (e) { console.error('Failed to parse device string'); }
     }
 
-    if (!customer || !device) {
-        return res.status(400).json({ success: false, message: 'Data pelanggan dan perangkat wajib diisi' });
+    if (!customer || !device || !customer.name) {
+        console.error('Validation failed. Customer or Device missing:', { customer, device });
+        return res.status(400).json({ 
+            success: false, 
+            message: 'Data pelanggan dan perangkat wajib diisi. Pastikan semua kolom bertanda * sudah terisi.' 
+        });
     }
 
     const technician = await User.findById(technician_id);
