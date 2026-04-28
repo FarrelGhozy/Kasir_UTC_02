@@ -71,49 +71,96 @@ Sistem ini dibangun dengan arsitektur **Modern Monolith** yang dikemas dalam kon
 
 ---
 
-## ⚡ Panduan Instalasi Detail
+## ⚡ Panduan Instalasi & Deployment
 
-### A. Persiapan (Prerequisites)
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Sudah termasuk Docker Compose)
-- Akun Gmail untuk pengiriman email otomatis.
+### 1. Persiapan Lingkungan (Prerequisites)
+Pastikan perangkat Anda sudah terinstal:
+- **Docker & Docker Compose**: [Unduh di sini](https://www.docker.com/products/docker-desktop/)
+- **Git**: Untuk mendownload source code.
+- **Akun Gmail**: Digunakan untuk fitur pengiriman nota otomatis.
 
-### B. Konfigurasi Email (SMTP Gmail)
-Agar fitur pengiriman nota via email berfungsi, Anda perlu mengatur **App Password** di akun Google Anda:
-1. Aktifkan **2-Step Verification** pada akun Google Anda.
-2. Cari menu **App Passwords** di pengaturan keamanan akun Google.
-3. Pilih App: `Mail` dan Device: `Other (Custom Name: Kasir UTC)`.
-4. Salin kode 16 digit yang diberikan.
+### 2. Pengaturan SMTP Gmail (Wajib untuk Email)
+Agar sistem bisa mengirim email nota, Anda harus menggunakan **App Password**:
+1. Masuk ke [Akun Google](https://myaccount.google.com/).
+2. Aktifkan **Verifikasi 2 Langkah**.
+3. Cari "Sandi Aplikasi" atau **App Passwords**.
+4. Pilih Aplikasi: `Lainnya (Nama Kustom)` -> Isi "Kasir UTC".
+5. Salin **kode 16 digit** yang muncul (Hapus spasi jika ada).
 
-### C. Langkah Instalasi
-1.  **Clone Repositori:**
-    ```bash
-    git clone https://github.com/username/Kasir_UTC_02.git
-    cd Kasir_UTC_02
-    ```
-2.  **Konfigurasi Environment:**
-    Edit file `docker-compose.yml` pada bagian environment `backend` atau buat file `.env` di folder `backend/`:
-    ```env
-    EMAIL_USER=email-anda@gmail.com
-    EMAIL_PASS=kode-app-password-16-digit
-    ```
-3.  **Jalankan dengan Docker:**
-    ```bash
-    docker compose up -d --build
-    ```
-4.  **Isi Data Awal (Seeding):**
-    ```bash
-    docker compose exec backend npm run seed
-    ```
-5.  **Akses Sistem:**
-    *   **Aplikasi Utama:** `http://localhost:8080`
-    *   **Dashboard WAHA:** `http://localhost:8000` (User: `admin-utc01`, Pass: `adminutc28`)
+### 3. Langkah-Langkah Instalasi
+
+#### A. Clone & Masuk ke Folder
+```bash
+git clone https://github.com/username/Kasir_UTC_02.git
+cd Kasir_UTC_02
+```
+
+#### B. Konfigurasi Environment (File `.env`)
+Buat file baru bernama `.env` di dalam folder `backend/` atau edit langsung di `docker-compose.yml`. 
+
+**Isi file `backend/.env`:**
+```env
+PORT=5000
+MONGODB_URI=mongodb://mongo_db:27017/bengkel_utc
+JWT_SECRET=GantiDenganStringRahasiaApapun
+EMAIL_USER=email-anda@gmail.com
+EMAIL_PASS=kode-app-password-16-digit
+NODE_ENV=production
+```
+
+#### C. Menjalankan Server
+Jalankan seluruh sistem (Database, Backend, Frontend, WA Bot) dalam satu perintah:
+```bash
+docker compose up -d --build
+```
+*Tunggu hingga proses build selesai (~2-5 menit tergantung internet).*
+
+#### D. Setup Data Awal (Seeding)
+**Sangat Penting!** Jalankan ini untuk mengisi data akun admin, teknisi, dan barang contoh agar sistem bisa digunakan:
+```bash
+docker compose exec backend npm run seed
+```
+
+### 4. Cara Akses & Penggunaan
+
+| Layanan | URL Akses | Kredensial Default |
+| :--- | :--- | :--- |
+| **Aplikasi Kasir (Web)** | `http://localhost:8080` | User: `admin-utc01` / Pass: `adminutc28` |
+| **WhatsApp Bot (WAHA)** | `http://localhost:8000` | User: `admin-utc01` / Pass: `adminutc28` |
+| **Database Explorer** | `localhost:27018` | (Gunakan MongoDB Compass) |
 
 ---
 
-## 🔐 Akun Default (Hasil Seeding)
-- **Admin:** `admin-utc01` / `adminutc28`
-- **Kasir:** `kasir1` / `kasirutc0326`
-- **Teknisi:** `wildan_utc`, `kaukab_utc`, dll. (Lihat `seed.js`)
+## 🛠️ Langkah Setelah Instalasi (Penting!)
+
+### 📱 Menghubungkan WhatsApp
+1. Buka `http://localhost:8000` di browser.
+2. Login dengan username/password di atas.
+3. Klik pada session `default`.
+4. Pilih tab **Screenshot** atau **QR Code**.
+5. Scan QR Code menggunakan WhatsApp di HP Anda (seperti masuk WA Web).
+6. Jika status sudah `CONNECTED`, bot sudah siap bekerja!
+
+### 📧 Testing Email
+1. Buat **Tiket Servis Baru**.
+2. Masukkan email Anda yang valid di kolom email pelanggan.
+3. Ubah status servis tersebut menjadi **"Completed"** (Selesai).
+4. Cek kotak masuk/spam email Anda untuk melihat nota digital.
+
+---
+
+## 🔐 Akun Akses Default
+Jika Anda menggunakan perintah `npm run seed`, gunakan akun berikut:
+
+- **Superadmin:** `admin-utc01` / `adminutc28` (Akses penuh & kelola teknisi)
+- **Kasir:** `kasir1` / `kasirutc0326` (Hanya POS & Servis)
+- **Teknisi:** `wildan_utc`, `kaukab_utc`, dll.
+
+---
+
+## 📖 Dokumentasi Teknis
+Untuk informasi struktur kode, pemeliharaan, dan pengembangan lebih lanjut, silakan merujuk ke:
+👉 **[DOKUMENTASI.md](./DOKUMENTASI.md)**
 
 ---
 
