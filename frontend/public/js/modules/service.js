@@ -566,6 +566,35 @@ class Service {
                 </div>
             </div>
 
+            <div class="modal fade" id="editPartModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Edit Jumlah Sparepart</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <input type="hidden" id="edit-part-ticket-id">
+                            <input type="hidden" id="edit-part-id">
+                            <div class="mb-3">
+                                <label class="form-label">Nama Sparepart</label>
+                                <input type="text" class="form-control" id="edit-part-name" readonly disabled>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Jumlah</label>
+                                <input type="number" class="form-control" id="edit-part-quantity" min="1">
+                            </div>
+                            <div class="alert alert-info small">
+                                <i class="bi bi-info-circle me-1"></i> Stok gudang akan otomatis menyesuaikan.
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-primary w-100" id="update-part-btn">Simpan Perubahan</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="modal fade" id="finalizeModal" tabindex="-1" data-bs-backdrop="static">
                 <div class="modal-dialog">
                     <div class="modal-content">
@@ -1034,6 +1063,31 @@ class Service {
         new bootstrap.Modal(document.getElementById('addPartModal')).show();
     }
 
+    editPart(ticketId, partId) {
+        const t = this.tickets.find(x => x._id === ticketId);
+        if (!t) return;
+        const p = t.parts_used.find(x => x._id === partId);
+        if (!p) return;
+
+        document.getElementById('edit-part-ticket-id').value = ticketId;
+        document.getElementById('edit-part-id').value = partId;
+        document.getElementById('edit-part-name').value = p.name;
+        document.getElementById('edit-part-quantity').value = p.qty;
+        new bootstrap.Modal(document.getElementById('editPartModal')).show();
+    }
+
+    async deletePart(ticketId, partId) {
+        if (!confirm('Apakah Anda yakin ingin menghapus sparepart ini? Stok akan dikembalikan ke gudang.')) return;
+        try {
+            await api.removePartFromService(ticketId, partId);
+            showToast('Sparepart berhasil dihapus');
+            await this.loadTickets();
+            this.openDetail(ticketId);
+        } catch (e) {
+            showToast(e.message, 'error');
+        }
+    }
+
     openFinalize(id) {
         const t = this.tickets.find(x => x._id === id);
         if(!t) return;
@@ -1088,8 +1142,22 @@ class Service {
         if(!t) return;
 
         const partList = t.parts_used.length ? t.parts_used.map(p => 
-            `<tr><td>${p.name}</td><td class="text-center">${p.qty}</td><td class="text-end">${formatCurrency(p.subtotal)}</td></tr>`
-        ).join('') : '<tr><td colspan="3" class="text-center text-muted">Tidak ada sparepart</td></tr>';
+            `<tr>
+                <td>${p.name}</td>
+                <td class="text-center">${p.qty}</td>
+                <td class="text-end">${formatCurrency(p.subtotal)}</td>
+                <td class="text-end">
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-warning" onclick="service.editPart('${t._id}', '${p._id}')" title="Edit">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-outline-danger" onclick="service.deletePart('${t._id}', '${p._id}')" title="Hapus">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>`
+        ).join('') : '<tr><td colspan="4" class="text-center text-muted">Tidak ada sparepart</td></tr>';
         
         const html = `
             <div class="row g-4 mb-4">
@@ -1159,14 +1227,20 @@ class Service {
                 </div>
             </div>
 
-            <h6 class="fw-bold text-primary mb-3"><i class="bi bi-cart me-2"></i>RINCIAN BIAYA & SPAREPART</h6>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-bold text-primary mb-0"><i class="bi bi-cart me-2"></i>RINCIAN BIAYA & SPAREPART</h6>
+                <button class="btn btn-sm btn-primary" onclick="service.openAddPart('${t._id}')">
+                    <i class="bi bi-plus-lg me-1"></i> Tambah Part
+                </button>
+            </div>
             <div class="table-responsive rounded border">
                 <table class="table table-hover table-sm mb-0">
                     <thead class="table-light">
                         <tr>
                             <th>Nama Item / Sparepart</th>
                             <th class="text-center" width="80">Qty</th>
-                            <th class="text-end" width="150">Subtotal</th>
+                            <th class="text-end" width="120">Subtotal</th>
+                            <th class="text-end" width="100">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1175,11 +1249,11 @@ class Service {
                     <tfoot class="table-light">
                         <tr class="fw-bold">
                             <td colspan="2" class="text-end">Biaya Jasa</td>
-                            <td class="text-end">${formatCurrency(t.service_fee)}</td>
+                            <td class="text-end" colspan="2">${formatCurrency(t.service_fee)}</td>
                         </tr>
                         <tr class="table-primary fw-bold">
                             <td colspan="2" class="text-end fs-5 text-primary">GRAND TOTAL</td>
-                            <td class="text-end fs-5 text-primary">${formatCurrency(t.total_cost)}</td>
+                            <td class="text-end fs-5 text-primary" colspan="2">${formatCurrency(t.total_cost)}</td>
                         </tr>
                     </tfoot>
                 </table>
@@ -1489,11 +1563,32 @@ class Service {
                 bootstrap.Modal.getInstance(document.getElementById('addPartModal')).hide(); 
                 
                 // PENTING: Reload tiket agar data Detail terupdate
-                await this.loadTickets(); 
-            } catch(e){ showToast(e.message, 'error'); }
-        });
-        
-        document.getElementById('confirm-finish-btn').addEventListener('click', () => this.confirmFinish());
+                await this.loadTickets();
+                // Jika modal detail sedang terbuka, refresh isinya
+                if (document.getElementById('detailModal').classList.contains('show')) {
+                    this.openDetail(tId);
+                }
+                } catch(e){ showToast(e.message, 'error'); }
+
+                });
+
+                document.getElementById('update-part-btn').addEventListener('click', async () => {
+                const tId = document.getElementById('edit-part-ticket-id').value;
+                const pId = document.getElementById('edit-part-id').value;
+                const qty = document.getElementById('edit-part-quantity').value;
+                try {
+                await api.updatePartQuantity(tId, pId, qty);
+                showToast('Jumlah sparepart diperbarui');
+                bootstrap.Modal.getInstance(document.getElementById('editPartModal')).hide();
+                await this.loadTickets();
+                this.openDetail(tId);
+                } catch (e) {
+                showToast(e.message, 'error');
+                }
+                });
+
+                document.getElementById('confirm-finish-btn').addEventListener('click', () => this.confirmFinish());
+
     }
     
 }
