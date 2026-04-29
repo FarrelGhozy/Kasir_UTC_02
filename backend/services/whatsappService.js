@@ -98,7 +98,15 @@ class WhatsAppService {
 
       message += `*RINCIAN BIAYA:*\n`;
       message += `• Jasa Servis: ${currencyFormat.format(ticket.service_fee)}\n`;
-      if (partCost > 0) message += `• Sparepart: ${currencyFormat.format(partCost)}\n`;
+      
+      if (partCost > 0) {
+        message += `• Sparepart:\n`;
+        ticket.parts_used.forEach(p => {
+          message += `  - ${p.name} (x${p.qty}): ${currencyFormat.format(p.subtotal)}\n`;
+        });
+        message += `• Total Sparepart: ${currencyFormat.format(partCost)}\n`;
+      }
+      
       message += `--------------------------\n`;
       message += `*TOTAL AKHIR: ${currencyFormat.format(totalCost)}*\n\n`;
       message += `Silakan Kakak berkunjung kembali ke toko kami untuk pengambilan perangkat. Jangan lupa membawa nota ini ya!\n`;
