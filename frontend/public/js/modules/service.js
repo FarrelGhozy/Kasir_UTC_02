@@ -107,6 +107,24 @@ class Service {
         this.items = [];
         this.mainPatternLock = null;
         this.editPatternLock = null;
+        this._modals = {};
+    }
+
+    getOrCreateModal(id) {
+        if (!this._modals[id]) {
+            this._modals[id] = new bootstrap.Modal(document.getElementById(id));
+            
+            // Cleanup backdrop on hide to prevent stuck overlays
+            document.getElementById(id).addEventListener('hidden.bs.modal', () => {
+                const backdrops = document.querySelectorAll('.modal-backdrop');
+                if (backdrops.length > 0) {
+                    backdrops.forEach(b => b.remove());
+                    document.body.classList.remove('modal-open');
+                    document.body.style.paddingRight = '';
+                }
+            });
+        }
+        return this._modals[id];
     }
 
     async render() {
@@ -1026,7 +1044,7 @@ class Service {
             this.openAddPart(t._id);
         };
         
-        new bootstrap.Modal(document.getElementById('editTicketModal')).show();
+        this.getOrCreateModal('editTicketModal').show();
     }
 
     async saveEdit() {
@@ -1070,7 +1088,7 @@ class Service {
         try {
             await api.updateTicketDetails(id, formData);
             showToast('Data tiket berhasil diperbarui', 'success');
-            bootstrap.Modal.getInstance(document.getElementById('editTicketModal')).hide();
+            this.getOrCreateModal('editTicketModal').hide();
             await this.loadTickets();
         } catch(e) { 
             showToast(e.message, 'error'); 
@@ -1081,14 +1099,10 @@ class Service {
     openAddPart(id) {
         console.log('Opening Add Part for ticket:', id);
         // Sesuai permintaan: tutup modal detail jika sedang terbuka
-        const detailM = document.getElementById('detailModal');
-        if (detailM && detailM.classList.contains('show')) {
-            const m = bootstrap.Modal.getInstance(detailM);
-            if (m) m.hide();
-        }
+        this.getOrCreateModal('detailModal').hide();
         
         document.getElementById('part-ticket-id').value = id;
-        new bootstrap.Modal(document.getElementById('addPartModal')).show();
+        this.getOrCreateModal('addPartModal').show();
     }
 
     async deletePart(ticketId, partId) {
@@ -1131,20 +1145,21 @@ class Service {
             updateGrandTotal();
         };
         updateGrandTotal();
-        new bootstrap.Modal(document.getElementById('finalizeModal')).show();
-    }
+        this.getOrCreateModal('finalizeModal').show();
+        }
 
-    async confirmFinish() {
+        async confirmFinish() {
         const id = document.getElementById('final-ticket-id').value;
         const finalFee = parseCurrencyValue(document.getElementById('final-service-fee').value);
         try {
             await api.updateServiceFee(id, finalFee);
             await api.updateTicketStatus(id, 'Completed');
             showToast('Servis Selesai!');
-            bootstrap.Modal.getInstance(document.getElementById('finalizeModal')).hide();
+            this.getOrCreateModal('finalizeModal').hide();
             await this.loadTickets();
             this.printInvoice(id);
-        } catch(e) { showToast(e.message, 'error'); }
+        } catch(e) {
+ showToast(e.message, 'error'); }
     }
 
     renderPatternVisualization(seqStr) {
@@ -1270,7 +1285,7 @@ class Service {
         `;
         document.getElementById('detail-content').innerHTML = html;
         document.getElementById('print-copy-btn').onclick = () => this.printInvoice(id);
-        new bootstrap.Modal(document.getElementById('detailModal')).show();
+        this.getOrCreateModal('detailModal').show();
     }
 
     printInvoice(id) {
@@ -1544,7 +1559,7 @@ class Service {
 
         document.getElementById('view-logs-btn').addEventListener('click', () => {
             this.loadLogs();
-            new bootstrap.Modal(document.getElementById('logsModal')).show();
+            this.getOrCreateModal('logsModal').show();
         });
 
         // Auto-expand textarea logic
@@ -1561,7 +1576,6 @@ class Service {
         // Listener Pencarian
         document.getElementById('search-customer').addEventListener('input', () => this.renderTicketList());
 
-        // --- PERBAIKAN: Refresh data otomatis setelah tambah part ---
         document.getElementById('save-part-btn').addEventListener('click', async () => {
             const tId = document.getElementById('part-ticket-id').value;
             const iId = document.getElementById('part-item-select').value;
@@ -1569,7 +1583,7 @@ class Service {
             try { 
                 await api.addPartToService(tId, iId, qty); 
                 showToast('Part ditambahkan'); 
-                bootstrap.Modal.getInstance(document.getElementById('addPartModal')).hide(); 
+                this.getOrCreateModal('addPartModal').hide(); 
                 
                 // PENTING: Reload tiket agar data Detail terupdate
                 await this.loadTickets();
