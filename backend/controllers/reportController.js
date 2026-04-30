@@ -4,31 +4,67 @@ const ServiceTicket = require('../models/ServiceTicket');
 const Item = require('../models/Item');
 
 /**
- * @desc    Ambil rekapitulasi penuh untuk backup/laporan lengkap
+ * @desc    Ambil rekapitulasi penuh untuk backup/laporan lengkap (dengan filter rentang)
  * @route   GET /api/reports/full-recap
  * @access  Private (Admin)
  */
 exports.getFullRecap = async (req, res, next) => {
   try {
-    // 1. Ambil semua data inventaris
+    const { range = 'all' } = req.query;
+    let dateFilter = {};
+    let dateFilterSvc = {};
+
+    if (range === '30days') {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      thirtyDaysAgo.setHours(0, 0, 0, 0);
+      
+      dateFilter = { date: { $gte: thirtyDaysAgo } };
+      dateFilterSvc = { 'timestamps.picked_up_at': { $gte: thirtyDaysAgo } };
+    }
+
+    // 1. Ambil semua data inventaris (selalu semua data untuk stok saat ini)
     const inventory = await Item.find({ isActive: true }).sort({ category: 1, name: 1 });
 
-    // 2. Ambil semua tiket servis (lengkap)
-    const services = await ServiceTicket.find().sort({ 'timestamps.created_at': -1 });
+    // 2. Ambil tiket servis sesuai filter
+    const serviceMatch = { status: 'Picked_Up', ...dateFilterSvc };
+    const services = await ServiceTicket.find(serviceMatch).sort({ 'timestamps.picked_up_at': -1 });
 
-    // 3. Ambil semua transaksi ritel
-    const transactions = await Transaction.find().sort({ date: -1 });
+    // 3. Ambil transaksi ritel sesuai filter
+    const transactions = await Transaction.find(dateFilter).sort({ date: -1 });
 
     // 4. Hitung ringkasan statistik
     const totalInventoryValue = inventory.reduce((sum, item) => sum + (item.stock * item.purchase_price), 0);
-    const totalServiceRevenue = services
-      .filter(s => s.status === 'Picked_Up')
-      .reduce((sum, s) => sum + s.total_cost, 0);
+    const totalServiceRevenue = services.reduce((sum, s) => sum + s.total_cost, 0);
     const totalRetailRevenue = transactions.reduce((sum, t) => sum + t.grand_total, 0);
+
+    // 5. Ambil data untuk grafik (tren pendapatan)
+    const startRange = range === '30days' ? new Date(new Date().setDate(new Date().getDate() - 30)) : null;
+    
+    const serviceTrends = await ServiceTicket.aggregate([
+      { $match: serviceMatch },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$timestamps.picked_up_at" } },
+          amount: { $sum: "$total_cost" }
+        }
+      }
+    ]);
+
+    const retailTrends = await Transaction.aggregate([
+      { $match: dateFilter },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$date" } },
+          amount: { $sum: "$grand_total" }
+        }
+      }
+    ]);
 
     res.status(200).json({
       success: true,
       timestamp: new Date(),
+      range,
       data: {
         summary: {
           inventory_items: inventory.length,
@@ -38,6 +74,10 @@ exports.getFullRecap = async (req, res, next) => {
           total_retail_transactions: transactions.length,
           total_retail_revenue: totalRetailRevenue,
           grand_total_revenue: totalServiceRevenue + totalRetailRevenue
+        },
+        trends: {
+          services: serviceTrends,
+          retail: retailTrends
         },
         inventory,
         services,
