@@ -26,7 +26,8 @@ class Order {
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label small fw-bold">Nomor Telepon *</label>
-                                    <input type="tel" class="form-control" id="order-customer-phone" required>
+                                    <input type="tel" class="form-control" id="order-customer-phone" required placeholder="08xxxxxxxx">
+                                    <div id="order-wa-validation-msg" class="small mt-1 d-none"></div>
                                 </div>
 
                                 <h6 class="border-bottom pb-2 mb-3 mt-4 fw-bold text-secondary">Detail Barang</h6>
@@ -355,6 +356,44 @@ class Order {
         new bootstrap.Modal(document.getElementById('editOrderModal')).show();
     }
 
+    async validateWA(phone) {
+        const msgEl = document.getElementById('order-wa-validation-msg');
+        const submitBtn = document.querySelector('#order-form button[type="submit"]');
+        
+        if (!phone || phone.length < 9) {
+            if (msgEl) msgEl.classList.add('d-none');
+            if (submitBtn) submitBtn.disabled = false;
+            return;
+        }
+
+        if (msgEl) {
+            msgEl.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Mengecek WhatsApp...';
+            msgEl.className = 'small mt-1 text-muted';
+            msgEl.classList.remove('d-none');
+        }
+
+        try {
+            const res = await api.checkWA(phone);
+            if (res.exists) {
+                if (msgEl) {
+                    msgEl.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>Terdaftar di WhatsApp';
+                    msgEl.className = 'small mt-1 text-success';
+                }
+                if (submitBtn) submitBtn.disabled = false;
+            } else {
+                if (msgEl) {
+                    msgEl.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i>Nomor tidak terdaftar di WhatsApp';
+                    msgEl.className = 'small mt-1 text-danger';
+                }
+                if (submitBtn) submitBtn.disabled = true;
+                showToast('Nomor tidak terdaftar di WhatsApp', 'warning');
+            }
+        } catch (error) {
+            console.error('WA Validation error:', error);
+            if (msgEl) msgEl.classList.add('d-none');
+        }
+    }
+
     setupEventListeners() {
         document.getElementById('order-form').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -375,6 +414,10 @@ class Order {
                 document.getElementById('order-form').reset();
                 this.loadOrders();
             } catch (e) { showToast(e.message, 'error'); }
+        });
+
+        document.getElementById('order-customer-phone').addEventListener('blur', (e) => {
+            this.validateWA(e.target.value);
         });
 
         document.getElementById('save-edit-order-btn').addEventListener('click', async () => {

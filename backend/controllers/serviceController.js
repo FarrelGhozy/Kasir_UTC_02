@@ -192,11 +192,19 @@ exports.getTicketById = async (req, res, next) => {
  */
 exports.updateStatus = async (req, res, next) => {
   try {
-    const { status } = req.body;
+    const { status, payment_method } = req.body;
     const ticket = await ServiceTicket.findById(req.params.id);
     if (!ticket) return res.status(404).json({ success: false, message: 'Tiket servis tidak ditemukan' });
 
-    await ticket.updateStatus(status);
+    let paymentProof = null;
+    if (req.file) {
+      const host = req.get('host');
+      const protocol = req.protocol;
+      const baseURL = `${protocol}://${host}`;
+      paymentProof = `${baseURL}/backend/uploads/services/${req.file.filename}`;
+    }
+
+    await ticket.updateStatus(status, payment_method, paymentProof);
 
     // LOGIKA BARU: Jika status Completed, kirim email nota
     if (status === 'Completed') {
@@ -208,12 +216,6 @@ exports.updateStatus = async (req, res, next) => {
           details: { ticket_id: ticket._id, error: err.message }
         });
       });
-    }
-
-    // LOGIKA BARU: Jika status Picked_Up, set garansi 14 hari
-    if (status === 'Picked_Up') {
-      ticket.warranty_expires_at = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
-      await ticket.save();
     }
 
     // Kirim notifikasi WA
@@ -293,6 +295,44 @@ exports.addPartToService = async (req, res, next) => {
     }
 
     res.status(200).json({ success: true, message: 'Part ditambahkan', data: ticket });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Hapus part dari tiket servis & kembalikan stok
+ */
+exports.removePartFromService = async (req, res, next) => {
+  try {
+    const { id, part_id } = req.params;
+
+    const ticket = await ServiceTicket.findById(id);
+    if (!ticket) {
+      return res.status(404).json({ success: false, message: 'Tiket servis tidak ditemukan' });
+    }
+
+    if (['Picked_Up'].includes(ticket.status)) {
+      return res.status(400).json({ success: false, message: 'Tidak dapat menghapus part dari tiket yang sudah diambil' });
+    }
+
+    const part = ticket.parts_used.id(part_id);
+    if (!part) {
+      return res.status(404).json({ success: false, message: 'Part tidak ditemukan di tiket ini' });
+    }
+
+    // Kembalikan Stok
+    const item = await Item.findById(part.item_id);
+    if (item) {
+      item.stock += part.qty;
+      await item.save();
+    }
+
+    // Hapus dari array subdocument menggunakan pull
+    ticket.parts_used.pull(part_id);
+    await ticket.save();
+
+    res.status(200).json({ success: true, message: 'Part dihapus dan stok dikembalikan', data: ticket });
   } catch (error) {
     next(error);
   }

@@ -47,8 +47,37 @@ class Reports {
                         </div>
                 </div>
             </div>
+
+            <!-- Modal Pilih Rentang Rekap -->
+            <div class="modal fade" id="recapRangeModal" tabindex="-1">
+                <div class="modal-dialog modal-sm modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title fw-bold">Pilih Rentang Data</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body p-4">
+                            <div class="d-grid gap-3">
+                                <button class="btn btn-outline-primary py-3 fw-bold" onclick="reportsModule.processFullRecap('30days')">
+                                    <i class="bi bi-calendar3 me-2"></i>1 Bulan Terakhir
+                                </button>
+                                <button class="btn btn-outline-dark py-3 fw-bold" onclick="reportsModule.processFullRecap('all')">
+                                    <i class="bi bi-infinity me-2"></i>Semua Data
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hidden canvas for chart generation -->
+            <div style="position: absolute; left: -9999px;">
+                <canvas id="hiddenPieChart" width="400" height="400"></canvas>
+                <canvas id="hiddenLineChart" width="800" height="400"></canvas>
+            </div>
         `;
 
+        window.reportsModule = this;
         this.setupEventListeners();
         this.loadReport('daily');
     }
@@ -432,193 +461,272 @@ class Reports {
         }
     }
 
-    async downloadFullRecap() {
+    downloadFullRecap() {
+        const modal = new bootstrap.Modal(document.getElementById('recapRangeModal'));
+        modal.show();
+    }
+
+    async processFullRecap(range) {
+        const modalEl = document.getElementById('recapRangeModal');
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
+
         const btn = document.getElementById('download-full-recap-btn');
         const originalContent = btn.innerHTML;
         btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Menyiapkan Rekap...';
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Menghasilkan PDF...';
 
         try {
-            const response = await api.get('/reports/full-recap');
+            const response = await api.get(`/reports/full-recap?range=${range}`);
             const data = response.data;
-            const now = new Date();
-            const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');
-            const fileName = `RekapanUTC_${dateStr}`;
-
-            const iframe = document.createElement('iframe');
-            iframe.style.display = 'none';
-            document.body.appendChild(iframe);
-            const doc = iframe.contentWindow.document;
+            const adminName = auth.getUser()?.name || 'Administrator';
             
-            doc.open();
-            doc.write(`
-                <html>
-                <head>
-                    <title>${fileName}</title>
-                    <style>
-                        body { font-family: Arial, sans-serif; padding: 20px; color: #333; }
-                        .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; }
-                        .section { margin-bottom: 30px; page-break-inside: avoid; }
-                        .section-title { background: #f0f0f0; padding: 8px; font-weight: bold; border-left: 5px solid #007bff; margin-bottom: 10px; }
-                        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 10px; }
-                        th, td { border: 1px solid #ddd; padding: 6px; text-align: left; }
-                        th { background-color: #f8f9fa; font-weight: bold; }
-                        .text-right { text-align: right; }
-                        .summary-grid { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
-                        .summary-item { border: 1px solid #ddd; padding: 10px; border-radius: 5px; flex: 1; min-width: 150px; text-align: center; }
-                        .summary-item strong { display: block; font-size: 14px; margin-top: 5px; }
-                        .badge { padding: 2px 5px; border-radius: 3px; font-size: 9px; font-weight: bold; }
-                        .bg-success { background: #d4edda; color: #155724; }
-                        .bg-primary { background: #cce5ff; color: #004085; }
-                        .bg-warning { background: #fff3cd; color: #856404; }
-                        @media print {
-                            .no-print { display: none; }
-                        }
-                    </style>
-                </head>
-                <body>
-                    <div class="header">
-                        <h1>REKAPITULASI BENGKEL UTC</h1>
-                        <p>Laporan Backup Data Lengkap - Dicetak pada: ${formatDateTime(new Date())}</p>
-                    </div>
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('p', 'mm', 'a4');
+            const pageWidth = doc.internal.pageSize.getWidth();
+            
+            // 1. Header (KOP Laporan)
+            doc.setFillColor(13, 110, 253); // Primary color
+            doc.rect(0, 0, pageWidth, 40, 'F');
+            
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(22);
+            doc.setFont('helvetica', 'bold');
+            doc.text('BENGKEL UTC', 15, 18);
+            
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            doc.text('Sistem Manajemen Bengkel & Workshop Terpadu', 15, 25);
+            doc.text('Jl. Raya Unida No. 1, Ponorogo, Jawa Timur', 15, 30);
+            
+            doc.setFontSize(14);
+            const title = range === '30days' ? 'REKAPITULASI DATA (30 HARI TERAKHIR)' : 'REKAPITULASI SELURUH DATA';
+            doc.text(title, pageWidth - 15, 20, { align: 'right' });
+            
+            doc.setFontSize(9);
+            doc.text(`Dicetak oleh: ${adminName}`, pageWidth - 15, 28, { align: 'right' });
+            doc.text(`Tanggal Cetak: ${formatDateTime(new Date())}`, pageWidth - 15, 33, { align: 'right' });
 
-                    <div class="section">
-                        <div class="section-title">RINGKASAN WORKSHOP</div>
-                        <div class="summary-grid">
-                            <div class="summary-item">Items Inventaris<strong>${data.summary.inventory_items}</strong></div>
-                            <div class="summary-item">Nilai Inventaris<strong>${formatCurrency(data.summary.total_inventory_value)}</strong></div>
-                            <div class="summary-item">Total Servis<strong>${data.summary.total_service_tickets}</strong></div>
-                            <div class="summary-item">Pendapatan Servis<strong>${formatCurrency(data.summary.total_service_revenue)}</strong></div>
-                            <div class="summary-item">Transaksi Ritel<strong>${data.summary.total_retail_transactions}</strong></div>
-                            <div class="summary-item">Pendapatan Ritel<strong>${formatCurrency(data.summary.total_retail_revenue)}</strong></div>
-                            <div class="summary-item" style="border-color: #007bff; background: #e7f1ff;">
-                                <strong>TOTAL PENDAPATAN</strong>
-                                <strong style="font-size: 18px; color: #007bff;">${formatCurrency(data.summary.grand_total_revenue)}</strong>
-                            </div>
-                        </div>
-                    </div>
+            // 2. Executive Summary (Cards)
+            let y = 55;
+            doc.setTextColor(0, 0, 0);
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.text('RINGKASAN EKSEKUTIF', 15, y);
+            
+            y += 8;
+            const summaryItems = [
+                { label: 'Item Inventaris', value: data.summary.inventory_items, color: [240, 240, 240] },
+                { label: 'Nilai Stok (HPP)', value: formatCurrency(data.summary.total_inventory_value), color: [240, 240, 240] },
+                { label: 'Total Servis', value: data.summary.total_service_tickets, color: [240, 240, 240] },
+                { label: 'Pendapatan Servis', value: formatCurrency(data.summary.total_service_revenue), color: [255, 243, 205] },
+                { label: 'Pendapatan Ritel', value: formatCurrency(data.summary.total_retail_revenue), color: [209, 231, 221] }
+            ];
 
-                    <div class="section">
-                        <div class="section-title">DATA INVENTARIS (STOK GUDANG)</div>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>SKU</th>
-                                    <th>Nama Barang</th>
-                                    <th>Kategori</th>
-                                    <th>HPP</th>
-                                    <th>Harga Jual</th>
-                                    <th>Stok</th>
-                                    <th>Nilai Stok (HPP)</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${data.inventory.map(i => `
-                                    <tr>
-                                        <td>${i.sku}</td>
-                                        <td>${i.name}</td>
-                                        <td>${i.category}</td>
-                                        <td>${formatCurrency(i.purchase_price)}</td>
-                                        <td>${formatCurrency(i.selling_price)}</td>
-                                        <td>${i.stock}</td>
-                                        <td>${formatCurrency(i.stock * i.purchase_price)}</td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div class="section">
-                        <div class="section-title">DATA DETAIL SERVIS (PELANGGAN & WORKSHOP)</div>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Tiket</th>
-                                    <th>Tgl Masuk</th>
-                                    <th>Nama Pelanggan</th>
-                                    <th>No. HP</th>
-                                    <th>Perangkat</th>
-                                    <th>Keluhan</th>
-                                    <th>Teknisi</th>
-                                    <th>Status</th>
-                                    <th>Biaya Jasa</th>
-                                    <th>Total Biaya</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${data.services.map(s => `
-                                    <tr>
-                                        <td>${s.ticket_number}</td>
-                                        <td>${formatDateTime(s.timestamps.created_at)}</td>
-                                        <td>${s.customer.name} (${s.customer.type})</td>
-                                        <td>${s.customer.phone}</td>
-                                        <td>${s.device.type} ${s.device.brand || ''} ${s.device.model || ''}</td>
-                                        <td>${s.device.symptoms}</td>
-                                        <td>${s.technician.name}</td>
-                                        <td><span class="badge ${s.status === 'Completed' || s.status === 'Picked_Up' ? 'bg-success' : 'bg-warning'}">${s.status}</span></td>
-                                        <td>${formatCurrency(s.service_fee)}</td>
-                                        <td>${formatCurrency(s.total_cost)}</td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div class="section">
-                        <div class="section-title">DATA TRANSAKSI RITEL (POS)</div>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Invoice</th>
-                                    <th>Tanggal</th>
-                                    <th>Kasir</th>
-                                    <th>Barang</th>
-                                    <th>Metode</th>
-                                    <th>Total Akhir</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${data.transactions.map(t => `
-                                    <tr>
-                                        <td>${t.invoice_no}</td>
-                                        <td>${formatDateTime(t.date)}</td>
-                                        <td>${t.cashier_name}</td>
-                                        <td>${t.items.map(i => `${i.name} (x${i.qty})`).join(', ')}</td>
-                                        <td>${t.payment_method}</td>
-                                        <td class="text-right"><strong>${formatCurrency(t.grand_total)}</strong></td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div style="margin-top: 50px; text-align: right; font-style: italic; font-size: 10px;">
-                        Dicetak otomatis oleh Sistem Kasir Bengkel UTC - Administrator Access
-                    </div>
-                </body>
-                </html>
-            `);
-            doc.close();
-
-            // Beri waktu browser memproses render HTML
-            setTimeout(() => {
-                iframe.contentWindow.focus();
-                iframe.contentWindow.print();
+            let cardX = 15;
+            const cardWidth = (pageWidth - 40) / 3;
+            summaryItems.forEach((item, index) => {
+                if (index === 3) { cardX = 15; y += 25; }
                 
-                // Bersihkan
-                setTimeout(() => {
-                    document.body.removeChild(iframe);
-                    btn.disabled = false;
-                    btn.innerHTML = originalContent;
-                }, 1000);
-            }, 500);
+                doc.setFillColor(...item.color);
+                doc.roundedRect(cardX, y, cardWidth, 20, 2, 2, 'F');
+                doc.setDrawColor(200, 200, 200);
+                doc.roundedRect(cardX, y, cardWidth, 20, 2, 2, 'D');
+                
+                doc.setFontSize(8);
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(100, 100, 100);
+                doc.text(item.label, cardX + cardWidth/2, y + 7, { align: 'center' });
+                
+                doc.setFontSize(10);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(0, 0, 0);
+                doc.text(String(item.value), cardX + cardWidth/2, y + 14, { align: 'center' });
+                
+                cardX += cardWidth + 5;
+            });
+
+            // Total Akhir Box
+            y += 25;
+            doc.setFillColor(13, 110, 253);
+            doc.roundedRect(15, y, pageWidth - 30, 15, 2, 2, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(11);
+            doc.text('TOTAL PENDAPATAN BERSIH', 25, y + 9.5);
+            doc.setFontSize(14);
+            doc.text(formatCurrency(data.summary.grand_total_revenue), pageWidth - 25, y + 10, { align: 'right' });
+
+            // 3. Grafik Visualisasi
+            y += 30;
+            doc.setTextColor(0, 0, 0);
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.text('VISUALISASI DATA', 15, y);
+            
+            // Pie Chart Image
+            const pieChartData = {
+                labels: ['Servis', 'Ritel'],
+                datasets: [{
+                    data: [data.summary.total_service_revenue, data.summary.total_retail_revenue],
+                    backgroundColor: ['#ffc107', '#198754']
+                }]
+            };
+            const pieImg = await this.generateChartImage('hiddenPieChart', 'pie', pieChartData);
+            doc.addImage(pieImg, 'PNG', 15, y + 5, 60, 60);
+            
+            // Line Chart Image (Trend)
+            const sortedDates = [...new Set([
+                ...data.trends.services.map(t => t._id),
+                ...data.trends.retail.map(t => t._id)
+            ])].sort();
+            
+            const lineChartData = {
+                labels: sortedDates.map(d => formatDate(d)),
+                datasets: [
+                    {
+                        label: 'Servis',
+                        data: sortedDates.map(d => data.trends.services.find(t => t._id === d)?.amount || 0),
+                        borderColor: '#ffc107',
+                        fill: false
+                    },
+                    {
+                        label: 'Ritel',
+                        data: sortedDates.map(d => data.trends.retail.find(t => t._id === d)?.amount || 0),
+                        borderColor: '#198754',
+                        fill: false
+                    }
+                ]
+            };
+            const lineImg = await this.generateChartImage('hiddenLineChart', 'line', lineChartData);
+            doc.addImage(lineImg, 'PNG', 85, y + 10, 110, 50);
+            
+            doc.setFontSize(8);
+            doc.text('Proporsi Pendapatan', 45, y + 70, { align: 'center' });
+            doc.text('Tren Pendapatan Harian', 140, y + 70, { align: 'center' });
+
+            // 4. Detailed Tables
+            // Page 2: Inventory
+            doc.addPage();
+            doc.setFontSize(14);
+            doc.setFont('helvetica', 'bold');
+            doc.text('DATA INVENTARIS (STOK GUDANG)', 15, 20);
+            
+            doc.autoTable({
+                startY: 25,
+                head: [['SKU', 'Nama Barang', 'Kategori', 'Harga Jual', 'Stok', 'Nilai Stok']],
+                body: data.inventory.map(i => [
+                    i.sku,
+                    i.name,
+                    i.category,
+                    formatCurrency(i.selling_price),
+                    i.stock,
+                    formatCurrency(i.stock * i.purchase_price)
+                ]),
+                headStyles: { fillColor: [50, 50, 50] },
+                styles: { fontSize: 8 },
+                columnStyles: {
+                    3: { halign: 'right' },
+                    4: { halign: 'center' },
+                    5: { halign: 'right' }
+                }
+            });
+
+            // Page 3: Services
+            doc.addPage();
+            doc.text('DATA DETAIL SERVIS (WORKSHOP)', 15, 20);
+            doc.autoTable({
+                startY: 25,
+                head: [['Tiket', 'Tanggal', 'Pelanggan', 'Keluhan', 'Teknisi', 'Status', 'Total']],
+                body: data.services.map(s => [
+                    s.ticket_number,
+                    formatDate(s.timestamps.picked_up_at),
+                    s.customer.name,
+                    s.device.symptoms,
+                    s.technician.name,
+                    s.status,
+                    formatCurrency(s.total_cost)
+                ]),
+                headStyles: { fillColor: [255, 193, 7] },
+                styles: { fontSize: 7 },
+                columnStyles: { 6: { halign: 'right' } }
+            });
+
+            // Page 4: Transactions
+            doc.addPage();
+            doc.text('DATA TRANSAKSI RITEL (POS)', 15, 20);
+            doc.autoTable({
+                startY: 25,
+                head: [['Invoice', 'Tanggal', 'Kasir', 'Barang Terjual', 'Metode', 'Total']],
+                body: data.transactions.map(t => [
+                    t.invoice_no,
+                    formatDate(t.date),
+                    t.cashier_name,
+                    t.items.map(i => `${i.name} (x${i.qty})`).join(', '),
+                    t.payment_method,
+                    formatCurrency(t.grand_total)
+                ]),
+                headStyles: { fillColor: [25, 135, 84] },
+                styles: { fontSize: 7 },
+                columnStyles: { 5: { halign: 'right' } }
+            });
+
+            // Save PDF
+            const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
+            doc.save(`Laporan_Rekap_UTC_${range}_${dateStr}.pdf`);
+            showToast('PDF berhasil diunduh', 'success');
 
         } catch (error) {
-            console.error('Recap download error:', error);
-            alert('Gagal mengunduh rekap: ' + error.message);
+            console.error('PDF Generation Error:', error);
+            showToast('Gagal menghasilkan PDF: ' + error.message, 'error');
+        } finally {
             btn.disabled = false;
             btn.innerHTML = originalContent;
         }
+    }
+
+    async generateChartImage(canvasId, type, data) {
+        const canvas = document.getElementById(canvasId);
+        const ctx = canvas.getContext('2d');
+        
+        // Clear previous chart
+        const existingChart = Chart.getChart(canvas);
+        if (existingChart) existingChart.destroy();
+        
+        return new Promise((resolve) => {
+            new Chart(ctx, {
+                type: type,
+                data: data,
+                options: {
+                    responsive: false,
+                    animation: false,
+                    plugins: {
+                        legend: {
+                            display: type === 'pie',
+                            position: 'bottom',
+                            labels: { font: { size: 14 } }
+                        }
+                    },
+                    scales: type === 'line' ? {
+                        y: { beginAtZero: true }
+                    } : {}
+                },
+                plugins: [{
+                    id: 'background-white',
+                    beforeDraw: (chart) => {
+                        const { ctx } = chart;
+                        ctx.save();
+                        ctx.fillStyle = 'white';
+                        ctx.fillRect(0, 0, chart.width, chart.height);
+                        ctx.restore();
+                    }
+                }]
+            });
+            
+            // Give it a tiny bit of time to ensure draw is complete
+            setTimeout(() => {
+                resolve(canvas.toDataURL('image/png', 1.0));
+            }, 100);
+        });
     }
 }
 

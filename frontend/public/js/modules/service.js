@@ -107,6 +107,24 @@ class Service {
         this.items = [];
         this.mainPatternLock = null;
         this.editPatternLock = null;
+        this._modals = {};
+    }
+
+    getOrCreateModal(id) {
+        if (!this._modals[id]) {
+            this._modals[id] = new bootstrap.Modal(document.getElementById(id));
+            
+            // Cleanup backdrop on hide to prevent stuck overlays
+            document.getElementById(id).addEventListener('hidden.bs.modal', () => {
+                const backdrops = document.querySelectorAll('.modal-backdrop');
+                if (backdrops.length > 0) {
+                    backdrops.forEach(b => b.remove());
+                    document.body.classList.remove('modal-open');
+                    document.body.style.paddingRight = '';
+                }
+            });
+        }
+        return this._modals[id];
     }
 
     async render() {
@@ -419,6 +437,7 @@ class Service {
                                     <div class="col-md-6">
                                         <label class="form-label small fw-bold">No. Telepon (WhatsApp)</label>
                                         <input type="text" class="form-control" id="edit-customer-phone">
+                                        <div id="edit-wa-validation-msg" class="small mt-1 d-none"></div>
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label small fw-bold">Email (Untuk Nota)</label>
@@ -526,6 +545,28 @@ class Service {
                                         </div>
                                     </div>
                                 </div>
+                                
+                                <h6 class="border-bottom pb-2 mb-3 mt-4 fw-bold text-secondary">Manajemen Sparepart</h6>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="small text-muted">Daftar sparepart yang terpasang pada tiket ini:</span>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" id="edit-add-part-btn">
+                                        <i class="bi bi-plus-lg me-1"></i> Tambah Part
+                                    </button>
+                                </div>
+                                <div class="table-responsive border rounded bg-white">
+                                    <table class="table table-sm table-hover mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th class="ps-2">Item</th>
+                                                <th class="text-center" width="50">Qty</th>
+                                                <th class="text-end pe-2" width="100">Aksi</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="edit-parts-list">
+                                            <!-- List sparepart akan muncul di sini via JS -->
+                                        </tbody>
+                                    </table>
+                                </div>
                             </form>
                         </div>
                         <div class="modal-footer">
@@ -595,6 +636,68 @@ class Service {
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
                             <button type="button" class="btn btn-success fw-bold" id="confirm-finish-btn">
                                 <i class="bi bi-printer me-2"></i>Simpan & Cetak Nota
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal fade" id="paymentModal" tabindex="-1" data-bs-backdrop="static">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header bg-primary text-white">
+                            <h5 class="modal-title"><i class="bi bi-cash-stack me-2"></i>Penyelesaian Pembayaran</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <input type="hidden" id="payment-ticket-id">
+                            
+                            <div class="alert alert-info mb-4">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span>Total yang harus dibayar:</span>
+                                    <h4 class="mb-0 fw-bold" id="payment-grand-total">Rp 0</h4>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Metode Pembayaran</label>
+                                <div class="row g-2">
+                                    <div class="col-4">
+                                        <input type="radio" class="btn-check" name="payment-method" id="pay-cash" value="Cash" checked>
+                                        <label class="btn btn-outline-primary w-100 py-3" for="pay-cash">
+                                            <i class="bi bi-wallet2 d-block mb-1 fs-4"></i> Cash
+                                        </label>
+                                    </div>
+                                    <div class="col-4">
+                                        <input type="radio" class="btn-check" name="payment-method" id="pay-qris" value="QRIS">
+                                        <label class="btn btn-outline-primary w-100 py-3" for="pay-qris">
+                                            <i class="bi bi-qr-code-scan d-block mb-1 fs-4"></i> QRIS
+                                        </label>
+                                    </div>
+                                    <div class="col-4">
+                                        <input type="radio" class="btn-check" name="payment-method" id="pay-transfer" value="Transfer">
+                                        <label class="btn btn-outline-primary w-100 py-3" for="pay-transfer">
+                                            <i class="bi bi-bank d-block mb-1 fs-4"></i> Transfer
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Bukti Pembayaran (Opsional)</label>
+                                <div class="photo-upload-box w-100" style="height: 150px;" onclick="this.querySelector('input').click()">
+                                    <i class="bi bi-camera fs-1"></i>
+                                    <span>Klik untuk Unggah / Ambil Foto</span>
+                                    <input type="file" class="d-none" id="payment-proof-input" accept="image/*" onchange="service.handlePaymentProofPreview(this)">
+                                    <img id="payment-proof-preview" class="d-none">
+                                    <button type="button" class="remove-photo" onclick="event.stopPropagation(); service.removePaymentProof(this)"><i class="bi bi-x"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                            <button type="button" class="btn btn-primary fw-bold" id="confirm-payment-btn">
+                                <i class="bi bi-check-circle me-2"></i>Selesaikan & Ambil Barang
                             </button>
                         </div>
                     </div>
@@ -834,6 +937,26 @@ class Service {
 
                         ${statusSelect}
 
+                        ${t.status === 'Picked_Up' ? `
+                            <div class="p-2 bg-light rounded border mt-2">
+                                <div class="row align-items-center">
+                                    <div class="col-8">
+                                        <small class="text-secondary fw-bold d-block" style="font-size:0.65rem">PEMBAYARAN</small>
+                                        <div class="fw-bold text-success">
+                                            <i class="bi bi-check-circle-fill me-1"></i>${t.payment_method || 'Lunas'}
+                                        </div>
+                                    </div>
+                                    <div class="col-4 text-end">
+                                        ${t.payment_proof ? `
+                                            <img src="${t.payment_proof}" class="rounded border shadow-sm" style="width: 40px; height: 40px; object-fit: cover; cursor: pointer;" onclick="window.open('${t.payment_proof}', '_blank')" title="Lihat Bukti Bayar">
+                                        ` : `
+                                            <div class="text-muted" style="font-size:0.6rem">No Proof</div>
+                                        `}
+                                    </div>
+                                </div>
+                            </div>
+                        ` : ''}
+
                         <div class="d-flex gap-2 mt-3 pt-2 border-top justify-content-end">
                             <button class="btn btn-sm btn-outline-secondary" onclick="service.openDetail('${t._id}')" title="Detail">
                                 <i class="bi bi-eye"></i>
@@ -897,8 +1020,8 @@ class Service {
     }
 
     async updateStatus(id, newStatus) {
-        if (newStatus === 'Picked_Up' && !confirm('Pastikan barang sudah diterima pelanggan & pembayaran lunas. Lanjutkan?')) {
-            this.loadTickets(); 
+        if (newStatus === 'Picked_Up') {
+            this.openPayment(id);
             return;
         }
         try {
@@ -908,6 +1031,70 @@ class Service {
         } catch (e) {
             showToast(e.message, 'error');
             this.loadTickets();
+        }
+    }
+
+    openPayment(id) {
+        const t = this.tickets.find(x => x._id === id);
+        if (!t) return;
+
+        document.getElementById('payment-ticket-id').value = id;
+        document.getElementById('payment-grand-total').textContent = formatCurrency(t.total_cost);
+        
+        // Reset form
+        document.getElementById('pay-cash').checked = true;
+        this.removePaymentProof(document.querySelector('#paymentModal .remove-photo'));
+        
+        this.getOrCreateModal('paymentModal').show();
+    }
+
+    handlePaymentProofPreview(input) {
+        const box = input.closest('.photo-upload-box');
+        const img = box.querySelector('img');
+        const file = input.files[0];
+        
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                img.src = e.target.result;
+                img.classList.remove('d-none');
+                box.classList.add('has-image');
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    removePaymentProof(btn) {
+        const box = btn.closest('.photo-upload-box');
+        const input = box.querySelector('input');
+        const img = box.querySelector('img');
+        
+        input.value = '';
+        img.src = '';
+        img.classList.add('d-none');
+        box.classList.remove('has-image');
+    }
+
+    async confirmPayment() {
+        const id = document.getElementById('payment-ticket-id').value;
+        const method = document.querySelector('input[name="payment-method"]:checked').value;
+        const proofFile = document.getElementById('payment-proof-input').files[0];
+
+        const formData = new FormData();
+        formData.append('status', 'Picked_Up');
+        formData.append('payment_method', method);
+        if (proofFile) {
+            const compressed = await this.compressImage(proofFile);
+            formData.append('payment_proof', compressed);
+        }
+
+        try {
+            await api.updateTicketStatus(id, formData);
+            showToast('Pembayaran selesai & Barang diambil');
+            this.getOrCreateModal('paymentModal').hide();
+            await this.loadTickets();
+        } catch (e) {
+            showToast(e.message, 'error');
         }
     }
 
@@ -976,8 +1163,44 @@ class Service {
         }
         this.editPatternLock.init();
         this.editPatternLock.setSequence(t.device.pattern || '');
+
+        // Clear previous validation msg
+        const valMsg = document.getElementById('edit-wa-validation-msg');
+        if (valMsg) valMsg.classList.add('d-none');
         
-        new bootstrap.Modal(document.getElementById('editTicketModal')).show();
+        // Setup blur listener for edit phone
+        document.getElementById('edit-customer-phone').onblur = (e) => {
+            this.validateWA(e.target.value, 'edit-wa-validation-msg', 'save-edit-btn');
+        };
+
+        // Populate Parts List for Edit
+        const partsListContainer = document.getElementById('edit-parts-list');
+        if (t.parts_used && t.parts_used.length > 0) {
+            partsListContainer.innerHTML = t.parts_used.map(p => `
+                <tr>
+                    <td class="ps-2">${p.name}</td>
+                    <td class="text-center">${p.qty}</td>
+                    <td class="text-end pe-2">
+                        <button type="button" class="btn btn-sm btn-outline-danger py-0 px-1" onclick="service.deletePart('${t._id}', '${p._id}')">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        } else {
+            partsListContainer.innerHTML = '<tr><td colspan="3" class="text-center text-muted small py-2">Belum ada sparepart terpasang</td></tr>';
+        }
+
+        // Add Part button in Edit context
+        document.getElementById('edit-add-part-btn').onclick = () => {
+            // Kita sembunyikan modal edit sebentar agar modal tambah part terlihat jelas
+            // atau bisa juga biarkan bertumpuk (Bootstrap 5 mendukung tumpukan)
+            // Sesuai permintaan user: "popup detail ini menghilang (close atau tetap di belakang)"
+            // Kita gunakan pendekatan tetap di belakang tapi pastikan modal baru di depan.
+            this.openAddPart(t._id);
+        };
+        
+        this.getOrCreateModal('editTicketModal').show();
     }
 
     async saveEdit() {
@@ -1021,7 +1244,7 @@ class Service {
         try {
             await api.updateTicketDetails(id, formData);
             showToast('Data tiket berhasil diperbarui', 'success');
-            bootstrap.Modal.getInstance(document.getElementById('editTicketModal')).hide();
+            this.getOrCreateModal('editTicketModal').hide();
             await this.loadTickets();
         } catch(e) { 
             showToast(e.message, 'error'); 
@@ -1030,11 +1253,36 @@ class Service {
 
 
     openAddPart(id) {
+        console.log('Opening Add Part for ticket:', id);
+        // Sesuai permintaan: tutup modal detail jika sedang terbuka
+        this.getOrCreateModal('detailModal').hide();
+        
         document.getElementById('part-ticket-id').value = id;
-        new bootstrap.Modal(document.getElementById('addPartModal')).show();
+        this.getOrCreateModal('addPartModal').show();
+    }
+
+    async deletePart(ticketId, partId) {
+        if (!confirm('Apakah Anda yakin ingin menghapus sparepart ini? Stok akan dikembalikan ke gudang.')) return;
+        try {
+            await api.removePartFromService(ticketId, partId);
+            showToast('Sparepart berhasil dihapus');
+            
+            // Reload data
+            await this.loadTickets();
+            
+            // Refresh modal yang sedang terbuka
+            if (document.getElementById('editTicketModal').classList.contains('show')) {
+                this.openEdit(ticketId);
+            } else if (document.getElementById('detailModal').classList.contains('show')) {
+                this.openDetail(ticketId);
+            }
+        } catch (e) {
+            showToast(e.message, 'error');
+        }
     }
 
     openFinalize(id) {
+        console.log('Opening Finalize for ticket:', id);
         const t = this.tickets.find(x => x._id === id);
         if(!t) return;
         document.getElementById('final-ticket-id').value = id;
@@ -1053,20 +1301,21 @@ class Service {
             updateGrandTotal();
         };
         updateGrandTotal();
-        new bootstrap.Modal(document.getElementById('finalizeModal')).show();
-    }
+        this.getOrCreateModal('finalizeModal').show();
+        }
 
-    async confirmFinish() {
+        async confirmFinish() {
         const id = document.getElementById('final-ticket-id').value;
         const finalFee = parseCurrencyValue(document.getElementById('final-service-fee').value);
         try {
             await api.updateServiceFee(id, finalFee);
             await api.updateTicketStatus(id, 'Completed');
             showToast('Servis Selesai!');
-            bootstrap.Modal.getInstance(document.getElementById('finalizeModal')).hide();
+            this.getOrCreateModal('finalizeModal').hide();
             await this.loadTickets();
             this.printInvoice(id);
-        } catch(e) { showToast(e.message, 'error'); }
+        } catch(e) {
+ showToast(e.message, 'error'); }
     }
 
     renderPatternVisualization(seqStr) {
@@ -1083,12 +1332,57 @@ class Service {
         `;
     }
 
+    async validateWA(phone, targetMsgId = 'wa-validation-msg', submitBtnId = 'save-ticket-btn') {
+        const msgEl = document.getElementById(targetMsgId);
+        const submitBtn = document.getElementById(submitBtnId);
+        
+        if (!phone || phone.length < 9) {
+            if (msgEl) {
+                msgEl.classList.add('d-none');
+            }
+            if (submitBtn) submitBtn.disabled = false;
+            return;
+        }
+
+        if (msgEl) {
+            msgEl.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Mengecek WhatsApp...';
+            msgEl.className = 'small mt-1 text-muted';
+            msgEl.classList.remove('d-none');
+        }
+
+        try {
+            const res = await api.checkWA(phone);
+            if (res.exists) {
+                if (msgEl) {
+                    msgEl.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>Terdaftar di WhatsApp';
+                    msgEl.className = 'small mt-1 text-success';
+                }
+                if (submitBtn) submitBtn.disabled = false;
+            } else {
+                if (msgEl) {
+                    msgEl.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i>Nomor tidak terdaftar di WhatsApp';
+                    msgEl.className = 'small mt-1 text-danger';
+                }
+                if (submitBtn) submitBtn.disabled = true;
+                showToast('Nomor tidak terdaftar di WhatsApp', 'warning');
+            }
+        } catch (error) {
+            console.error('WA Validation error:', error);
+            if (msgEl) msgEl.classList.add('d-none');
+        }
+    }
+
     openDetail(id) {
+        console.log('Opening Detail for ticket:', id);
         const t = this.tickets.find(x => x._id === id);
         if(!t) return;
 
         const partList = t.parts_used.length ? t.parts_used.map(p => 
-            `<tr><td>${p.name}</td><td class="text-center">${p.qty}</td><td class="text-end">${formatCurrency(p.subtotal)}</td></tr>`
+            `<tr>
+                <td>${p.name}</td>
+                <td class="text-center">${p.qty}</td>
+                <td class="text-end">${formatCurrency(p.subtotal)}</td>
+            </tr>`
         ).join('') : '<tr><td colspan="3" class="text-center text-muted">Tidak ada sparepart</td></tr>';
         
         const html = `
@@ -1187,7 +1481,7 @@ class Service {
         `;
         document.getElementById('detail-content').innerHTML = html;
         document.getElementById('print-copy-btn').onclick = () => this.printInvoice(id);
-        new bootstrap.Modal(document.getElementById('detailModal')).show();
+        this.getOrCreateModal('detailModal').show();
     }
 
     printInvoice(id) {
@@ -1461,7 +1755,7 @@ class Service {
 
         document.getElementById('view-logs-btn').addEventListener('click', () => {
             this.loadLogs();
-            new bootstrap.Modal(document.getElementById('logsModal')).show();
+            this.getOrCreateModal('logsModal').show();
         });
 
         // Auto-expand textarea logic
@@ -1478,7 +1772,6 @@ class Service {
         // Listener Pencarian
         document.getElementById('search-customer').addEventListener('input', () => this.renderTicketList());
 
-        // --- PERBAIKAN: Refresh data otomatis setelah tambah part ---
         document.getElementById('save-part-btn').addEventListener('click', async () => {
             const tId = document.getElementById('part-ticket-id').value;
             const iId = document.getElementById('part-item-select').value;
@@ -1486,16 +1779,26 @@ class Service {
             try { 
                 await api.addPartToService(tId, iId, qty); 
                 showToast('Part ditambahkan'); 
-                bootstrap.Modal.getInstance(document.getElementById('addPartModal')).hide(); 
+                this.getOrCreateModal('addPartModal').hide(); 
                 
                 // PENTING: Reload tiket agar data Detail terupdate
-                await this.loadTickets(); 
-            } catch(e){ showToast(e.message, 'error'); }
+                await this.loadTickets();
+
+                // Refresh modal yang sedang terbuka
+                if (document.getElementById('editTicketModal').classList.contains('show')) {
+                    this.openEdit(tId);
+                } else if (document.getElementById('detailModal').classList.contains('show')) {
+                    this.openDetail(tId);
+                }
+            } catch(e){ 
+                showToast(e.message, 'error'); 
+            }
         });
-        
+
         document.getElementById('confirm-finish-btn').addEventListener('click', () => this.confirmFinish());
+
+        document.getElementById('confirm-payment-btn').addEventListener('click', () => this.confirmPayment());
     }
-    
 }
 
 window.service = new Service();

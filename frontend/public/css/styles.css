@@ -581,6 +581,14 @@ body {
     border-radius: 15px;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
 }
+
+/* Ensure Add Part modal is on top of Edit modal */
+#addPartModal {
+    z-index: 1060 !important;
+}
+#addPartModal + .modal-backdrop {
+    z-index: 1055 !important;
+}
 /* Pattern Lock UI */
 .pattern-lock-container {
     display: flex !important;
