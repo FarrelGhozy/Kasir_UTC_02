@@ -10,6 +10,8 @@ const transactionController = require('../controllers/transactionController');
 const reportController = require('../controllers/reportController');
 const orderController = require('../controllers/orderController');
 const adminController = require('../controllers/adminController');
+const backupController = require('../controllers/backupController');
+const waController = require('../controllers/waController');
 
 // Impor middleware
 const { protect, authorize } = require('../middleware/auth');
@@ -46,6 +48,7 @@ router.get('/inventory/:id', protect, inventoryController.getItemById);
 
 // Admin & Kasir dapat mengelola inventaris
 router.post('/inventory', protect, authorize('admin', 'kasir'), inventoryController.createItem);
+router.post('/inventory/import', protect, authorize('admin', 'kasir'), inventoryController.importItems);
 router.put('/inventory/:id', protect, authorize('admin', 'kasir'), inventoryController.updateItem);
 // Teknisi juga dapat menyesuaikan stok (misal: barang rusak/disesuaikan manual)
 router.patch('/inventory/:id/stock', protect, authorize('admin', 'kasir', 'teknisi'), inventoryController.adjustStock);
@@ -78,7 +81,7 @@ router.put('/services/:id', protect, authorize('teknisi', 'kasir', 'admin'), upl
   { name: 'right', maxCount: 1 }
 ]), serviceController.updateTicketDetails);
 
-router.patch('/services/:id/status', protect, authorize('teknisi', 'kasir', 'admin'), serviceController.updateStatus);
+router.patch('/services/:id/status', protect, authorize('teknisi', 'kasir', 'admin'), upload.single('payment_proof'), serviceController.updateStatus);
 router.post('/services/:id/parts', protect, authorize('teknisi', 'kasir', 'admin'), serviceController.addPartToService);
 router.delete('/services/:id/parts/:part_id', protect, authorize('teknisi', 'kasir', 'admin'), serviceController.removePartFromService);
 router.patch('/services/:id/service-fee', protect, authorize('teknisi', 'kasir', 'admin'), serviceController.updateServiceFee);
@@ -127,5 +130,13 @@ router.get('/admin/technicians', protect, authorize('admin'), adminController.ge
 router.post('/admin/technicians', protect, authorize('admin'), adminController.createTechnician);
 router.put('/admin/technicians/:id', protect, authorize('admin'), adminController.updateTechnician);
 router.delete('/admin/technicians/:id', protect, authorize('admin'), adminController.deleteTechnician);
+
+// --- Backup & Restore ---
+router.get('/admin/backup/export', protect, authorize('admin'), backupController.exportData);
+router.post('/admin/backup/import', protect, authorize('admin'), backupController.importData);
+
+// --- WhatsApp Helper ---
+router.get('/check-wa', protect, waController.checkWANumber);
+router.get('/waha-status', protect, waController.getWAHAStatus);
 
 module.exports = router;

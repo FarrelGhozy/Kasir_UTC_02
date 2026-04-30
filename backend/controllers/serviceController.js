@@ -192,11 +192,19 @@ exports.getTicketById = async (req, res, next) => {
  */
 exports.updateStatus = async (req, res, next) => {
   try {
-    const { status } = req.body;
+    const { status, payment_method } = req.body;
     const ticket = await ServiceTicket.findById(req.params.id);
     if (!ticket) return res.status(404).json({ success: false, message: 'Tiket servis tidak ditemukan' });
 
-    await ticket.updateStatus(status);
+    let paymentProof = null;
+    if (req.file) {
+      const host = req.get('host');
+      const protocol = req.protocol;
+      const baseURL = `${protocol}://${host}`;
+      paymentProof = `${baseURL}/backend/uploads/services/${req.file.filename}`;
+    }
+
+    await ticket.updateStatus(status, payment_method, paymentProof);
 
     // LOGIKA BARU: Jika status Completed, kirim email nota
     if (status === 'Completed') {
@@ -208,12 +216,6 @@ exports.updateStatus = async (req, res, next) => {
           details: { ticket_id: ticket._id, error: err.message }
         });
       });
-    }
-
-    // LOGIKA BARU: Jika status Picked_Up, set garansi 14 hari
-    if (status === 'Picked_Up') {
-      ticket.warranty_expires_at = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
-      await ticket.save();
     }
 
     // Kirim notifikasi WA

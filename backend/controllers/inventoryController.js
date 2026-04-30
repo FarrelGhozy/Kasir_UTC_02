@@ -272,3 +272,75 @@ exports.getItemsByCategory = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * @desc    Import barang dari data JSON (hasil parsing CSV di frontend)
+ * @route   POST /api/inventory/import
+ * @access  Private (Admin)
+ */
+exports.importItems = async (req, res, next) => {
+  try {
+    const { items } = req.body;
+    if (!items || !Array.isArray(items)) {
+      return res.status(400).json({ success: false, message: 'Data barang tidak valid' });
+    }
+
+    let addedCount = 0;
+    let updatedCount = 0;
+    let failedCount = 0;
+
+    for (const itemData of items) {
+      try {
+        const { sku, name, category, purchase_price, selling_price, stock, min_stock_alert } = itemData;
+
+        if (!sku || !name) {
+          failedCount++;
+          continue;
+        }
+
+        const existingItem = await Item.findOne({ sku });
+
+        if (existingItem) {
+          // Update
+          existingItem.name = name;
+          existingItem.category = category || existingItem.category;
+          existingItem.purchase_price = Number(purchase_price) || existingItem.purchase_price;
+          existingItem.selling_price = Number(selling_price) || existingItem.selling_price;
+          existingItem.stock = Number(stock) !== undefined ? Number(stock) : existingItem.stock;
+          existingItem.min_stock_alert = Number(min_stock_alert) || existingItem.min_stock_alert;
+          existingItem.isActive = true;
+
+          await existingItem.save();
+          updatedCount++;
+        } else {
+          // Insert
+          await Item.create({
+            sku,
+            name,
+            category: category || 'Other',
+            purchase_price: Number(purchase_price) || 0,
+            selling_price: Number(selling_price) || 0,
+            stock: Number(stock) || 0,
+            min_stock_alert: Number(min_stock_alert) || 5
+          });
+          addedCount++;
+        }
+      } catch (err) {
+        console.error(`Import error for SKU ${itemData.sku}:`, err);
+        failedCount++;
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Proses import selesai',
+      summary: {
+        added: addedCount,
+        updated: updatedCount,
+        failed: failedCount
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};

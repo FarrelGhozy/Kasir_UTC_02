@@ -103,8 +103,60 @@ class Auth {
         this.updateClock();
         setInterval(() => this.updateClock(), 1000);
 
+        // Cek status WAHA secara global
+        this.checkWAHAStatus();
+
         // Pemicu inisialisasi aplikasi (app.js akan menanganinya)
         window.dispatchEvent(new Event('app-ready'));
+    }
+
+    async checkWAHAStatus() {
+        try {
+            const res = await api.getWAHAStatus();
+            if (res.status !== 'CONNECTED') {
+                this.showWAHAAlert(res.status);
+            }
+        } catch (error) {
+            console.error('WAHA Status Check failed:', error);
+            this.showWAHAAlert('ERROR');
+        }
+    }
+
+    showWAHAAlert(status) {
+        // Cek apakah modal sudah ada, jika belum buat
+        let modalEl = document.getElementById('waha-alert-modal');
+        if (!modalEl) {
+            const modalHTML = `
+                <div class="modal fade" id="waha-alert-modal" tabindex="-1" data-bs-backdrop="static">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content border-danger border-4">
+                            <div class="modal-header bg-danger text-white">
+                                <h5 class="modal-title fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i>Peringatan Sistem</h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body text-center p-4">
+                                <i class="bi bi-whatsapp text-danger mb-3" style="font-size: 4rem;"></i>
+                                <h4 class="fw-bold">Layanan WhatsApp Terputus</h4>
+                                <p class="text-muted">
+                                    Layanan Bot WhatsApp (WAHA) saat ini tidak merespon/terputus (Status: <strong>${status}</strong>).
+                                </p>
+                                <div class="alert alert-warning small">
+                                    Fitur notifikasi otomatis pelanggan sedang lumpuh. Harap hubungi Administrator atau cek koneksi server.
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary w-100" data-bs-dismiss="modal">Saya Mengerti</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+            modalEl = document.getElementById('waha-alert-modal');
+        }
+        
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
     }
 
     updateNavigationByRole() {

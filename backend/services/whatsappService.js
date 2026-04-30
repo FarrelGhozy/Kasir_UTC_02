@@ -269,6 +269,26 @@ class WhatsAppService {
       return { exists: false, error: error.message };
     }
   }
+
+  /**
+   * Cek status session WAHA
+   */
+  async checkSessionStatus() {
+    try {
+      const url = `${this.baseURL}/api/sessions/${this.session}`;
+      const config = {
+        headers: { 'X-Api-Key': this.apiKey },
+        timeout: 5000
+      };
+
+      const response = await axios.get(url, config);
+      // Status WAHA: STARTING, SCAN_QR, WORKING, FAILED, STOPPED
+      return response.data;
+    } catch (error) {
+      console.error(`[WhatsApp] Gagal cek status session:`, error.message);
+      return { status: 'DISCONNECTED', error: error.message };
+    }
+  }
 }
 
 module.exports = new WhatsAppService();

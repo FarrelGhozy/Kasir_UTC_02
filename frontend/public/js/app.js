@@ -10,6 +10,7 @@ import Service from './modules/service.js?v=2';
 import Inventory from './modules/inventory.js';
 import Reports from './modules/reports.js';
 import Order from './modules/order.js';
+import Admin from './modules/admin.js';
 
 class App {
     constructor() {
@@ -21,7 +22,8 @@ class App {
             service: new Service(),
             inventory: new Inventory(),
             reports: new Reports(),
-            orders: new Order()
+            orders: new Order(),
+            admin: new Admin()
         };
 
         this.init();
@@ -85,7 +87,8 @@ class App {
             service: 'Servis (Workshop)',
             orders: 'Pesanan Barang',
             inventory: 'Gudang (Inventaris)',
-            reports: 'Laporan'
+            reports: 'Laporan',
+            admin: 'Pengaturan Sistem'
         };
 
         const pageTitle = document.getElementById('page-title');
