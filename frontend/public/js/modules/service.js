@@ -526,6 +526,28 @@ class Service {
                                         </div>
                                     </div>
                                 </div>
+                                
+                                <h6 class="border-bottom pb-2 mb-3 mt-4 fw-bold text-secondary">Manajemen Sparepart</h6>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="small text-muted">Daftar sparepart yang terpasang pada tiket ini:</span>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" id="edit-add-part-btn">
+                                        <i class="bi bi-plus-lg me-1"></i> Tambah Part
+                                    </button>
+                                </div>
+                                <div class="table-responsive border rounded bg-white">
+                                    <table class="table table-sm table-hover mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th class="ps-2">Item</th>
+                                                <th class="text-center" width="50">Qty</th>
+                                                <th class="text-end pe-2" width="100">Aksi</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="edit-parts-list">
+                                            <!-- List sparepart akan muncul di sini via JS -->
+                                        </tbody>
+                                    </table>
+                                </div>
                             </form>
                         </div>
                         <div class="modal-footer">
@@ -561,35 +583,6 @@ class Service {
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-primary w-100" id="save-part-btn">Tambahkan</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="modal fade" id="editPartModal" tabindex="-1">
-                <div class="modal-dialog">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title">Edit Jumlah Sparepart</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                        </div>
-                        <div class="modal-body">
-                            <input type="hidden" id="edit-part-ticket-id">
-                            <input type="hidden" id="edit-part-id">
-                            <div class="mb-3">
-                                <label class="form-label">Nama Sparepart</label>
-                                <input type="text" class="form-control" id="edit-part-name" readonly disabled>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Jumlah</label>
-                                <input type="number" class="form-control" id="edit-part-quantity" min="1">
-                            </div>
-                            <div class="alert alert-info small">
-                                <i class="bi bi-info-circle me-1"></i> Stok gudang akan otomatis menyesuaikan.
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-primary w-100" id="update-part-btn">Simpan Perubahan</button>
                         </div>
                     </div>
                 </div>
@@ -1005,6 +998,33 @@ class Service {
         }
         this.editPatternLock.init();
         this.editPatternLock.setSequence(t.device.pattern || '');
+
+        // Populate Parts List for Edit
+        const partsListContainer = document.getElementById('edit-parts-list');
+        if (t.parts_used && t.parts_used.length > 0) {
+            partsListContainer.innerHTML = t.parts_used.map(p => `
+                <tr>
+                    <td class="ps-2">${p.name}</td>
+                    <td class="text-center">${p.qty}</td>
+                    <td class="text-end pe-2">
+                        <button type="button" class="btn btn-sm btn-outline-danger py-0 px-1" onclick="service.deletePart('${t._id}', '${p._id}')">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        } else {
+            partsListContainer.innerHTML = '<tr><td colspan="3" class="text-center text-muted small py-2">Belum ada sparepart terpasang</td></tr>';
+        }
+
+        // Add Part button in Edit context
+        document.getElementById('edit-add-part-btn').onclick = () => {
+            // Kita sembunyikan modal edit sebentar agar modal tambah part terlihat jelas
+            // atau bisa juga biarkan bertumpuk (Bootstrap 5 mendukung tumpukan)
+            // Sesuai permintaan user: "popup detail ini menghilang (close atau tetap di belakang)"
+            // Kita gunakan pendekatan tetap di belakang tapi pastikan modal baru di depan.
+            this.openAddPart(t._id);
+        };
         
         new bootstrap.Modal(document.getElementById('editTicketModal')).show();
     }
@@ -1059,21 +1079,16 @@ class Service {
 
 
     openAddPart(id) {
+        console.log('Opening Add Part for ticket:', id);
+        // Sesuai permintaan: tutup modal detail jika sedang terbuka
+        const detailM = document.getElementById('detailModal');
+        if (detailM && detailM.classList.contains('show')) {
+            const m = bootstrap.Modal.getInstance(detailM);
+            if (m) m.hide();
+        }
+        
         document.getElementById('part-ticket-id').value = id;
         new bootstrap.Modal(document.getElementById('addPartModal')).show();
-    }
-
-    editPart(ticketId, partId) {
-        const t = this.tickets.find(x => x._id === ticketId);
-        if (!t) return;
-        const p = t.parts_used.find(x => x._id === partId);
-        if (!p) return;
-
-        document.getElementById('edit-part-ticket-id').value = ticketId;
-        document.getElementById('edit-part-id').value = partId;
-        document.getElementById('edit-part-name').value = p.name;
-        document.getElementById('edit-part-quantity').value = p.qty;
-        new bootstrap.Modal(document.getElementById('editPartModal')).show();
     }
 
     async deletePart(ticketId, partId) {
@@ -1081,14 +1096,23 @@ class Service {
         try {
             await api.removePartFromService(ticketId, partId);
             showToast('Sparepart berhasil dihapus');
+            
+            // Reload data
             await this.loadTickets();
-            this.openDetail(ticketId);
+            
+            // Refresh modal yang sedang terbuka
+            if (document.getElementById('editTicketModal').classList.contains('show')) {
+                this.openEdit(ticketId);
+            } else if (document.getElementById('detailModal').classList.contains('show')) {
+                this.openDetail(ticketId);
+            }
         } catch (e) {
             showToast(e.message, 'error');
         }
     }
 
     openFinalize(id) {
+        console.log('Opening Finalize for ticket:', id);
         const t = this.tickets.find(x => x._id === id);
         if(!t) return;
         document.getElementById('final-ticket-id').value = id;
@@ -1138,6 +1162,7 @@ class Service {
     }
 
     openDetail(id) {
+        console.log('Opening Detail for ticket:', id);
         const t = this.tickets.find(x => x._id === id);
         if(!t) return;
 
@@ -1146,18 +1171,8 @@ class Service {
                 <td>${p.name}</td>
                 <td class="text-center">${p.qty}</td>
                 <td class="text-end">${formatCurrency(p.subtotal)}</td>
-                <td class="text-end">
-                    <div class="btn-group btn-group-sm">
-                        <button class="btn btn-outline-warning" onclick="service.editPart('${t._id}', '${p._id}')" title="Edit">
-                            <i class="bi bi-pencil"></i>
-                        </button>
-                        <button class="btn btn-outline-danger" onclick="service.deletePart('${t._id}', '${p._id}')" title="Hapus">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </div>
-                </td>
             </tr>`
-        ).join('') : '<tr><td colspan="4" class="text-center text-muted">Tidak ada sparepart</td></tr>';
+        ).join('') : '<tr><td colspan="3" class="text-center text-muted">Tidak ada sparepart</td></tr>';
         
         const html = `
             <div class="row g-4 mb-4">
@@ -1227,20 +1242,14 @@ class Service {
                 </div>
             </div>
 
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h6 class="fw-bold text-primary mb-0"><i class="bi bi-cart me-2"></i>RINCIAN BIAYA & SPAREPART</h6>
-                <button class="btn btn-sm btn-primary" onclick="service.openAddPart('${t._id}')">
-                    <i class="bi bi-plus-lg me-1"></i> Tambah Part
-                </button>
-            </div>
+            <h6 class="fw-bold text-primary mb-3"><i class="bi bi-cart me-2"></i>RINCIAN BIAYA & SPAREPART</h6>
             <div class="table-responsive rounded border">
                 <table class="table table-hover table-sm mb-0">
                     <thead class="table-light">
                         <tr>
                             <th>Nama Item / Sparepart</th>
                             <th class="text-center" width="80">Qty</th>
-                            <th class="text-end" width="120">Subtotal</th>
-                            <th class="text-end" width="100">Aksi</th>
+                            <th class="text-end" width="150">Subtotal</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1249,11 +1258,11 @@ class Service {
                     <tfoot class="table-light">
                         <tr class="fw-bold">
                             <td colspan="2" class="text-end">Biaya Jasa</td>
-                            <td class="text-end" colspan="2">${formatCurrency(t.service_fee)}</td>
+                            <td class="text-end">${formatCurrency(t.service_fee)}</td>
                         </tr>
                         <tr class="table-primary fw-bold">
                             <td colspan="2" class="text-end fs-5 text-primary">GRAND TOTAL</td>
-                            <td class="text-end fs-5 text-primary" colspan="2">${formatCurrency(t.total_cost)}</td>
+                            <td class="text-end fs-5 text-primary">${formatCurrency(t.total_cost)}</td>
                         </tr>
                     </tfoot>
                 </table>
@@ -1564,33 +1573,20 @@ class Service {
                 
                 // PENTING: Reload tiket agar data Detail terupdate
                 await this.loadTickets();
-                // Jika modal detail sedang terbuka, refresh isinya
-                if (document.getElementById('detailModal').classList.contains('show')) {
+
+                // Refresh modal yang sedang terbuka
+                if (document.getElementById('editTicketModal').classList.contains('show')) {
+                    this.openEdit(tId);
+                } else if (document.getElementById('detailModal').classList.contains('show')) {
                     this.openDetail(tId);
                 }
-                } catch(e){ showToast(e.message, 'error'); }
+            } catch(e){ 
+                showToast(e.message, 'error'); 
+            }
+        });
 
-                });
-
-                document.getElementById('update-part-btn').addEventListener('click', async () => {
-                const tId = document.getElementById('edit-part-ticket-id').value;
-                const pId = document.getElementById('edit-part-id').value;
-                const qty = document.getElementById('edit-part-quantity').value;
-                try {
-                await api.updatePartQuantity(tId, pId, qty);
-                showToast('Jumlah sparepart diperbarui');
-                bootstrap.Modal.getInstance(document.getElementById('editPartModal')).hide();
-                await this.loadTickets();
-                this.openDetail(tId);
-                } catch (e) {
-                showToast(e.message, 'error');
-                }
-                });
-
-                document.getElementById('confirm-finish-btn').addEventListener('click', () => this.confirmFinish());
-
+        document.getElementById('confirm-finish-btn').addEventListener('click', () => this.confirmFinish());
     }
-    
 }
 
 window.service = new Service();

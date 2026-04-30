@@ -80,7 +80,6 @@ router.put('/services/:id', protect, authorize('teknisi', 'kasir', 'admin'), upl
 
 router.patch('/services/:id/status', protect, authorize('teknisi', 'kasir', 'admin'), serviceController.updateStatus);
 router.post('/services/:id/parts', protect, authorize('teknisi', 'kasir', 'admin'), serviceController.addPartToService);
-router.patch('/services/:id/parts/:part_id', protect, authorize('teknisi', 'kasir', 'admin'), serviceController.updatePartQuantity);
 router.delete('/services/:id/parts/:part_id', protect, authorize('teknisi', 'kasir', 'admin'), serviceController.removePartFromService);
 router.patch('/services/:id/service-fee', protect, authorize('teknisi', 'kasir', 'admin'), serviceController.updateServiceFee);
 router.delete('/services/:id', protect, authorize('admin'), serviceController.deleteTicket);

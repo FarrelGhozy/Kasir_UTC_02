@@ -326,68 +326,11 @@ exports.removePartFromService = async (req, res, next) => {
       await item.save();
     }
 
-    // Hapus dari array subdocument
-    part.remove();
+    // Hapus dari array subdocument menggunakan pull
+    ticket.parts_used.pull(part_id);
     await ticket.save();
 
     res.status(200).json({ success: true, message: 'Part dihapus dan stok dikembalikan', data: ticket });
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * @desc    Update jumlah part di tiket servis & sesuaikan stok
- */
-exports.updatePartQuantity = async (req, res, next) => {
-  try {
-    const { id, part_id } = req.params;
-    const { quantity } = req.body;
-
-    if (!quantity || quantity < 1) {
-      return res.status(400).json({ success: false, message: 'Jumlah valid wajib diisi' });
-    }
-
-    const ticket = await ServiceTicket.findById(id);
-    if (!ticket) {
-      return res.status(404).json({ success: false, message: 'Tiket servis tidak ditemukan' });
-    }
-
-    if (['Picked_Up'].includes(ticket.status)) {
-      return res.status(400).json({ success: false, message: 'Tidak dapat mengedit part dari tiket yang sudah diambil' });
-    }
-
-    const part = ticket.parts_used.id(part_id);
-    if (!part) {
-      return res.status(404).json({ success: false, message: 'Part tidak ditemukan di tiket ini' });
-    }
-
-    const item = await Item.findById(part.item_id);
-    if (!item) {
-      return res.status(404).json({ success: false, message: 'Barang asli tidak ditemukan di inventaris' });
-    }
-
-    const diff = quantity - part.qty;
-
-    if (diff > 0) {
-      // Butuh stok tambahan
-      if (item.stock < diff) {
-        return res.status(400).json({ success: false, message: `Stok tidak cukup. Sisa: ${item.stock}` });
-      }
-      item.stock -= diff;
-    } else if (diff < 0) {
-      // Kembalikan kelebihan stok
-      item.stock += Math.abs(diff);
-    }
-
-    if (diff !== 0) {
-      await item.save();
-      part.qty = quantity;
-      part.subtotal = part.price_at_time * quantity;
-      await ticket.save();
-    }
-
-    res.status(200).json({ success: true, message: 'Jumlah part berhasil diupdate', data: ticket });
   } catch (error) {
     next(error);
   }
