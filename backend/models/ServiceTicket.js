@@ -155,11 +155,19 @@ const serviceTicketSchema = new mongoose.Schema({
     default: []
   },
   service_fee: {
-    type: Number,
-    min: [0, 'Biaya jasa tidak boleh negatif'],
-    default: 0
+  type: Number,
+  min: [0, 'Biaya jasa tidak boleh negatif'],
+  default: 0
+  },
+  payment_method: {
+  type: String,
+  enum: ['QRIS', 'Transfer', 'Cash']
+  },
+  payment_proof: {
+  type: String
   },
   total_cost: {
+
     type: Number,
     min: [0, 'Total biaya tidak boleh negatif'],
     default: 0
@@ -278,7 +286,7 @@ serviceTicketSchema.methods.addPart = async function(itemId, quantity) {
 };
 
 // Method instance untuk update status dengan validasi alur state machine
-serviceTicketSchema.methods.updateStatus = async function(newStatus) {
+serviceTicketSchema.methods.updateStatus = async function(newStatus, paymentMethod = null, paymentProof = null) {
   const validTransitions = {
     'Queue':        ['Diagnosing', 'Cancelled', 'Completed', 'In_Progress', 'Waiting_Part'],
     'Diagnosing':   ['Waiting_Part', 'In_Progress', 'Cancelled', 'Queue', 'Completed'],
@@ -306,8 +314,17 @@ serviceTicketSchema.methods.updateStatus = async function(newStatus) {
     this.timestamps.diagnosed_at = new Date();
   } else if (newStatus === 'Completed' && !this.timestamps.completed_at) {
     this.timestamps.completed_at = new Date();
-  } else if (newStatus === 'Picked_Up' && !this.timestamps.picked_up_at) {
-    this.timestamps.picked_up_at = new Date();
+  } else if (newStatus === 'Picked_Up') {
+    if (!this.timestamps.picked_up_at) {
+      this.timestamps.picked_up_at = new Date();
+    }
+    if (paymentMethod) this.payment_method = paymentMethod;
+    if (paymentProof) this.payment_proof = paymentProof;
+    
+    // Set garansi 14 hari jika belum ada
+    if (!this.warranty_expires_at) {
+      this.warranty_expires_at = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+    }
   }
   
   await this.save();

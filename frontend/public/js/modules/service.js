@@ -641,6 +641,68 @@ class Service {
                 </div>
             </div>
 
+            <div class="modal fade" id="paymentModal" tabindex="-1" data-bs-backdrop="static">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header bg-primary text-white">
+                            <h5 class="modal-title"><i class="bi bi-cash-stack me-2"></i>Penyelesaian Pembayaran</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <input type="hidden" id="payment-ticket-id">
+                            
+                            <div class="alert alert-info mb-4">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span>Total yang harus dibayar:</span>
+                                    <h4 class="mb-0 fw-bold" id="payment-grand-total">Rp 0</h4>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Metode Pembayaran</label>
+                                <div class="row g-2">
+                                    <div class="col-4">
+                                        <input type="radio" class="btn-check" name="payment-method" id="pay-cash" value="Cash" checked>
+                                        <label class="btn btn-outline-primary w-100 py-3" for="pay-cash">
+                                            <i class="bi bi-wallet2 d-block mb-1 fs-4"></i> Cash
+                                        </label>
+                                    </div>
+                                    <div class="col-4">
+                                        <input type="radio" class="btn-check" name="payment-method" id="pay-qris" value="QRIS">
+                                        <label class="btn btn-outline-primary w-100 py-3" for="pay-qris">
+                                            <i class="bi bi-qr-code-scan d-block mb-1 fs-4"></i> QRIS
+                                        </label>
+                                    </div>
+                                    <div class="col-4">
+                                        <input type="radio" class="btn-check" name="payment-method" id="pay-transfer" value="Transfer">
+                                        <label class="btn btn-outline-primary w-100 py-3" for="pay-transfer">
+                                            <i class="bi bi-bank d-block mb-1 fs-4"></i> Transfer
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Bukti Pembayaran (Opsional)</label>
+                                <div class="photo-upload-box w-100" style="height: 150px;" onclick="this.querySelector('input').click()">
+                                    <i class="bi bi-camera fs-1"></i>
+                                    <span>Klik untuk Unggah / Ambil Foto</span>
+                                    <input type="file" class="d-none" id="payment-proof-input" accept="image/*" onchange="service.handlePaymentProofPreview(this)">
+                                    <img id="payment-proof-preview" class="d-none">
+                                    <button type="button" class="remove-photo" onclick="event.stopPropagation(); service.removePaymentProof(this)"><i class="bi bi-x"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                            <button type="button" class="btn btn-primary fw-bold" id="confirm-payment-btn">
+                                <i class="bi bi-check-circle me-2"></i>Selesaikan & Ambil Barang
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="modal fade" id="detailModal" tabindex="-1">
                 <div class="modal-dialog modal-lg">
                     <div class="modal-content">
@@ -874,6 +936,26 @@ class Service {
 
                         ${statusSelect}
 
+                        ${t.status === 'Picked_Up' ? `
+                            <div class="p-2 bg-light rounded border mt-2">
+                                <div class="row align-items-center">
+                                    <div class="col-8">
+                                        <small class="text-secondary fw-bold d-block" style="font-size:0.65rem">PEMBAYARAN</small>
+                                        <div class="fw-bold text-success">
+                                            <i class="bi bi-check-circle-fill me-1"></i>${t.payment_method || 'Lunas'}
+                                        </div>
+                                    </div>
+                                    <div class="col-4 text-end">
+                                        ${t.payment_proof ? `
+                                            <img src="${t.payment_proof}" class="rounded border shadow-sm" style="width: 40px; height: 40px; object-fit: cover; cursor: pointer;" onclick="window.open('${t.payment_proof}', '_blank')" title="Lihat Bukti Bayar">
+                                        ` : `
+                                            <div class="text-muted" style="font-size:0.6rem">No Proof</div>
+                                        `}
+                                    </div>
+                                </div>
+                            </div>
+                        ` : ''}
+
                         <div class="d-flex gap-2 mt-3 pt-2 border-top justify-content-end">
                             <button class="btn btn-sm btn-outline-secondary" onclick="service.openDetail('${t._id}')" title="Detail">
                                 <i class="bi bi-eye"></i>
@@ -937,8 +1019,8 @@ class Service {
     }
 
     async updateStatus(id, newStatus) {
-        if (newStatus === 'Picked_Up' && !confirm('Pastikan barang sudah diterima pelanggan & pembayaran lunas. Lanjutkan?')) {
-            this.loadTickets(); 
+        if (newStatus === 'Picked_Up') {
+            this.openPayment(id);
             return;
         }
         try {
@@ -948,6 +1030,70 @@ class Service {
         } catch (e) {
             showToast(e.message, 'error');
             this.loadTickets();
+        }
+    }
+
+    openPayment(id) {
+        const t = this.tickets.find(x => x._id === id);
+        if (!t) return;
+
+        document.getElementById('payment-ticket-id').value = id;
+        document.getElementById('payment-grand-total').textContent = formatCurrency(t.total_cost);
+        
+        // Reset form
+        document.getElementById('pay-cash').checked = true;
+        this.removePaymentProof(document.querySelector('#paymentModal .remove-photo'));
+        
+        this.getOrCreateModal('paymentModal').show();
+    }
+
+    handlePaymentProofPreview(input) {
+        const box = input.closest('.photo-upload-box');
+        const img = box.querySelector('img');
+        const file = input.files[0];
+        
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                img.src = e.target.result;
+                img.classList.remove('d-none');
+                box.classList.add('has-image');
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    removePaymentProof(btn) {
+        const box = btn.closest('.photo-upload-box');
+        const input = box.querySelector('input');
+        const img = box.querySelector('img');
+        
+        input.value = '';
+        img.src = '';
+        img.classList.add('d-none');
+        box.classList.remove('has-image');
+    }
+
+    async confirmPayment() {
+        const id = document.getElementById('payment-ticket-id').value;
+        const method = document.querySelector('input[name="payment-method"]:checked').value;
+        const proofFile = document.getElementById('payment-proof-input').files[0];
+
+        const formData = new FormData();
+        formData.append('status', 'Picked_Up');
+        formData.append('payment_method', method);
+        if (proofFile) {
+            const compressed = await this.compressImage(proofFile);
+            formData.append('payment_proof', compressed);
+        }
+
+        try {
+            await api.updateTicketStatus(id, formData);
+            showToast('Pembayaran selesai & Barang diambil');
+            this.getOrCreateModal('paymentModal').hide();
+            await this.loadTickets();
+        } catch (e) {
+            showToast(e.message, 'error');
         }
     }
 
@@ -1600,6 +1746,8 @@ class Service {
         });
 
         document.getElementById('confirm-finish-btn').addEventListener('click', () => this.confirmFinish());
+
+        document.getElementById('confirm-payment-btn').addEventListener('click', () => this.confirmPayment());
     }
 }
 

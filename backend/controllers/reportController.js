@@ -22,7 +22,7 @@ exports.getFullRecap = async (req, res, next) => {
     // 4. Hitung ringkasan statistik
     const totalInventoryValue = inventory.reduce((sum, item) => sum + (item.stock * item.purchase_price), 0);
     const totalServiceRevenue = services
-      .filter(s => ['Completed', 'Picked_Up'].includes(s.status))
+      .filter(s => s.status === 'Picked_Up')
       .reduce((sum, s) => sum + s.total_cost, 0);
     const totalRetailRevenue = transactions.reduce((sum, t) => sum + t.grand_total, 0);
 
@@ -81,12 +81,12 @@ exports.getDailyRevenue = async (req, res, next) => {
       }
     ]);
 
-    // Ambil pendapatan servis (tiket selesai)
+    // Ambil pendapatan servis (tiket resmi diambil)
     const serviceRevenue = await ServiceTicket.aggregate([
       {
         $match: {
-          status: { $in: ['Completed', 'Picked_Up'] },
-          'timestamps.completed_at': { $gte: startOfDay, $lte: endOfDay }
+          status: 'Picked_Up',
+          'timestamps.picked_up_at': { $gte: startOfDay, $lte: endOfDay }
         }
       },
       {
@@ -153,17 +153,17 @@ exports.getMonthlyRevenue = async (req, res, next) => {
       { $sort: { _id: 1 } }
     ]);
 
-    // Pendapatan servis dikelompokkan per hari
+    // Pendapatan servis dikelompokkan per hari (hanya yang sudah diambil)
     const serviceRevenue = await ServiceTicket.aggregate([
       {
         $match: {
-          status: { $in: ['Completed', 'Picked_Up'] },
-          'timestamps.completed_at': { $gte: startDate, $lte: endDate }
+          status: 'Picked_Up',
+          'timestamps.picked_up_at': { $gte: startDate, $lte: endDate }
         }
       },
       {
         $group: {
-          _id: { $dayOfMonth: '$timestamps.completed_at' },
+          _id: { $dayOfMonth: '$timestamps.picked_up_at' },
           revenue: { $sum: '$total_cost' },
           count: { $sum: 1 }
         }
@@ -265,12 +265,12 @@ exports.getRevenueByRange = async (req, res, next) => {
       }
     ]);
 
-    // Pendapatan Servis
+    // Pendapatan Servis (Hanya yang sudah diambil)
     const serviceRevenue = await ServiceTicket.aggregate([
       {
         $match: {
-          status: { $in: ['Completed', 'Picked_Up'] },
-          'timestamps.completed_at': { $gte: startDate, $lte: endDate }
+          status: 'Picked_Up',
+          'timestamps.picked_up_at': { $gte: startDate, $lte: endDate }
         }
       },
       {
@@ -394,11 +394,11 @@ exports.getTechnicianPerformance = async (req, res, next) => {
   try {
     const { start_date, end_date } = req.query;
 
-    const matchStage = { status: { $in: ['Completed', 'Picked_Up'] } };
+    const matchStage = { status: 'Picked_Up' };
     if (start_date || end_date) {
-      matchStage['timestamps.completed_at'] = {};
-      if (start_date) matchStage['timestamps.completed_at'].$gte = new Date(start_date);
-      if (end_date) matchStage['timestamps.completed_at'].$lte = new Date(end_date);
+      matchStage['timestamps.picked_up_at'] = {};
+      if (start_date) matchStage['timestamps.picked_up_at'].$gte = new Date(start_date);
+      if (end_date) matchStage['timestamps.picked_up_at'].$lte = new Date(end_date);
     }
 
     const performance = await ServiceTicket.aggregate([

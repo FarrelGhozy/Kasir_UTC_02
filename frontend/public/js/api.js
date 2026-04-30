@@ -226,8 +226,13 @@ class API {
         return this.get(`/services/${id}`);
     }
 
-    async updateTicketStatus(id, status) {
-        return this.patch(`/services/${id}/status`, { status });
+    async updateTicketStatus(id, data) {
+        if (data instanceof FormData) {
+            return this.request(`/services/${id}/status`, { method: 'PATCH', body: data });
+        }
+        // If it's just a string, wrap it in an object for the legacy call
+        const payload = typeof data === 'string' ? { status: data } : data;
+        return this.patch(`/services/${id}/status`, payload);
     }
 
     async addPartToService(ticketId, itemId, quantity) {

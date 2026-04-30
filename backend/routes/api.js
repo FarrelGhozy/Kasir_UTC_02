@@ -78,7 +78,7 @@ router.put('/services/:id', protect, authorize('teknisi', 'kasir', 'admin'), upl
   { name: 'right', maxCount: 1 }
 ]), serviceController.updateTicketDetails);
 
-router.patch('/services/:id/status', protect, authorize('teknisi', 'kasir', 'admin'), serviceController.updateStatus);
+router.patch('/services/:id/status', protect, authorize('teknisi', 'kasir', 'admin'), upload.single('payment_proof'), serviceController.updateStatus);
 router.post('/services/:id/parts', protect, authorize('teknisi', 'kasir', 'admin'), serviceController.addPartToService);
 router.delete('/services/:id/parts/:part_id', protect, authorize('teknisi', 'kasir', 'admin'), serviceController.removePartFromService);
 router.patch('/services/:id/service-fee', protect, authorize('teknisi', 'kasir', 'admin'), serviceController.updateServiceFee);
