@@ -10,6 +10,7 @@ const transactionController = require('../controllers/transactionController');
 const reportController = require('../controllers/reportController');
 const orderController = require('../controllers/orderController');
 const adminController = require('../controllers/adminController');
+const backupController = require('../controllers/backupController');
 
 // Impor middleware
 const { protect, authorize } = require('../middleware/auth');
@@ -127,5 +128,9 @@ router.get('/admin/technicians', protect, authorize('admin'), adminController.ge
 router.post('/admin/technicians', protect, authorize('admin'), adminController.createTechnician);
 router.put('/admin/technicians/:id', protect, authorize('admin'), adminController.updateTechnician);
 router.delete('/admin/technicians/:id', protect, authorize('admin'), adminController.deleteTechnician);
+
+// --- Backup & Restore ---
+router.get('/admin/backup/export', protect, authorize('admin'), backupController.exportData);
+router.post('/admin/backup/import', protect, authorize('admin'), backupController.importData);
 
 module.exports = router;
