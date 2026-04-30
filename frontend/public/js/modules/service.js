@@ -437,6 +437,7 @@ class Service {
                                     <div class="col-md-6">
                                         <label class="form-label small fw-bold">No. Telepon (WhatsApp)</label>
                                         <input type="text" class="form-control" id="edit-customer-phone">
+                                        <div id="edit-wa-validation-msg" class="small mt-1 d-none"></div>
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label small fw-bold">Email (Untuk Nota)</label>
@@ -1163,6 +1164,15 @@ class Service {
         this.editPatternLock.init();
         this.editPatternLock.setSequence(t.device.pattern || '');
 
+        // Clear previous validation msg
+        const valMsg = document.getElementById('edit-wa-validation-msg');
+        if (valMsg) valMsg.classList.add('d-none');
+        
+        // Setup blur listener for edit phone
+        document.getElementById('edit-customer-phone').onblur = (e) => {
+            this.validateWA(e.target.value, 'edit-wa-validation-msg', 'save-edit-btn');
+        };
+
         // Populate Parts List for Edit
         const partsListContainer = document.getElementById('edit-parts-list');
         if (t.parts_used && t.parts_used.length > 0) {
@@ -1320,6 +1330,46 @@ class Service {
             </div>
             <div class="small fw-bold text-primary mt-1">Urutan: ${seqStr}</div>
         `;
+    }
+
+    async validateWA(phone, targetMsgId = 'wa-validation-msg', submitBtnId = 'save-ticket-btn') {
+        const msgEl = document.getElementById(targetMsgId);
+        const submitBtn = document.getElementById(submitBtnId);
+        
+        if (!phone || phone.length < 9) {
+            if (msgEl) {
+                msgEl.classList.add('d-none');
+            }
+            if (submitBtn) submitBtn.disabled = false;
+            return;
+        }
+
+        if (msgEl) {
+            msgEl.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Mengecek WhatsApp...';
+            msgEl.className = 'small mt-1 text-muted';
+            msgEl.classList.remove('d-none');
+        }
+
+        try {
+            const res = await api.checkWA(phone);
+            if (res.exists) {
+                if (msgEl) {
+                    msgEl.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>Terdaftar di WhatsApp';
+                    msgEl.className = 'small mt-1 text-success';
+                }
+                if (submitBtn) submitBtn.disabled = false;
+            } else {
+                if (msgEl) {
+                    msgEl.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i>Nomor tidak terdaftar di WhatsApp';
+                    msgEl.className = 'small mt-1 text-danger';
+                }
+                if (submitBtn) submitBtn.disabled = true;
+                showToast('Nomor tidak terdaftar di WhatsApp', 'warning');
+            }
+        } catch (error) {
+            console.error('WA Validation error:', error);
+            if (msgEl) msgEl.classList.add('d-none');
+        }
     }
 
     openDetail(id) {

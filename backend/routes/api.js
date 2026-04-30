@@ -11,6 +11,7 @@ const reportController = require('../controllers/reportController');
 const orderController = require('../controllers/orderController');
 const adminController = require('../controllers/adminController');
 const backupController = require('../controllers/backupController');
+const waController = require('../controllers/waController');
 
 // Impor middleware
 const { protect, authorize } = require('../middleware/auth');
@@ -133,5 +134,9 @@ router.delete('/admin/technicians/:id', protect, authorize('admin'), adminContro
 // --- Backup & Restore ---
 router.get('/admin/backup/export', protect, authorize('admin'), backupController.exportData);
 router.post('/admin/backup/import', protect, authorize('admin'), backupController.importData);
+
+// --- WhatsApp Helper ---
+router.get('/check-wa', protect, waController.checkWANumber);
+router.get('/waha-status', protect, waController.getWAHAStatus);
 
 module.exports = router;

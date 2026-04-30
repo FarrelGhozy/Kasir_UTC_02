@@ -1,11 +1,9 @@
 // public/js/api.js - Global API Handler dengan Fetch Wrapper
 
-
 const isLocalHost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
 const API_BASE_URL = isLocalHost
     ? `${window.location.protocol}//${window.location.hostname}:5200/api`
     : 'https://api-kasir.utc.web.id/api';
-
 
 class API {
     constructor(baseURL) {
@@ -104,8 +102,13 @@ class API {
     /**
      * Request GET
      */
-    async get(endpoint, authenticated = true) {
-        return this.request(endpoint, { method: 'GET', authenticated });
+    async get(endpoint, params = {}, authenticated = true) {
+        let url = endpoint;
+        if (Object.keys(params).length > 0) {
+            const queryString = new URLSearchParams(params).toString();
+            url += (url.includes('?') ? '&' : '?') + queryString;
+        }
+        return this.request(url, { method: 'GET', authenticated });
     }
 
     /**
@@ -157,8 +160,7 @@ class API {
     // ==================== ENDPOINT GUDANG (INVENTORY) ====================
 
     async getInventory(params = {}) {
-        const queryString = new URLSearchParams(params).toString();
-        return this.get(`/inventory${queryString ? '?' + queryString : ''}`);
+        return this.get('/inventory', params);
     }
 
     async getItemById(id) {
@@ -196,8 +198,7 @@ class API {
     }
 
     async getTransactions(params = {}) {
-        const queryString = new URLSearchParams(params).toString();
-        return this.get(`/transactions${queryString ? '?' + queryString : ''}`);
+        return this.get('/transactions', params);
     }
 
     async getTransactionById(id) {
@@ -218,8 +219,7 @@ class API {
     }
 
     async getServiceTickets(params = {}) {
-        const queryString = new URLSearchParams(params).toString();
-        return this.get(`/services${queryString ? '?' + queryString : ''}`);
+        return this.get('/services', params);
     }
 
     async getServiceTicketById(id) {
@@ -230,7 +230,6 @@ class API {
         if (data instanceof FormData) {
             return this.request(`/services/${id}/status`, { method: 'PATCH', body: data });
         }
-        // If it's just a string, wrap it in an object for the legacy call
         const payload = typeof data === 'string' ? { status: data } : data;
         return this.patch(`/services/${id}/status`, payload);
     }
@@ -252,7 +251,6 @@ class API {
         return this.delete(`/services/${ticketId}/parts/${partId}`);
     }
 
-
     async updateServiceFee(id, serviceFee) {
         return this.patch(`/services/${id}/service-fee`, { service_fee: serviceFee });
     }
@@ -262,10 +260,6 @@ class API {
             return this.request(`/services/${id}`, { method: 'PUT', body: data });
         }
         return this.put(`/services/${id}`, data);
-    }
-
-    async validateWA(phone) {
-        return this.post('/services/validate-wa', { phone });
     }
 
     async resendWA(id) {
@@ -284,7 +278,6 @@ class API {
         return this.delete(`/services/${id}`);
     }
 
-
     // ==================== ENDPOINT PEMESANAN BARANG ====================
 
     async createSpecialOrder(data) {
@@ -292,8 +285,7 @@ class API {
     }
 
     async getSpecialOrders(params = {}) {
-        const queryString = new URLSearchParams(params).toString();
-        return this.get(`/orders${queryString ? '?' + queryString : ''}`);
+        return this.get('/orders', params);
     }
 
     async getSpecialOrderById(id) {
@@ -315,33 +307,38 @@ class API {
     // ==================== ENDPOINT LAPORAN ====================
 
     async getDailyRevenue(date) {
-        const params = date ? `?date=${date}` : '';
-        return this.get(`/reports/revenue/daily${params}`);
+        return this.get('/reports/revenue/daily', date ? { date } : {});
     }
 
     async getMonthlyRevenue(year, month) {
-        return this.get(`/reports/revenue/monthly?year=${year}&month=${month}`);
+        return this.get('/reports/revenue/monthly', { year, month });
     }
 
     async getRevenueByRange(startDate, endDate) {
-        return this.get(`/reports/revenue/range?start_date=${startDate}&end_date=${endDate}`);
+        return this.get('/reports/revenue/range', { start_date: startDate, end_date: endDate });
     }
 
     async getTopItems(params = {}) {
-        const queryString = new URLSearchParams(params).toString();
-        return this.get(`/reports/top-items${queryString ? '?' + queryString : ''}`);
+        return this.get('/reports/top-items', params);
     }
 
     async getCashierPerformance(params = {}) {
-        const queryString = new URLSearchParams(params).toString();
-        return this.get(`/reports/cashier-performance${queryString ? '?' + queryString : ''}`);
+        return this.get('/reports/cashier-performance', params);
     }
 
     async getTechnicianPerformance(params = {}) {
-        const queryString = new URLSearchParams(params).toString();
-        return this.get(`/reports/technician-performance${queryString ? '?' + queryString : ''}`);
+        return this.get('/reports/technician-performance', params);
     }
+
+    // --- WhatsApp Helper ---
+    async checkWA(phone) {
+        return this.get('/check-wa', { phone });
     }
+
+    async getWAHAStatus() {
+        return this.get('/waha-status');
+    }
+}
 
 // Ekspor instance singleton
 const api = new API(API_BASE_URL);
@@ -364,6 +361,7 @@ export function formatCurrency(amount) {
  * Format tanggal ke lokal Indonesia
  */
 export function formatDate(date) {
+    if (!date) return '-';
     return new Date(date).toLocaleDateString('id-ID', {
         year: 'numeric',
         month: 'long',
@@ -375,6 +373,7 @@ export function formatDate(date) {
  * Format tanggal dan waktu ke lokal Indonesia
  */
 export function formatDateTime(date) {
+    if (!date) return '-';
     return new Date(date).toLocaleString('id-ID', {
         year: 'numeric',
         month: 'long',
@@ -389,6 +388,8 @@ export function formatDateTime(date) {
  */
 export function showToast(message, type = 'success') {
     const toastContainer = document.getElementById('toast-container');
+    if (!toastContainer) return;
+
     const toastId = 'toast-' + Date.now();
     
     const bgClass = type === 'success' ? 'bg-success' : 
@@ -416,7 +417,6 @@ export function showToast(message, type = 'success') {
     const toast = new bootstrap.Toast(toastElement, { delay: 3000 });
     toast.show();
     
-    // Hapus dari DOM setelah tersembunyi
     toastElement.addEventListener('hidden.bs.toast', () => {
         toastElement.remove();
     });
@@ -465,24 +465,20 @@ export function confirmDialog(message) {
  * Helpers for Currency Input Formatting (Thousand Separators)
  */
 export function formatInputCurrency(value) {
-    if (!value) return '';
-    // Remove everything except numbers
+    if (value === null || value === undefined || value === '') return '';
     const number = value.toString().replace(/\D/g, '');
     if (!number) return '';
-    // Format with dots
     return new Intl.NumberFormat('id-ID').format(number);
 }
 
 export function parseCurrencyValue(formattedValue) {
     if (!formattedValue) return 0;
-    // Remove dots to get raw number
     return parseInt(formattedValue.toString().replace(/\./g, ''), 10) || 0;
 }
 
 export function setupCurrencyInput(inputElement) {
     if (!inputElement) return;
     
-    // Initial format if has value
     if (inputElement.value) {
         inputElement.value = formatInputCurrency(inputElement.value);
     }
@@ -495,7 +491,6 @@ export function setupCurrencyInput(inputElement) {
         const formatted = formatInputCurrency(rawValue);
         e.target.value = formatted;
         
-        // Adjust cursor position
         const newLen = formatted.length;
         const newCursorP = cursorP + (newLen - oldLen);
         e.target.setSelectionRange(newCursorP, newCursorP);
@@ -503,7 +498,7 @@ export function setupCurrencyInput(inputElement) {
 }
 
 /**
- * Hitung selisih waktu dalam format yang mudah dibaca (Hari, Jam, Menit)
+ * Hitung selisih waktu dalam format yang mudah dibaca
  */
 export function calculateElapsedTime(startTime, endTime = new Date()) {
     const start = new Date(startTime);
