@@ -107,6 +107,24 @@ class Service {
         this.items = [];
         this.mainPatternLock = null;
         this.editPatternLock = null;
+        this._modals = {};
+    }
+
+    getOrCreateModal(id) {
+        if (!this._modals[id]) {
+            this._modals[id] = new bootstrap.Modal(document.getElementById(id));
+            
+            // Cleanup backdrop on hide to prevent stuck overlays
+            document.getElementById(id).addEventListener('hidden.bs.modal', () => {
+                const backdrops = document.querySelectorAll('.modal-backdrop');
+                if (backdrops.length > 0) {
+                    backdrops.forEach(b => b.remove());
+                    document.body.classList.remove('modal-open');
+                    document.body.style.paddingRight = '';
+                }
+            });
+        }
+        return this._modals[id];
     }
 
     async render() {
@@ -525,6 +543,28 @@ class Service {
                                             <input type="text" class="form-control currency-input" id="edit-service-fee" placeholder="0" inputmode="numeric">
                                         </div>
                                     </div>
+                                </div>
+                                
+                                <h6 class="border-bottom pb-2 mb-3 mt-4 fw-bold text-secondary">Manajemen Sparepart</h6>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="small text-muted">Daftar sparepart yang terpasang pada tiket ini:</span>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" id="edit-add-part-btn">
+                                        <i class="bi bi-plus-lg me-1"></i> Tambah Part
+                                    </button>
+                                </div>
+                                <div class="table-responsive border rounded bg-white">
+                                    <table class="table table-sm table-hover mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th class="ps-2">Item</th>
+                                                <th class="text-center" width="50">Qty</th>
+                                                <th class="text-end pe-2" width="100">Aksi</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="edit-parts-list">
+                                            <!-- List sparepart akan muncul di sini via JS -->
+                                        </tbody>
+                                    </table>
                                 </div>
                             </form>
                         </div>
@@ -976,8 +1016,35 @@ class Service {
         }
         this.editPatternLock.init();
         this.editPatternLock.setSequence(t.device.pattern || '');
+
+        // Populate Parts List for Edit
+        const partsListContainer = document.getElementById('edit-parts-list');
+        if (t.parts_used && t.parts_used.length > 0) {
+            partsListContainer.innerHTML = t.parts_used.map(p => `
+                <tr>
+                    <td class="ps-2">${p.name}</td>
+                    <td class="text-center">${p.qty}</td>
+                    <td class="text-end pe-2">
+                        <button type="button" class="btn btn-sm btn-outline-danger py-0 px-1" onclick="service.deletePart('${t._id}', '${p._id}')">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        } else {
+            partsListContainer.innerHTML = '<tr><td colspan="3" class="text-center text-muted small py-2">Belum ada sparepart terpasang</td></tr>';
+        }
+
+        // Add Part button in Edit context
+        document.getElementById('edit-add-part-btn').onclick = () => {
+            // Kita sembunyikan modal edit sebentar agar modal tambah part terlihat jelas
+            // atau bisa juga biarkan bertumpuk (Bootstrap 5 mendukung tumpukan)
+            // Sesuai permintaan user: "popup detail ini menghilang (close atau tetap di belakang)"
+            // Kita gunakan pendekatan tetap di belakang tapi pastikan modal baru di depan.
+            this.openAddPart(t._id);
+        };
         
-        new bootstrap.Modal(document.getElementById('editTicketModal')).show();
+        this.getOrCreateModal('editTicketModal').show();
     }
 
     async saveEdit() {
@@ -1021,7 +1088,7 @@ class Service {
         try {
             await api.updateTicketDetails(id, formData);
             showToast('Data tiket berhasil diperbarui', 'success');
-            bootstrap.Modal.getInstance(document.getElementById('editTicketModal')).hide();
+            this.getOrCreateModal('editTicketModal').hide();
             await this.loadTickets();
         } catch(e) { 
             showToast(e.message, 'error'); 
@@ -1030,11 +1097,36 @@ class Service {
 
 
     openAddPart(id) {
+        console.log('Opening Add Part for ticket:', id);
+        // Sesuai permintaan: tutup modal detail jika sedang terbuka
+        this.getOrCreateModal('detailModal').hide();
+        
         document.getElementById('part-ticket-id').value = id;
-        new bootstrap.Modal(document.getElementById('addPartModal')).show();
+        this.getOrCreateModal('addPartModal').show();
+    }
+
+    async deletePart(ticketId, partId) {
+        if (!confirm('Apakah Anda yakin ingin menghapus sparepart ini? Stok akan dikembalikan ke gudang.')) return;
+        try {
+            await api.removePartFromService(ticketId, partId);
+            showToast('Sparepart berhasil dihapus');
+            
+            // Reload data
+            await this.loadTickets();
+            
+            // Refresh modal yang sedang terbuka
+            if (document.getElementById('editTicketModal').classList.contains('show')) {
+                this.openEdit(ticketId);
+            } else if (document.getElementById('detailModal').classList.contains('show')) {
+                this.openDetail(ticketId);
+            }
+        } catch (e) {
+            showToast(e.message, 'error');
+        }
     }
 
     openFinalize(id) {
+        console.log('Opening Finalize for ticket:', id);
         const t = this.tickets.find(x => x._id === id);
         if(!t) return;
         document.getElementById('final-ticket-id').value = id;
@@ -1053,20 +1145,21 @@ class Service {
             updateGrandTotal();
         };
         updateGrandTotal();
-        new bootstrap.Modal(document.getElementById('finalizeModal')).show();
-    }
+        this.getOrCreateModal('finalizeModal').show();
+        }
 
-    async confirmFinish() {
+        async confirmFinish() {
         const id = document.getElementById('final-ticket-id').value;
         const finalFee = parseCurrencyValue(document.getElementById('final-service-fee').value);
         try {
             await api.updateServiceFee(id, finalFee);
             await api.updateTicketStatus(id, 'Completed');
             showToast('Servis Selesai!');
-            bootstrap.Modal.getInstance(document.getElementById('finalizeModal')).hide();
+            this.getOrCreateModal('finalizeModal').hide();
             await this.loadTickets();
             this.printInvoice(id);
-        } catch(e) { showToast(e.message, 'error'); }
+        } catch(e) {
+ showToast(e.message, 'error'); }
     }
 
     renderPatternVisualization(seqStr) {
@@ -1084,11 +1177,16 @@ class Service {
     }
 
     openDetail(id) {
+        console.log('Opening Detail for ticket:', id);
         const t = this.tickets.find(x => x._id === id);
         if(!t) return;
 
         const partList = t.parts_used.length ? t.parts_used.map(p => 
-            `<tr><td>${p.name}</td><td class="text-center">${p.qty}</td><td class="text-end">${formatCurrency(p.subtotal)}</td></tr>`
+            `<tr>
+                <td>${p.name}</td>
+                <td class="text-center">${p.qty}</td>
+                <td class="text-end">${formatCurrency(p.subtotal)}</td>
+            </tr>`
         ).join('') : '<tr><td colspan="3" class="text-center text-muted">Tidak ada sparepart</td></tr>';
         
         const html = `
@@ -1187,7 +1285,7 @@ class Service {
         `;
         document.getElementById('detail-content').innerHTML = html;
         document.getElementById('print-copy-btn').onclick = () => this.printInvoice(id);
-        new bootstrap.Modal(document.getElementById('detailModal')).show();
+        this.getOrCreateModal('detailModal').show();
     }
 
     printInvoice(id) {
@@ -1461,7 +1559,7 @@ class Service {
 
         document.getElementById('view-logs-btn').addEventListener('click', () => {
             this.loadLogs();
-            new bootstrap.Modal(document.getElementById('logsModal')).show();
+            this.getOrCreateModal('logsModal').show();
         });
 
         // Auto-expand textarea logic
@@ -1478,7 +1576,6 @@ class Service {
         // Listener Pencarian
         document.getElementById('search-customer').addEventListener('input', () => this.renderTicketList());
 
-        // --- PERBAIKAN: Refresh data otomatis setelah tambah part ---
         document.getElementById('save-part-btn').addEventListener('click', async () => {
             const tId = document.getElementById('part-ticket-id').value;
             const iId = document.getElementById('part-item-select').value;
@@ -1486,16 +1583,24 @@ class Service {
             try { 
                 await api.addPartToService(tId, iId, qty); 
                 showToast('Part ditambahkan'); 
-                bootstrap.Modal.getInstance(document.getElementById('addPartModal')).hide(); 
+                this.getOrCreateModal('addPartModal').hide(); 
                 
                 // PENTING: Reload tiket agar data Detail terupdate
-                await this.loadTickets(); 
-            } catch(e){ showToast(e.message, 'error'); }
+                await this.loadTickets();
+
+                // Refresh modal yang sedang terbuka
+                if (document.getElementById('editTicketModal').classList.contains('show')) {
+                    this.openEdit(tId);
+                } else if (document.getElementById('detailModal').classList.contains('show')) {
+                    this.openDetail(tId);
+                }
+            } catch(e){ 
+                showToast(e.message, 'error'); 
+            }
         });
-        
+
         document.getElementById('confirm-finish-btn').addEventListener('click', () => this.confirmFinish());
     }
-    
 }
 
 window.service = new Service();

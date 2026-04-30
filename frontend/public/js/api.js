@@ -231,11 +231,22 @@ class API {
     }
 
     async addPartToService(ticketId, itemId, quantity) {
-        return this.post(`/services/${ticketId}/parts`, { 
-            item_id: itemId, 
-            quantity 
+        return this.post(`/services/${ticketId}/parts`, {
+            item_id: itemId,
+            quantity: parseInt(quantity)
         });
     }
+
+    async updatePartQuantity(ticketId, partId, quantity) {
+        return this.patch(`/services/${ticketId}/parts/${partId}`, {
+            quantity: parseInt(quantity)
+        });
+    }
+
+    async removePartFromService(ticketId, partId) {
+        return this.delete(`/services/${ticketId}/parts/${partId}`);
+    }
+
 
     async updateServiceFee(id, serviceFee) {
         return this.patch(`/services/${id}/service-fee`, { service_fee: serviceFee });
