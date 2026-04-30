@@ -47,6 +47,7 @@ router.get('/inventory/:id', protect, inventoryController.getItemById);
 
 // Admin & Kasir dapat mengelola inventaris
 router.post('/inventory', protect, authorize('admin', 'kasir'), inventoryController.createItem);
+router.post('/inventory/import', protect, authorize('admin', 'kasir'), inventoryController.importItems);
 router.put('/inventory/:id', protect, authorize('admin', 'kasir'), inventoryController.updateItem);
 // Teknisi juga dapat menyesuaikan stok (misal: barang rusak/disesuaikan manual)
 router.patch('/inventory/:id/stock', protect, authorize('admin', 'kasir', 'teknisi'), inventoryController.adjustStock);

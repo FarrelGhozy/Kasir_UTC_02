@@ -23,6 +23,9 @@ class Inventory {
                             <button class="btn btn-outline-success" id="export-csv-btn">
                                 <i class="bi bi-download me-2"></i>Export CSV
                             </button>
+                            <button class="btn btn-outline-primary" id="import-csv-btn">
+                                <i class="bi bi-upload me-2"></i>Import CSV
+                            </button>
                             <button class="btn btn-primary" id="add-item-btn">
                                 <i class="bi bi-plus-circle me-2"></i>Tambah Barang
                             </button>
@@ -83,6 +86,44 @@ class Inventory {
                                 </tr>
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal fade" id="importModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Import Data Barang via CSV</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="alert alert-info small border-0">
+                                <i class="bi bi-info-circle me-1"></i> Gunakan format CSV yang sesuai. SKU akan digunakan sebagai identitas unik (Upsert).
+                            </div>
+                            
+                            <div class="d-grid mb-4">
+                                <button class="btn btn-outline-secondary btn-sm" id="download-template-btn">
+                                    <i class="bi bi-file-earmark-spreadsheet me-1"></i> Unduh Template CSV
+                                </button>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Pilih File CSV</label>
+                                <div class="upload-area p-4 border border-dashed rounded text-center" id="csv-drop-zone" style="border-style: dashed !important; cursor: pointer;">
+                                    <i class="bi bi-cloud-upload fs-1 text-primary"></i>
+                                    <p class="mb-0 mt-2">Klik atau tarik file CSV ke sini</p>
+                                    <input type="file" id="csv-file-input" accept=".csv" class="d-none">
+                                </div>
+                                <div id="file-name-display" class="mt-2 text-primary fw-bold small d-none"></div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                            <button type="button" class="btn btn-primary fw-bold" id="process-import-btn" disabled>
+                                <i class="bi bi-upload me-2"></i>Mulai Import
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -355,6 +396,111 @@ class Inventory {
         URL.revokeObjectURL(url);
     }
 
+    openImportModal() {
+        const modalEl = document.getElementById('importModal');
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        
+        document.getElementById('csv-file-input').value = '';
+        document.getElementById('file-name-display').classList.add('d-none');
+        document.getElementById('process-import-btn').disabled = true;
+        
+        modal.show();
+    }
+
+    downloadTemplate() {
+        const headers = ['SKU', 'Nama Barang', 'Kategori', 'Harga Beli', 'Harga Jual', 'Stok', 'Stok Minimum'];
+        const sampleRows = [
+            ['BRG-001', 'Contoh Barang A', 'Sparepart', '50000', '75000', '10', '5'],
+            ['BRG-002', 'Contoh Barang B', 'Accessory', '15000', '25000', '20', '10']
+        ];
+
+        const csvContent = [headers.join(','), ...sampleRows.map(r => r.join(','))].join('\n');
+        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `template_import_inventaris.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    async handleImport() {
+        const fileInput = document.getElementById('csv-file-input');
+        const file = fileInput.files[0];
+        
+        if (!file) return;
+
+        const processBtn = document.getElementById('process-import-btn');
+        const originalText = processBtn.innerHTML;
+        processBtn.disabled = true;
+        processBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Memproses...';
+
+        Papa.parse(file, {
+            header: true,
+            skipEmptyLines: true,
+            complete: async (results) => {
+                try {
+                    // Mapping header CSV ke field backend
+                    const mapping = {
+                        'SKU': 'sku',
+                        'Nama Barang': 'name',
+                        'Kategori': 'category',
+                        'Harga Beli': 'purchase_price',
+                        'Harga Jual': 'selling_price',
+                        'Stok': 'stock',
+                        'Stok Minimum': 'min_stock_alert'
+                    };
+
+                    const categoryMapping = {
+                        'Suku Cadang': 'Sparepart',
+                        'Aksesoris': 'Accessory',
+                        'Software': 'Software',
+                        'Lainnya': 'Other'
+                    };
+
+                    const formattedData = results.data.map(row => {
+                        const item = {};
+                        for (const [csvHeader, backendField] of Object.entries(mapping)) {
+                            let value = row[csvHeader] || row[backendField]; // dukung kedua format
+                            
+                            if (backendField === 'category') {
+                                value = categoryMapping[value] || value;
+                            }
+                            
+                            item[backendField] = value;
+                        }
+                        return item;
+                    }).filter(item => item.sku && item.name);
+
+                    if (formattedData.length === 0) {
+                        throw new Error('Tidak ada data valid untuk diimport');
+                    }
+
+                    const response = await api.post('/inventory/import', { items: formattedData });
+                    const { summary } = response;
+
+                    showToast(`Import Selesai: ${summary.added} Baru, ${summary.updated} Diperbarui, ${summary.failed} Gagal`, 'success');
+                    
+                    bootstrap.Modal.getInstance(document.getElementById('importModal')).hide();
+                    await this.loadItems();
+
+                } catch (error) {
+                    showToast(error.message, 'error');
+                } finally {
+                    processBtn.disabled = false;
+                    processBtn.innerHTML = originalText;
+                }
+            },
+            error: (error) => {
+                showToast('Gagal membaca file CSV: ' + error.message, 'error');
+                processBtn.disabled = false;
+                processBtn.innerHTML = originalText;
+            }
+        });
+    }
+
     setupEventListeners() {
         // Search & Filter
         document.getElementById('inventory-search').addEventListener('input', (e) => {
@@ -374,6 +520,34 @@ class Inventory {
         // Export CSV
         document.getElementById('export-csv-btn').addEventListener('click', () => {
             this.exportCSV();
+        });
+
+        // Import CSV
+        document.getElementById('import-csv-btn').addEventListener('click', () => {
+            this.openImportModal();
+        });
+
+        document.getElementById('download-template-btn').addEventListener('click', () => {
+            this.downloadTemplate();
+        });
+
+        const dropZone = document.getElementById('csv-drop-zone');
+        const fileInput = document.getElementById('csv-file-input');
+        const processBtn = document.getElementById('process-import-btn');
+        const fileNameDisplay = document.getElementById('file-name-display');
+
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                fileNameDisplay.textContent = `File terpilih: ${e.target.files[0].name}`;
+                fileNameDisplay.classList.remove('d-none');
+                processBtn.disabled = false;
+            }
+        });
+
+        processBtn.addEventListener('click', () => {
+            this.handleImport();
         });
 
         // Column sorting (event delegation on table head)
