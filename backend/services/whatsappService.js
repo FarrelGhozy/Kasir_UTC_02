@@ -68,6 +68,186 @@ class WhatsAppService {
   }
 
   /**
+   * Helper untuk memberikan jeda waktu (delay)
+   * @param {number} ms Milidetik
+   */
+  delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Mengirim 3 pesan berurutan untuk Tiket Servis Baru
+   */
+  async sendServiceWelcomeMessages(ticket) {
+    try {
+      const phone = ticket.customer.phone;
+      if (!phone) return;
+
+      const deviceName = `${ticket.device.type} ${ticket.device.brand || ''} ${ticket.device.model || ''}`.trim();
+
+      // 1. Pesan Greeting
+      const msg1 = `Halo Kak ${ticket.customer.name}, selamat datang di Bengkel UTC! 👋 Terima kasih telah mempercayakan perbaikan/pemesanan perangkat Anda kepada kami.`;
+      await this.sendMessage(phone, msg1);
+      
+      await this.delay(2500); // Jeda 2.5 detik
+
+      // 2. Pesan Status
+      const msg2 = `Berikut adalah informasi perangkat Anda:
+*No. Tiket/Pesanan: ${ticket.ticket_number}
+*Perangkat: ${deviceName}
+Status Saat Ini: Menunggu Antrian ⏳`;
+      await this.sendMessage(phone, msg2);
+
+      await this.delay(2500); // Jeda 2.5 detik
+
+      // 3. Pesan Syarat & Ketentuan
+      const msg3 = `PERHATIAN
+
+  
+
+SYARAT DAN KETENTUAN
+
+  
+
+Nota ini wajib dibawa saat pengambilan Unit Perangkat Elektronik yang diperbaiki/diservis. Pengambilan tanpa nota dengan alasan apapun tidak akan dilayani oeh pihak UTC.  
+
+Perangkat Elektronik yang diperbaiki/diservis, bila ternyata bertambah jenis kerusakan di luar kesepakatan awal, akan dikenakan biaya tambahan dengan melakukan konfirmasi terlebih dahulu kepada Konsumen.  
+
+Apabila setelah pengecekan kerusakan ditemukan dan konsumen memutuskan untuk membatalkan perbaikan, maka akan dikenakan Biaya Pengecekan/Diagnosa sebesar Rp. 20.000 untuk semua perangkat Elektronik  
+
+Pihak UTC tidak bertanggung jawab atas hilangnya data Konsumen untuk semua jenis kerusakan software dan mesin atau kerusakan fisik lainnya yang berdampak pada media penyimpanan.  
+
+UTC tidak bertanggung jawab atas legalitas software/sistem operasi yang terinstall di perangkat konsumen. Kami tidak melayani instalasi software bajakan/crack yang melanggar hukum Hak Cipta.  
+
+UTC hanya bertanggung jawab atas unit dan kelengkapan yang tertulis dalam nota tanda terima  
+
+Untuk kabar perbaikan customer akan dikabarkan setelah 3 hari  
+
+pengambilan barang service hanya bisa di lakukan di hari kerja, Sabtu-Kamis pada pukul 08.00 – 15.00  
+
+Masa garansi berlaku mulai dari tanggal pengambilan Perangkat Elektronik, dengan ketentuan sebagai berikut: Garansi berlaku untuk jenis kerusakan yang sama, Masa garansi Servis 7 Hari, Garansi Suku Cadang/Hardware berlaku sesuai ketentuan distributor (misal: 14-30 hari) dengan syarat fisik tidak cacat.  
+
+Garansi tidak berlaku apabila: Mengubah isi nota, Segel garansi hilang atau rusak, Kesalahan pengguna yang tidak semestinya (Jatuh, terbentur benda keras, terkena cairan, terbakar dan sebagainya).  
+
+PERSETUJUAN SERVICE PERANGKAT ELEKTRONIK
+
+  
+
+Saya menyatakan bahwa Perangkat Elektronik yang diperbaiki/diservis adalah Alat Elektronik milik/dalam penguasaan sendiri dan bukan merupakan Alat Elektronik dari hasil tindak kejahatan  
+
+Saya telah menerima penjelasan dan menyetujui tindakan servis berupa pembongkaran serta analisa kerusakan komponen lebih lanjut  
+
+Saya memahami bahwa untuk Handphone dan Laptop yang mati total atau mengalami kerusakan yang menyebabkan tidak dapat mengakses menu, seluruh fitur dianggap tidak berfungsi dengan normal. Hasil pengecekan lebih lanjut akan diinformasikan kemudian.  
+
+Saya Menyatakan paham bahwa proses pembongkaran pada perangkat tertentu (khususnya HP layar lengkung atau unibody) memiliki risiko lecet, retak rambut pada casing, atau hilangnya fitur ketahanan air (waterproof).pihak UTC tidak bertanggung jawab atas hilangnya fitur waterproof setelah perbaikan.  
+
+Saya menyatakan kesediaan untuk memberikan akses keamanan Perangkat Elektronik Saya hanya dalam batas proses perbaikan dan tidak untuk disalahgunakan dikemudian hari.  
+
+Saya telah menerima penjelasan mengenai konsekuensi jika Perangkat Elektronik tidak diambil dalam waktu 30 (tiga puluh) hari setelah pemberitahuan/konfirmasi, yaitu: Saya tidak akan mempermasalahkan kerusakan tambahan yang mungkin terjadi  
+
+Saya setuju terdapat Biaya Penyimpanan Perangkat Elektronik sebesar Rp. 2.000,- (dua ribu rupiah) per hari kalender yang akan mulai dihitung setelah melewati 15 (lima belas) hari kalender sejak batas waktu pemberitahuan/konfirmasi kepada Konsumen bahwa Perangkat Elektronik sudah dapat diambil. Biaya Penyimpanan Perangkat Elektronik hanya berlaku sampai dengan maksimal 90 (sembilan puluh) hari sejak batas waktu pemberitahuan/konfirmasi kepada Konsumen bahwa Alat Elektronik sudah dapat diambil.  
+
+Saya setuju dan mengizinkan pihak UTC untuk melakukan Lelang/Penjualan Perangkat Elektronik Service jika dalam batas waktu 90 (sembilan puluh) hari sejak batas waktu pemberitahuan/konfirmasi kepada Konsumen bahwa Perangkat Elektronik sudah dapat diambil atau 30 (tiga puluh) hari sejak pemberitahuan secara tertulis oleh pihak UTC tidak segera diambil oleh Konsumen.  
+
+Saya membebaskan pihak UTC dari segala tuntutan pidana maupun gugatan perdata atas kesalahan dan/atau pelanggaran Saya dari syarat dan ketentuan ini.  
+
+Saya membebaskan pihak UTC dari tanggung jawab atas kerusakan atau kehilangan akibat keadaan memaksa (force majeure) termasuk namun tidak terbatas pada : bencana alam, kebakaran, epidemi/pandemi, serta kejadian lain diluar kemampuan dan kendali pihak UTC.  
+
+Bahwa benar Saya sebelumnya telah membaca dan menerima semua penjelasan dari UTC, untuk itu Sayatelah memahami isi serta menyatakan telah sepakat dan menyetujui syarat serta ketentuan dimaksud.`;
+      
+      await this.sendMessage(phone, msg3);
+
+    } catch (error) {
+      console.error('[WhatsApp] Error in sendServiceWelcomeMessages:', error);
+    }
+  }
+
+  /**
+   * Mengirim 3 pesan berurutan untuk Pesanan Barang Baru
+   */
+  async sendOrderWelcomeMessages(order) {
+    try {
+      const phone = order.customer.phone;
+      if (!phone) return;
+
+      // 1. Pesan Greeting
+      const msg1 = `Halo Kak ${order.customer.name}, selamat datang di Bengkel UTC! 👋 Terima kasih telah mempercayakan perbaikan/pemesanan perangkat Anda kepada kami.`;
+      await this.sendMessage(phone, msg1);
+      
+      await this.delay(2500); // Jeda 2.5 detik
+
+      // 2. Pesan Status
+      const msg2 = `Berikut adalah informasi perangkat Anda:
+*No. Tiket/Pesanan: ${order.order_number}
+*Perangkat: ${order.item_name}
+Status Saat Ini: Menunggu Antrian ⏳`;
+      await this.sendMessage(phone, msg2);
+
+      await this.delay(2500); // Jeda 2.5 detik
+
+      // 3. Pesan Syarat & Ketentuan
+      const msg3 = `PERHATIAN
+
+  
+
+SYARAT DAN KETENTUAN
+
+  
+
+Nota ini wajib dibawa saat pengambilan Unit Perangkat Elektronik yang diperbaiki/diservis. Pengambilan tanpa nota dengan alasan apapun tidak akan dilayani oeh pihak UTC.  
+
+Perangkat Elektronik yang diperbaiki/diservis, bila ternyata bertambah jenis kerusakan di luar kesepakatan awal, akan dikenakan biaya tambahan dengan melakukan konfirmasi terlebih dahulu kepada Konsumen.  
+
+Apabila setelah pengecekan kerusakan ditemukan dan konsumen memutuskan untuk membatalkan perbaikan, maka akan dikenakan Biaya Pengecekan/Diagnosa sebesar Rp. 20.000 untuk semua perangkat Elektronik  
+
+Pihak UTC tidak bertanggung jawab atas hilangnya data Konsumen untuk semua jenis kerusakan software dan mesin atau kerusakan fisik lainnya yang berdampak pada media penyimpanan.  
+
+UTC tidak bertanggung jawab atas legalitas software/sistem operasi yang terinstall di perangkat konsumen. Kami tidak melayani instalasi software bajakan/crack yang melanggar hukum Hak Cipta.  
+
+UTC hanya bertanggung jawab atas unit dan kelengkapan yang tertulis dalam nota tanda terima  
+
+Untuk kabar perbaikan customer akan dikabarkan setelah 3 hari  
+
+pengambilan barang service hanya bisa di lakukan di hari kerja, Sabtu-Kamis pada pukul 08.00 – 15.00  
+
+Masa garansi berlaku mulai dari tanggal pengambilan Perangkat Elektronik, dengan ketentuan sebagai berikut: Garansi berlaku untuk jenis kerusakan yang sama, Masa garansi Servis 7 Hari, Garansi Suku Cadang/Hardware berlaku sesuai ketentuan distributor (misal: 14-30 hari) dengan syarat fisik tidak cacat.  
+
+Garansi tidak berlaku apabila: Mengubah isi nota, Segel garansi hilang atau rusak, Kesalahan pengguna yang tidak semestinya (Jatuh, terbentur benda keras, terkena cairan, terbakar dan sebagainya).  
+
+PERSETUJUAN SERVICE PERANGKAT ELEKTRONIK
+
+  
+
+Saya menyatakan bahwa Perangkat Elektronik yang diperbaiki/diservis adalah Alat Elektronik milik/dalam penguasaan sendiri dan bukan merupakan Alat Elektronik dari hasil tindak kejahatan  
+
+Saya telah menerima penjelasan dan menyetujui tindakan servis berupa pembongkaran serta analisa kerusakan komponen lebih lanjut  
+
+Saya memahami bahwa untuk Handphone dan Laptop yang mati total atau mengalami kerusakan yang menyebabkan tidak dapat mengakses menu, seluruh fitur dianggap tidak berfungsi dengan normal. Hasil pengecekan lebih lanjut akan diinformasikan kemudian.  
+
+Saya Menyatakan paham bahwa proses pembongkaran pada perangkat tertentu (khususnya HP layar lengkung atau unibody) memiliki risiko lecet, retak rambut pada casing, atau hilangnya fitur ketahanan air (waterproof).pihak UTC tidak bertanggung jawab atas hilangnya fitur waterproof setelah perbaikan.  
+
+Saya menyatakan kesediaan untuk memberikan akses keamanan Perangkat Elektronik Saya hanya dalam batas proses perbaikan and tidak untuk disalahgunakan dikemudian hari.  
+
+Saya telah menerima penjelasan mengenai konsekuensi jika Perangkat Elektronik tidak diambil dalam waktu 30 (tiga puluh) hari setelah pemberitahuan/konfirmasi, yaitu: Saya tidak akan mempermasalahkan kerusakan tambahan yang mungkin terjadi  
+
+Saya setuju terdapat Biaya Penyimpanan Perangkat Elektronik sebesar Rp. 2.000,- (dua ribu rupiah) per hari kalender yang akan mulai dihitung setelah melewati 15 (lima belas) hari kalender sejak batas waktu pemberitahuan/konfirmasi kepada Konsumen bahwa Perangkat Elektronik sudah dapat diambil. Biaya Penyimpanan Perangkat Elektronik hanya berlaku sampai dengan maksimal 90 (sembilan puluh) hari sejak batas waktu pemberitahuan/konfirmasi kepada Konsumen bahwa Alat Elektronik sudah dapat diambil.  
+
+Saya setuju dan mengizinkan pihak UTC untuk melakukan Lelang/Penjualan Perangkat Elektronik Service jika dalam batas waktu 90 (sembilan puluh) hari sejak batas waktu pemberitahuan/konfirmasi kepada Konsumen bahwa Perangkat Elektronik sudah dapat diambil atau 30 (tiga puluh) hari sejak pemberitahuan secara tertulis oleh pihak UTC tidak segera diambil oleh Konsumen.  
+
+Saya membebaskan pihak UTC dari segala tuntutan pidana maupun gugatan perdata atas kesalahan dan/atau pelanggaran Saya dari syarat dan ketentuan ini.  
+
+Saya membebaskan pihak UTC dari tanggung jawab atas kerusakan atau kehilangan akibat keadaan memaksa (force majeure) termasuk namun tidak terbatas pada : bencana alam, kebakaran, epidemi/pandemi, serta kejadian lain diluar kemampuan dan kendali pihak UTC.  
+
+Bahwa benar Saya sebelumnya telah membaca dan menerima semua penjelasan dari UTC, untuk itu Sayatelah memahami isi serta menyatakan telah sepakat dan menyetujui syarat serta ketentuan dimaksud.`;
+      
+      await this.sendMessage(phone, msg3);
+
+    } catch (error) {
+      console.error('[WhatsApp] Error in sendOrderWelcomeMessages:', error);
+    }
+  }
+
+  /**
    * Template Notifikasi Servis
    */
   async notifyServiceStatus(ticket) {
@@ -110,6 +290,17 @@ class WhatsAppService {
       message += `--------------------------\n`;
       message += `*TOTAL AKHIR: ${currencyFormat.format(totalCost)}*\n\n`;
       message += `Silakan Kakak berkunjung kembali ke toko kami untuk pengambilan perangkat. Jangan lupa membawa nota ini ya!\n`;
+    } else if (ticket.status === 'Picked_Up') {
+      const expiryDate = ticket.warranty_expires_at 
+        ? new Date(ticket.warranty_expires_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+        : '7 hari dari sekarang';
+
+      message += `Terima kasih Kak sudah mengambil perangkatnya. 😊\n\n`;
+      message += `*PENGINGAT GARANSI:*\n`;
+      message += `• Masa Garansi: *7 Hari* (Berlaku s/d ${expiryDate})\n`;
+      message += `• Garansi berlaku hanya untuk *jenis kerusakan yang sama* dengan pengerjaan sebelumnya.\n`;
+      message += `• Mohon perhatikan kembali *SOP & Syarat Ketentuan* yang telah kami kirimkan di awal (terkait segel, kelalaian pengguna, dll).\n\n`;
+      message += `Semoga perangkatnya awet dan bermanfaat ya Kak! 🙏✨\n`;
     } else {
       message += `Estimasi Jasa Awal: *${currencyFormat.format(ticket.service_fee)}*\n`;
       message += `_(Biaya akhir akan dikonfirmasi setelah selesai)_\n\n`;
