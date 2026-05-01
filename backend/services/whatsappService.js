@@ -290,6 +290,17 @@ Bahwa benar Saya sebelumnya telah membaca dan menerima semua penjelasan dari UTC
       message += `--------------------------\n`;
       message += `*TOTAL AKHIR: ${currencyFormat.format(totalCost)}*\n\n`;
       message += `Silakan Kakak berkunjung kembali ke toko kami untuk pengambilan perangkat. Jangan lupa membawa nota ini ya!\n`;
+    } else if (ticket.status === 'Picked_Up') {
+      const expiryDate = ticket.warranty_expires_at 
+        ? new Date(ticket.warranty_expires_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+        : '7 hari dari sekarang';
+
+      message += `Terima kasih Kak sudah mengambil perangkatnya. 😊\n\n`;
+      message += `*PENGINGAT GARANSI:*\n`;
+      message += `• Masa Garansi: *7 Hari* (Berlaku s/d ${expiryDate})\n`;
+      message += `• Garansi berlaku hanya untuk *jenis kerusakan yang sama* dengan pengerjaan sebelumnya.\n`;
+      message += `• Mohon perhatikan kembali *SOP & Syarat Ketentuan* yang telah kami kirimkan di awal (terkait segel, kelalaian pengguna, dll).\n\n`;
+      message += `Semoga perangkatnya awet dan bermanfaat ya Kak! 🙏✨\n`;
     } else {
       message += `Estimasi Jasa Awal: *${currencyFormat.format(ticket.service_fee)}*\n`;
       message += `_(Biaya akhir akan dikonfirmasi setelah selesai)_\n\n`;
