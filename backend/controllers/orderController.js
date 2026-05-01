@@ -27,8 +27,10 @@ exports.createOrder = async (req, res, next) => {
       notes
     });
 
-    // Kirim notifikasi WA
-    whatsappService.notifyOrderStatus(order);
+    // Kirim notifikasi WA - SEKUENSE 3 PESAN
+    if (order.customer.phone) {
+      whatsappService.sendOrderWelcomeMessages(order);
+    }
 
     res.status(201).json({ success: true, data: order });
   } catch (error) {

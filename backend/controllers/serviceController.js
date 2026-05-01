@@ -94,13 +94,13 @@ exports.createTicket = async (req, res, next) => {
 
     console.log(`Ticket created: ${ticket.ticket_number}`);
 
-    // Kirim notifikasi WA ke Pelanggan (Jika ada nomor WA)
+    // Kirim notifikasi WA ke Pelanggan (Jika ada nomor WA) - SEKUENSE 3 PESAN
     if (ticket.customer.phone) {
-      whatsappService.notifyServiceStatus(ticket).catch(err => {
+      whatsappService.sendServiceWelcomeMessages(ticket).catch(err => {
         SystemLog.create({
           level: 'ERROR',
           source: 'WhatsAppService',
-          message: 'Gagal kirim notifikasi pembuatan tiket',
+          message: 'Gagal kirim sekuense pesan sambutan (3 pesan)',
           details: { ticket_id: ticket._id, error: err.message }
         });
       });

@@ -321,9 +321,9 @@ serviceTicketSchema.methods.updateStatus = async function(newStatus, paymentMeth
     if (paymentMethod) this.payment_method = paymentMethod;
     if (paymentProof) this.payment_proof = paymentProof;
     
-    // Set garansi 14 hari jika belum ada
+    // Set garansi 7 hari jika belum ada
     if (!this.warranty_expires_at) {
-      this.warranty_expires_at = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+      this.warranty_expires_at = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     }
   }
   
