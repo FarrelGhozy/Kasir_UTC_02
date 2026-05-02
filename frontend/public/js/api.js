@@ -340,6 +340,84 @@ class API {
     }
 }
 
+/**
+ * WhatsApp Helper ---
+ */
+export function formatWhatsAppNumber(phone) {
+    if (!phone) return '';
+    let clean = phone.toString().replace(/\D/g, '');
+    if (clean.startsWith('0')) {
+        clean = '62' + clean.slice(1);
+    }
+    return clean;
+}
+
+/**
+ * Global function to validate WhatsApp number with UI feedback
+ * @param {string} phone Original phone input
+ * @param {string} msgElementId ID of the message container
+ * @param {string} submitBtnId ID of the submit button to disable/enable
+ * @returns {Promise<boolean>}
+ */
+export async function validateWhatsApp(phone, msgElementId, submitBtnId) {
+    const msgEl = document.getElementById(msgElementId);
+    const submitBtn = document.getElementById(submitBtnId);
+    
+    // Jika kosong atau terlalu pendek, anggap valid (boleh simpan) dan sembunyikan pesan
+    if (!phone || phone.trim().length < 5) {
+        if (msgEl) msgEl.classList.add('d-none');
+        if (submitBtn) submitBtn.disabled = false;
+        return true;
+    }
+
+    if (msgEl) {
+        msgEl.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Mengecek WhatsApp...';
+        msgEl.className = 'small mt-1 text-muted';
+        msgEl.classList.remove('d-none');
+    }
+
+    const formattedPhone = formatWhatsAppNumber(phone);
+
+    try {
+        const res = await api.checkWA(formattedPhone);
+        
+        if (res.isError) {
+            // Skenario API WAHA Error: Tetap aktif
+            if (msgEl) {
+                msgEl.innerHTML = '<i class="bi bi-exclamation-circle me-1"></i>Pengecekan WA gagal/timeout. Pastikan nomor benar.';
+                msgEl.className = 'small mt-1 text-warning fw-bold';
+            }
+            if (submitBtn) submitBtn.disabled = false;
+            return true;
+        }
+
+        if (res.isValid) {
+            if (msgEl) {
+                msgEl.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>Nomor WhatsApp Terverifikasi';
+                msgEl.className = 'small mt-1 text-success fw-bold';
+            }
+            if (submitBtn) submitBtn.disabled = false;
+            return true;
+        } else {
+            // Sesuai permintaan terbaru: Tetap aktif (boleh simpan) tapi beri peringatan merah
+            if (msgEl) {
+                msgEl.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i>Nomor tidak terdaftar di WhatsApp. Tetap simpan?';
+                msgEl.className = 'small mt-1 text-danger fw-bold';
+            }
+            if (submitBtn) submitBtn.disabled = false; // TOMBOL TETAP AKTIF
+            return true; // Return true agar tidak dianggap memblokir form
+        }
+    } catch (error) {
+        console.error('WA Validation error:', error);
+        if (msgEl) {
+            msgEl.innerHTML = '<i class="bi bi-exclamation-circle me-1"></i>Server sibuk. Pastikan nomor benar secara manual.';
+            msgEl.className = 'small mt-1 text-warning fw-bold';
+        }
+        if (submitBtn) submitBtn.disabled = false;
+        return true;
+    }
+}
+
 // Ekspor instance singleton
 const api = new API(API_BASE_URL);
 export default api;
