@@ -98,6 +98,18 @@ services:
     mem_limit: 1512m
     cpus: 1.5
 
+  # 5. Auto-Restart Scheduler
+  auto_restart:
+    image: docker:cli
+    container_name: utc_auto_restart
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    # Menjadwalkan restart container backend dan waha setiap 2 hari pukul 00:00
+    entrypoint: ["/bin/sh", "-c", "echo '0 0 */2 * * docker restart utc_backend utc_waha' > /etc/crontabs/root && crond -f -L /dev/stdout"]
+    networks:
+      - utc_network
+
 networks:
   utc_network:
     driver: bridge
