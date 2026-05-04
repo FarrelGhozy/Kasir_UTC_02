@@ -118,7 +118,29 @@ Setelah proses *seeding*, gunakan data berikut untuk masuk ke sistem:
 
 ---
 
+## 🛠️ 7. Pemeliharaan Sistem (Maintenance)
+
+Untuk menjaga stabilitas sistem (terutama layanan WAHA yang rentan terhadap kebocoran memori), telah diimplementasikan mekanisme **Auto-Restart Terjadwal** yang terintegrasi langsung dengan Docker Compose.
+
+### **Jadwal Restart Otomatis**
+Layanan `backend` (`utc_backend`) dan `waha` (`utc_waha`) dijadwalkan untuk restart setiap **2 hari sekali pada pukul 00:00**.
+
+### **Mekanisme Implementasi**
+Fitur ini dijalankan oleh service `auto_restart` di dalam `docker-compose.yml` menggunakan image `docker:cli`. Service ini berfungsi sebagai *sidecar container* yang mengirimkan perintah restart melalui Docker Socket.
+
+**Keuntungan:**
+*   **Portable:** Konfigurasi ikut berpindah jika project dipindah ke server lain.
+*   **Otomatis:** Langsung aktif saat perintah `docker compose up` dijalankan.
+*   **Aman:** Tidak memerlukan akses root/crontab pada OS Host server.
+
+**Catatan:**
+*   Restart ini hanya memakan waktu sekitar 5-10 detik.
+*   Data tidak akan hilang karena database tetap menyala dan volume sudah dipasang.
+*   Sesi WhatsApp akan otomatis terhubung kembali setelah container WAHA menyala.
+
+---
+
 > **Catatan Keamanan:** Jangan pernah melakukan *commit* file `.env` yang berisi password asli ke repository publik (GitHub/GitLab).
 
 Dibuat dengan ❤️ untuk Unida Technology Centre.
-*Terakhir Diperbarui: April 2026*
+*Terakhir Diperbarui: Mei 2026*

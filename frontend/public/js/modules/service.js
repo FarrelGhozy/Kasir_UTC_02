@@ -1,6 +1,6 @@
 // public/js/modules/service.js - Modul Manajemen Servis (FIXED: Add Part & Detail View)
 
-import api, { formatCurrency, formatDateTime, showToast, showError, setupCurrencyInput, parseCurrencyValue, calculateElapsedTime } from '../api.js';
+import api, { formatCurrency, formatDateTime, showToast, showError, setupCurrencyInput, parseCurrencyValue, calculateElapsedTime, validateWhatsApp } from '../api.js';
 
 /**
  * Helper class for Pattern Lock UI
@@ -355,7 +355,7 @@ class Service {
                                 </div>
 
                                 <div class="d-grid">
-                                    <button type="submit" class="btn btn-primary fw-bold py-2">
+                                    <button type="submit" class="btn btn-primary fw-bold py-2" id="save-ticket-btn">
                                         <i class="bi bi-save me-2"></i>Buat Tiket
                                     </button>
                                 </div>
@@ -1333,43 +1333,7 @@ class Service {
     }
 
     async validateWA(phone, targetMsgId = 'wa-validation-msg', submitBtnId = 'save-ticket-btn') {
-        const msgEl = document.getElementById(targetMsgId);
-        const submitBtn = document.getElementById(submitBtnId);
-        
-        if (!phone || phone.length < 9) {
-            if (msgEl) {
-                msgEl.classList.add('d-none');
-            }
-            if (submitBtn) submitBtn.disabled = false;
-            return;
-        }
-
-        if (msgEl) {
-            msgEl.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Mengecek WhatsApp...';
-            msgEl.className = 'small mt-1 text-muted';
-            msgEl.classList.remove('d-none');
-        }
-
-        try {
-            const res = await api.checkWA(phone);
-            if (res.exists) {
-                if (msgEl) {
-                    msgEl.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>Terdaftar di WhatsApp';
-                    msgEl.className = 'small mt-1 text-success';
-                }
-                if (submitBtn) submitBtn.disabled = false;
-            } else {
-                if (msgEl) {
-                    msgEl.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i>Nomor tidak terdaftar di WhatsApp';
-                    msgEl.className = 'small mt-1 text-danger';
-                }
-                if (submitBtn) submitBtn.disabled = true;
-                showToast('Nomor tidak terdaftar di WhatsApp', 'warning');
-            }
-        } catch (error) {
-            console.error('WA Validation error:', error);
-            if (msgEl) msgEl.classList.add('d-none');
-        }
+        return validateWhatsApp(phone, targetMsgId, submitBtnId);
     }
 
     openDetail(id) {
@@ -1572,23 +1536,6 @@ class Service {
         } catch (error) {
             console.error('Gagal mengompres gambar:', error);
             return file;
-        }
-    }
-
-    async validateWA(phone) {
-        if (!phone || phone.length < 10) return;
-        const msgEl = document.getElementById('wa-validation-msg');
-        msgEl.innerHTML = '<small class="text-muted"><i class="spinner-border spinner-border-sm me-1"></i>Memvalidasi WhatsApp...</small>';
-        
-        try {
-            const res = await api.validateWA(phone);
-            if (res.data && res.data.exists) {
-                msgEl.innerHTML = '<small class="text-success"><i class="bi bi-check-circle-fill me-1"></i>Nomor terdaftar di WhatsApp</small>';
-            } else {
-                msgEl.innerHTML = '<div class="alert alert-warning py-1 px-2 small mt-1 mb-0"><i class="bi bi-exclamation-triangle-fill me-1"></i>Nomor tidak terdeteksi di WhatsApp. Pelanggan mungkin tidak akan menerima notifikasi otomatis.</div>';
-            }
-        } catch (error) {
-            msgEl.innerHTML = '';
         }
     }
 
