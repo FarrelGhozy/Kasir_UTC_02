@@ -524,10 +524,16 @@ exports.resendWANotification = async (req, res, next) => {
     }
 
     const result = await whatsappService.notifyServiceStatus(ticket);
-    if (result) {
+    
+    if (result && result.success) {
       res.status(200).json({ success: true, message: 'Notifikasi WA berhasil dikirim ulang' });
     } else {
-      res.status(500).json({ success: false, message: 'Gagal mengirim ulang notifikasi WA' });
+      const errorMsg = result?.error || 'Gagal terhubung ke server WhatsApp';
+      res.status(500).json({ 
+        success: false, 
+        message: `Gagal mengirim ulang notifikasi WA: ${errorMsg}`,
+        details: result
+      });
     }
   } catch (error) {
     next(error);

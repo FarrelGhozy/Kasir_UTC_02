@@ -40,16 +40,19 @@ class WhatsAppService {
         headers: {
           'X-Api-Key': this.apiKey
         },
-        timeout: 10000 // Beri waktu 10 detik
+        timeout: 15000 // Beri waktu 15 detik
       };
 
       console.log(`[WhatsApp] Mencoba mengirim ke ${chatId}...`);
       
       const response = await axios.post(url, data, config);
       console.log(`[WhatsApp] Sukses kirim ke ${chatId}.`);
-      return response.data;
+      return { success: true, data: response.data };
     } catch (error) {
-      console.error(`[WhatsApp] Gagal mengirim ke ${phone}:`, error.response?.data || error.message);
+      const errorData = error.response?.data;
+      const errorMessage = errorData?.message || errorData?.error || error.message;
+      
+      console.error(`[WhatsApp] Gagal mengirim ke ${phone}:`, errorMessage);
       
       // Catat kegagalan ke Log Sistem
       SystemLog.create({
@@ -57,13 +60,14 @@ class WhatsAppService {
         source: 'WhatsAppService',
         message: `Gagal kirim pesan ke ${phone}`,
         details: { 
-          error: error.message, 
-          response: error.response?.data,
+          error: errorMessage, 
+          status: error.response?.status,
+          response: errorData,
           target: phone
         }
       }).catch(err => console.error('Gagal simpan log WA:', err));
 
-      return null;
+      return { success: false, error: errorMessage, status: error.response?.status };
     }
   }
 
@@ -82,6 +86,13 @@ class WhatsAppService {
     try {
       const phone = ticket.customer.phone;
       if (!phone) return;
+
+      // Cek status session dulu sebelum kirim sekuense panjang
+      const status = await this.checkSessionStatus();
+      if (status.status !== 'WORKING') {
+        console.warn(`[WhatsApp] Session ${this.session} tidak WORKING (Status: ${status.status}). Sekuense pesan dibatalkan.`);
+        return;
+      }
 
       const deviceName = `${ticket.device.type} ${ticket.device.brand || ''} ${ticket.device.model || ''}`.trim();
 
@@ -170,6 +181,13 @@ Bahwa benar Saya sebelumnya telah membaca dan menerima semua penjelasan dari UTC
       const phone = order.customer.phone;
       if (!phone) return;
 
+      // Cek status session
+      const status = await this.checkSessionStatus();
+      if (status.status !== 'WORKING') {
+        console.warn(`[WhatsApp] Session ${this.session} tidak WORKING. Sekuense pesan dibatalkan.`);
+        return;
+      }
+
       // 1. Pesan Greeting
       const msg1 = `Halo Kak ${order.customer.name}, selamat datang di Bengkel UTC! 👋 Terima kasih telah mempercayakan perbaikan/pemesanan perangkat Anda kepada kami.`;
       await this.sendMessage(phone, msg1);
@@ -238,7 +256,7 @@ Saya membebaskan pihak UTC dari segala tuntutan pidana maupun gugatan perdata at
 
 Saya membebaskan pihak UTC dari tanggung jawab atas kerusakan atau kehilangan akibat keadaan memaksa (force majeure) termasuk namun tidak terbatas pada : bencana alam, kebakaran, epidemi/pandemi, serta kejadian lain diluar kemampuan dan kendali pihak UTC.  
 
-Bahwa benar Saya sebelumnya telah membaca dan menerima semua penjelasan dari UTC, untuk itu Sayatelah memahami isi serta menyatakan telah sepakat dan menyetujui syarat serta ketentuan dimaksud.`;
+Bahwa benar Saya sebelumnya telah membaca dan menerima semua penjelasan dari UTC, untuk itu Sayatelah memahami isi serta menyatakan telah sepakat and menyetujui syarat serta ketentuan dimaksud.`;
       
       await this.sendMessage(phone, msg3);
 
