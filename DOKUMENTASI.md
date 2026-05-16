@@ -88,9 +88,24 @@ Sistem notifikasi otomatis tidak akan berjalan sebelum langkah-langkah ini seles
 5.  **Konfigurasi Webhook:**
     *   Klik menu **Webhooks** di dashboard WAHA.
     *   Klik **Add New Webhook**.
-    *   **URL:** Isi dengan `http://backend:5000/api/waha-webhook`
-    *   **Events:** Centang box `message` (ini agar bot bisa membalas chat otomatis).
+    *   **URL:** Isi dengan `http://backend:5000/api/waha-webhook` (WAHA di dalam Docker akan otomatis resolve `backend` ke container backend). Jika backend tidak ada di Docker, gunakan URL publik/domain.
+    *   **Events:** Centang box `message` atau `message.any` (WAHA Plus menggunakan event `message.upsert` — backend sudah menangani ketiganya).
+    *   **Retries:** Biarkan default (15 attempts) agar WAHA mencoba ulang jika webhook gagal.
     *   Klik **Save**.
+6.  **Verifikasi Webhook:** Setelah disimpan, kirim pesan WhatsApp ke nomor yang sudah discan. Cek log backend:
+    ```bash
+    docker compose logs backend -f
+    ```
+    Jika berhasil akan muncul log:
+    ```
+    [WAHA Webhook] Data Diterima: { ... }
+    [WAHA Webhook] Pesan dari: 62812xxxxxx@..., Isi: Halo
+    [Bot] Mengirim balasan ke 62812xxxxxx@c.us...
+    ```
+    Jika tidak muncul, periksa:
+    - Apakah session WAHA berstatus `WORKING`? Cek di dashboard WAHA.
+    - Apakah webhook URL sesuai? WAHA harus bisa mencapai `http://backend:5000/api/waha-webhook`.
+    - Apakah firewall memblokir koneksi antar container?
 
 ---
 
@@ -100,7 +115,8 @@ Setelah proses *seeding*, gunakan data berikut untuk masuk ke sistem:
 
 | Layanan | URL | Username | Password |
 | :--- | :--- | :--- | :--- |
-| **Aplikasi Utama** | `http://localhost:8080` | `admin` | `admin123` |
+| **Aplikasi Utama (Admin)** | `http://localhost:8080` | `admin-utc01` | `adminutc28` |
+| **Aplikasi Utama (Kasir)** | `http://localhost:8080` | `kasir1` | `kasirutc0326` |
 | **Dashboard WAHA** | `http://localhost:8000` | `admin-utc01` | `adminutc28` |
 | **Database Mongo** | `localhost:27018` | *(tanpa auth)* | *(tanpa auth)* |
 
@@ -110,7 +126,10 @@ Setelah proses *seeding*, gunakan data berikut untuk masuk ke sistem:
 
 | Gejala Masalah | Penyebab Umum | Solusi |
 | :--- | :--- | :--- |
-| **Bot WA Tidak Membalas** | Webhook belum diset atau salah URL. | Pastikan URL Webhook di WAHA menunjuk ke `http://backend:5000/api/waha-webhook`. |
+| **Bot WA Tidak Membalas** | Webhook belum diset, salah URL, atau payload WAHA Plus tidak cocok dengan format yang diharapkan backend. | Pastikan URL Webhook di WAHA menunjuk ke `http://backend:5000/api/waha-webhook`. Cek log backend dengan `docker compose logs backend -f` setelah kirim pesan WA. Pastikan ada log `[WAHA Webhook] Pesan dari: ...`. |
+| **Bot WA Tidak Membalas (no hp tidak terbaca)** | WAHA Plus mengirim format Baileys (`key.remoteJid`) — backend versi lama hanya membaca `from`. | **Update backend** — webhook.js sekarang sudah punya `normalizeWAHA()` yang handle kedua format. Pastikan container di-rebuild: `docker compose up -d --build backend`. |
+| **Session WAHA tidak WORKING** | Belum scan QR, atau sesi expired. | Buka dashboard WAHA, klik session `default`, scan ulang QR. Jika sering disconnect, kurangi beban RAM WAHA (image WAHA butuh ~1.5GB). |
+| **WAHA error 401 saat kirim pesan** | API Key mismatch. | Pastikan `WAHA_API_KEY` di `.env` backend cocok dengan `WAHA_API_KEY` di `docker-compose.yml` (default: `adminutc28`). |
 | **Email Nota Gagal Kirim** | App Password salah atau 2-FA mati. | Cek kembali `EMAIL_PASS` dan pastikan Verifikasi 2 Langkah Google aktif. |
 | **Gagal Build Container** | Bentrok port (8080/8000/27018). | Pastikan tidak ada aplikasi lain (XAMPP/Mongo Lokal) yang memakai port tersebut. |
 | **Layar Hitam/Stuck Backdrop** | Masalah cache modal Bootstrap. | Lakukan **Hard Refresh** di browser (Ctrl + F5). |

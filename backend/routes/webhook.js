@@ -2,30 +2,65 @@ const express = require('express');
 const router = express.Router();
 const { handleIncomingMessage } = require('../bot/botHandler');
 
-// Endpoint untuk mengecek status webhook (Debugging via Browser)
+function normalizeWAHA(payload) {
+  // Format WAHA Plus (raw Baileys message): { key: { remoteJid, fromMe }, message: { conversation, ... } }
+  if (payload.key) {
+    const remoteJid = payload.key.remoteJid || '';
+    return {
+      from: remoteJid,
+      fromMe: payload.key.fromMe || false,
+      isGroup: remoteJid.includes('@g.us'),
+      isStatus: remoteJid === 'status@broadcast',
+      body: extractMessageText(payload.message)
+    };
+  }
+  // Format WAHA Core: { from, body, fromMe, isGroup, isStatus }
+  return {
+    from: payload.from || '',
+    fromMe: payload.fromMe || false,
+    isGroup: payload.isGroup || false,
+    isStatus: payload.isStatus || false,
+    body: payload.body || ''
+  };
+}
+
+function extractMessageText(msg) {
+  if (!msg) return '';
+  return msg.conversation ||
+    msg.extendedTextMessage?.text ||
+    msg.imageMessage?.caption ||
+    msg.videoMessage?.caption ||
+    msg.documentMessage?.caption ||
+    msg.buttonsResponseMessage?.selectedButtonId ||
+    msg.listResponseMessage?.singleSelectReply?.selectedRowId ||
+    '';
+}
+
 router.get('/waha-webhook', (req, res) => {
-  res.status(200).json({ 
-    success: true, 
+  res.status(200).json({
+    success: true,
     message: 'Endpoint Webhook UTC Aktif!',
     usage: 'Gunakan metode POST untuk mengirim data dari WAHA.'
   });
 });
 
-// Endpoint untuk menerima Webhook dari WAHA
 router.post('/waha-webhook', async (req, res) => {
   try {
     const payload = req.body;
-    
-    // LOG UNTUK DEBUGGING (PENTING)
     console.log(`[WAHA Webhook] Data Diterima:`, JSON.stringify(payload, null, 2));
 
-    // Mendukung 'message' (Core) atau 'message.upsert' (Plus/Newer)
     if (payload.event === 'message' || payload.event === 'message.upsert' || payload.event === 'message.any') {
-      const messageData = payload.payload || payload.data;
-      
-      if (messageData) {
-        console.log(`[WAHA Webhook] Pesan dari: ${messageData.from}, Isi: ${messageData.body}`);
-        await handleIncomingMessage(messageData);
+      const raw = payload.payload || payload.data;
+
+      if (raw) {
+        const normalized = normalizeWAHA(raw);
+        console.log(`[WAHA Webhook] Pesan dari: ${normalized.from}, Isi: ${normalized.body}`);
+
+        if (normalized.from) {
+          await handleIncomingMessage(normalized);
+        } else {
+          console.log('[WAHA Webhook] from kosong, dilewati');
+        }
       } else {
         console.log('[WAHA Webhook] Data pesan kosong');
       }
@@ -36,7 +71,9 @@ router.post('/waha-webhook', async (req, res) => {
     res.status(200).send('OK');
   } catch (error) {
     console.error('[Webhook] Error:', error.message);
-    res.status(500).send('Internal Server Error');
+    console.error('[Webhook] Stack:', error.stack);
+    // Tetap return 200 agar WAHA tidak retry terus-menerus
+    res.status(200).send('OK');
   }
 });
 
