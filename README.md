@@ -101,8 +101,11 @@ Buat file baru bernama `.env` di dalam folder `backend/` atau edit langsung di `
 **Isi file `backend/.env`:**
 ```env
 PORT=5000
-MONGODB_URI=mongodb://mongo_db:27017/bengkel_utc
+MONGODB_URI=mongodb://localhost:27018/bengkel_utc
 JWT_SECRET=GantiDenganStringRahasiaApapun
+WAHA_URL=http://localhost:8000
+WAHA_SESSION=default
+WAHA_API_KEY=adminutc28
 EMAIL_USER=email-anda@gmail.com
 EMAIL_PASS=kode-app-password-16-digit
 NODE_ENV=production
@@ -125,7 +128,8 @@ docker compose exec backend npm run seed
 
 | Layanan | URL Akses | Kredensial Default |
 | :--- | :--- | :--- |
-| **Aplikasi Kasir (Web)** | `http://localhost:8080` | User: `admin-utc01` / Pass: `adminutc28` |
+| **Aplikasi Utama (Admin)** | `http://localhost:8080` | User: `admin-utc01` / Pass: `adminutc28` |
+| **Aplikasi Utama (Kasir)** | `http://localhost:8080` | User: `kasir1` / Pass: `kasirutc0326` |
 | **WhatsApp Bot (WAHA)** | `http://localhost:8000` | User: `admin-utc01` / Pass: `adminutc28` |
 | **Database Explorer** | `localhost:27018` | (Gunakan MongoDB Compass) |
 
@@ -141,11 +145,20 @@ docker compose exec backend npm run seed
 5. **PENTING: Pengaturan Webhook** agar Bot Balas Otomatis bekerja:
    - Pilih tab **Webhooks** di dashboard WAHA.
    - Klik **Add Webhook**.
-   - **URL:** `http://backend:5000/api/waha-webhook` (Jika menggunakan Docker) atau URL domain Anda.
-   - **Events:** Pilih `message` atau `message.any`.
-   - **Retries:** Biarkan default (atau set ke 15 attempts jika ingin tangguh).
+   - **URL:** `http://backend:5000/api/waha-webhook` (WAHA di dalam Docker akan otomatis resolve `backend` ke container backend). Jika backend tidak ada di Docker, gunakan URL publik/domain.
+   - **Events:** Pilih `message` atau `message.any` (WAHA Plus menggunakan event `message.upsert` — backend sudah menangani ketiganya).
+   - **Retries:** Biarkan default (15 attempts) agar WAHA mencoba ulang jika webhook gagal.
    - Klik **Save**.
-6. Jika status sudah `CONNECTED` dan Webhook aktif, bot sudah siap bekerja!
+6. **Verifikasi Webhook:** Kirim pesan WhatsApp ke nomor yang sudah discan, lalu cek log backend:
+   ```bash
+   docker compose logs backend -f
+   ```
+   Jika berhasil akan muncul:
+   ```
+   [WAHA Webhook] Pesan dari: 62812xxxxxx@..., Isi: Halo
+   [Bot] Mengirim balasan ke 62812xxxxxx@c.us...
+   ```
+7. Jika status session `default` sudah `WORKING` dan Webhook aktif, bot sudah siap bekerja!
 
 ### 📧 Testing Email
 1. Buat **Tiket Servis Baru**.
@@ -158,20 +171,14 @@ docker compose exec backend npm run seed
 ## 🔐 Akun Akses Default
 Jika Anda menggunakan perintah `npm run seed`, gunakan akun berikut:
 
-- **Superadmin:** `admin-utc01` / `adminutc28` (Akses penuh & kelola teknisi)
-- **Kasir:** `kasir1` / `kasirutc0326` (Hanya POS & Servis)
-- **Teknisi:** `wildan_utc`, `kaukab_utc`, dll.
-
----
-
-## 📖 Dokumentasi Teknis
-Untuk informasi struktur kode, pemeliharaan, dan pengembangan lebih lanjut, silakan merujuk ke:
-👉 **[DOKUMENTASI.md](./DOKUMENTASI.md)**
+- **Superadmin (Akses penuh & kelola teknisi):** `admin-utc01` / `adminutc28`
+- **Kasir (Hanya POS & Servis):** `kasir1` / `kasirutc0326`
+- **Teknisi:** `wildan_utc`, `kaukab_utc`, `rasya_utc`, `tamam_utc`, `syamsi_utc`, `akbar_utc` — password: sesuai data di seed
 
 ---
 
 ## 📖 Dokumentasi Lengkap
-Untuk informasi teknis lebih mendalam mengenai struktur kode, alur bot WhatsApp, dan panduan pemeliharaan, silakan baca:
+Untuk informasi struktur kode, alur bot WhatsApp, troubleshooting, dan panduan pemeliharaan, silakan merujuk ke:
 👉 **[DOKUMENTASI.md](./DOKUMENTASI.md)**
 
 ---
