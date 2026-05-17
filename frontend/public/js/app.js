@@ -52,26 +52,20 @@ class App {
     }
 
     setupNavigation() {
-        // Ambil semua link navigasi
-        const navLinks = document.querySelectorAll('#main-nav .nav-link');
+        // Tangani klik pada semua elemen navigasi (sidebar, bottom nav, dropdown)
+        document.addEventListener('click', (e) => {
+            const link = e.target.closest('[data-page]');
+            if (!link) return;
 
-        navLinks.forEach(link => {
-            link.addEventListener('click', (e) => {
-                const page = link.getAttribute('data-page');
-                
-                // Jika link tidak memiliki data-page (misal link ke file .html lain), 
-                // biarkan navigasi browser normal berjalan.
-                if (!page) return;
+            const page = link.getAttribute('data-page');
+            e.preventDefault();
 
-                e.preventDefault();
+            // Update active state untuk SEMUA nav items (sidebar + bottom nav)
+            document.querySelectorAll('[data-page]').forEach(el => el.classList.remove('active'));
+            link.classList.add('active');
 
-                // Update status aktif (highlight menu)
-                navLinks.forEach(l => l.classList.remove('active'));
-                link.classList.add('active');
-
-                // Navigasi ke halaman
-                this.navigateTo(page);
-            });
+            // Navigasi
+            this.navigateTo(page);
         });
     }
 

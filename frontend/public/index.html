@@ -18,7 +18,7 @@
     <link rel="stylesheet" href="./css/styles.css">
 
     <style>
-        /* Desktop: Sidebar tetap tampil */
+        /* Desktop: Sidebar tetap tampil, bottom nav sembunyi */
         @media (min-width: 992px) {
             #sidebar {
                 left: 0 !important;
@@ -27,46 +27,28 @@
             #main-content {
                 margin-left: 250px;
             }
-            #sidebar-toggle {
-                display: none;
+            #bottom-nav {
+                display: none !important;
+            }
+            #mobile-nav-dropdown {
+                display: none !important;
             }
         }
-        /* Mobile: Sidebar sembunyi & melayang */
+        /* Mobile: Bottom nav tampil, sidebar sembunyi */
         @media (max-width: 991px) {
             #sidebar {
-                left: -280px;
-                width: 280px;
-                z-index: 9999;
-                transition: all 0.3s ease-in-out;
-                visibility: hidden;
-            }
-            #sidebar.active {
-                left: 0;
-                visibility: visible;
+                display: none;
             }
             #main-content {
                 margin-left: 0 !important;
                 width: 100%;
-            }
-            .sidebar-overlay {
-                display: none;
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(0, 0, 0, 0.5);
-                z-index: 9998;
-            }
-            .sidebar-overlay.active {
-                display: block;
+                padding-bottom: 70px;
             }
         }
     </style>
 </head>
 
 <body class="bg-light">
-    <div class="sidebar-overlay" id="sidebar-overlay"></div> ...
     <div id="login-screen" class="d-flex align-items-center justify-content-center min-vh-100 bg-light p-3">
         <div class="card shadow border-0" style="width: 100%; max-width: 420px;">
             <div class="card-body p-5">
@@ -186,13 +168,22 @@
             <nav class="navbar navbar-light bg-white border-bottom shadow-sm py-3 px-4">
                 <div class="container-fluid px-0">
                     <div class="d-flex align-items-center">
-                        <button class="btn btn-light d-lg-none me-3" id="sidebar-toggle">
-                            <i class="bi bi-list fs-4"></i>
-                        </button>
                         <h4 class="mb-0 fw-bold text-dark" id="page-title">Dasbor</h4>
                     </div>
 
                     <div class="d-flex align-items-center gap-2">
+                        <div class="dropdown" id="mobile-nav-dropdown">
+                            <button class="btn btn-light btn-sm rounded-circle p-1" data-bs-toggle="dropdown" aria-label="Menu lainnya">
+                                <i class="bi bi-grid-3x3-gap-fill fs-5"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end shadow border-0">
+                                <li><a class="dropdown-item" href="#" data-page="orders"><i class="bi bi-bag-plus me-2"></i>Pesanan Barang</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li class="admin-only" style="display:none"><a class="dropdown-item" href="#" data-page="admin"><i class="bi bi-gear me-2"></i>Pengaturan Sistem</a></li>
+                                <li><hr class="dropdown-divider d-lg-none"></li>
+                                <li class="d-lg-none"><a class="dropdown-item text-danger" href="#" id="logout-btn-mobile"><i class="bi bi-box-arrow-right me-2"></i>Keluar</a></li>
+                            </ul>
+                        </div>
                         <span class="badge bg-primary bg-opacity-10 text-primary px-2 px-sm-3 py-2 border border-primary border-opacity-25 d-none d-sm-inline" id="current-date"></span>
                         <span class="badge bg-success bg-opacity-10 text-success px-2 px-sm-3 py-2 border border-success border-opacity-25 small" id="current-time"></span>
                     </div>
@@ -214,7 +205,32 @@
         </main>
     </div>
 
-    <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toast-container"></div>
+    <nav id="bottom-nav" class="d-lg-none">
+        <div class="bottom-nav-inner">
+            <a class="bottom-nav-item active" href="#" data-page="dashboard">
+                <i class="bi bi-speedometer2"></i>
+                <span>Dashboard</span>
+            </a>
+            <a class="bottom-nav-item" href="#" data-page="pos">
+                <i class="bi bi-cart3"></i>
+                <span>Kasir</span>
+            </a>
+            <a class="bottom-nav-item" href="#" data-page="service">
+                <i class="bi bi-wrench"></i>
+                <span>Servis</span>
+            </a>
+            <a class="bottom-nav-item" href="#" data-page="inventory">
+                <i class="bi bi-box-seam"></i>
+                <span>Gudang</span>
+            </a>
+            <a class="bottom-nav-item" href="#" data-page="reports">
+                <i class="bi bi-graph-up"></i>
+                <span>Laporan</span>
+            </a>
+        </div>
+    </nav>
+
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" style="bottom: 70px !important;" id="toast-container"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
@@ -228,48 +244,15 @@
 
     <script>
         document.addEventListener("DOMContentLoaded", function() {
-            const toggleBtn = document.getElementById('sidebar-toggle');
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('sidebar-overlay');
-
-            function openSidebar() {
-                sidebar.classList.add('active');
-                overlay.classList.add('active');
-            }
-
-            function closeSidebar() {
-                sidebar.classList.remove('active');
-                overlay.classList.remove('active');
-            }
-
-            // Klik tombol hamburger → buka menu
-            if (toggleBtn) {
-                toggleBtn.addEventListener('click', function(e) {
+            // Logout mobile handler
+            const logoutBtnMobile = document.getElementById('logout-btn-mobile');
+            if (logoutBtnMobile) {
+                logoutBtnMobile.addEventListener('click', function(e) {
                     e.preventDefault();
-                    if (sidebar.classList.contains('active')) {
-                        closeSidebar();
-                    } else {
-                        openSidebar();
-                    }
+                    const logoutBtn = document.getElementById('logout-btn');
+                    if (logoutBtn) logoutBtn.click();
                 });
             }
-
-            // Klik overlay → tutup menu
-            if (overlay) {
-                overlay.addEventListener('click', function() {
-                    closeSidebar();
-                });
-            }
-
-            // Klik nav link di HP → tutup menu (navigasi tetap jalan)
-            const navLinks = document.querySelectorAll('#sidebar .nav-link');
-            navLinks.forEach(link => {
-                link.addEventListener('click', () => {
-                    if (window.innerWidth < 992) {
-                        closeSidebar();
-                    }
-                });
-            });
         });
     </script>
 </body>
