@@ -52,20 +52,22 @@ class App {
     }
 
     setupNavigation() {
-        // Tangani klik pada semua elemen navigasi (sidebar, bottom nav, dropdown)
-        document.addEventListener('click', (e) => {
-            const link = e.target.closest('[data-page]');
-            if (!link) return;
+        const allLinks = document.querySelectorAll('[data-page]');
+        console.log(`[Nav] Menemukan ${allLinks.length} link navigasi`);
 
-            const page = link.getAttribute('data-page');
-            e.preventDefault();
+        allLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                const page = link.getAttribute('data-page');
+                if (!page) return;
+                e.preventDefault();
 
-            // Update active state untuk SEMUA nav items (sidebar + bottom nav)
-            document.querySelectorAll('[data-page]').forEach(el => el.classList.remove('active'));
-            link.classList.add('active');
+                console.log(`[Nav] Navigasi ke: ${page}`);
 
-            // Navigasi
-            this.navigateTo(page);
+                allLinks.forEach(l => l.classList.remove('active'));
+                link.classList.add('active');
+
+                this.navigateTo(page);
+            });
         });
     }
 
