@@ -37,7 +37,7 @@
         /* Mobile: Bottom nav tampil, sidebar sembunyi */
         @media (max-width: 991px) {
             #sidebar {
-                display: none;
+                display: none !important;
             }
             #main-content {
                 margin-left: 0 !important;
@@ -178,8 +178,6 @@
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end shadow border-0">
                                 <li><a class="dropdown-item" href="#" data-page="orders"><i class="bi bi-bag-plus me-2"></i>Pesanan Barang</a></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li class="admin-only" style="display:none"><a class="dropdown-item" href="#" data-page="admin"><i class="bi bi-gear me-2"></i>Pengaturan Sistem</a></li>
                                 <li><hr class="dropdown-divider d-lg-none"></li>
                                 <li class="d-lg-none"><a class="dropdown-item text-danger" href="#" id="logout-btn-mobile"><i class="bi bi-box-arrow-right me-2"></i>Keluar</a></li>
                             </ul>
@@ -226,6 +224,10 @@
             <a class="bottom-nav-item" href="#" data-page="reports">
                 <i class="bi bi-graph-up"></i>
                 <span>Laporan</span>
+            </a>
+            <a class="bottom-nav-item admin-only" href="#" data-page="admin" style="display:none;">
+                <i class="bi bi-gear"></i>
+                <span>Pengaturan</span>
             </a>
         </div>
     </nav>

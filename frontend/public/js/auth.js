@@ -191,8 +191,10 @@ class Auth {
 
     updateClock() {
         const now = new Date();
+        const tz = 'Asia/Jakarta';
         
         const dateStr = now.toLocaleDateString('id-ID', {
+            timeZone: tz,
             weekday: 'long',
             year: 'numeric',
             month: 'long',
@@ -200,6 +202,7 @@ class Auth {
         });
         
         const timeStr = now.toLocaleTimeString('id-ID', {
+            timeZone: tz,
             hour: '2-digit',
             minute: '2-digit',
             second: '2-digit'
