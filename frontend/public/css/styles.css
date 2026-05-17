@@ -134,12 +134,14 @@ body {
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
     gap: 15px;
     max-height: calc(100vh - 250px);
+    max-height: calc(100dvh - 250px);
     overflow-y: auto;
     padding: 10px;
 }
 
 .product-card {
     cursor: pointer;
+    touch-action: manipulation;
     border: 2px solid transparent;
     transition: all 0.2s ease;
     height: 100%;
@@ -179,8 +181,8 @@ body {
 /* Cart Table */
 
 .cart-container {
-    /* calc: 100vh minus navbar (~60px), cart header (~56px), payment section (~300px) */
     max-height: calc(100vh - 420px);
+    max-height: calc(100dvh - 420px);
     overflow-y: auto;
     border: 1px solid #dee2e6;
     border-radius: var(--border-radius-sm);
@@ -267,6 +269,7 @@ body {
     font-weight: 500;
     padding: 0.5rem 1.2rem;
     transition: all 0.3s ease;
+    touch-action: manipulation;
 }
 
 .btn-primary {
@@ -468,6 +471,144 @@ body {
         padding: 0.2rem 0.4rem;
         font-size: 0.75rem;
     }
+
+    /* Product card di HP: lebih kecil */
+    .product-grid {
+        gap: 8px;
+        padding: 4px;
+    }
+
+    .product-card .card-body {
+        padding: 0.5rem !important;
+    }
+
+    .product-card .product-price {
+        font-size: 0.95rem;
+    }
+
+    /* POS: product list + cart full width stacking */
+    #product-grid > .col-6 {
+        padding: 4px !important;
+    }
+
+    /* POS: tombol bayar full width */
+    #pay-btn {
+        font-size: 1rem;
+        padding: 0.75rem !important;
+    }
+
+    /* Reports: filter buttons wrap properly */
+    .reports-filter-bar .row > div {
+        margin-bottom: 0.5rem;
+    }
+    .btn-group[role="group"] {
+        flex-wrap: wrap;
+    }
+    .btn-group[role="group"] .btn {
+        flex: 1 1 auto;
+        white-space: nowrap;
+        font-size: 0.8rem;
+        padding: 0.4rem 0.6rem;
+    }
+
+    /* Service: nonaktifkan sticky di HP */
+    .col-lg-4 > .sticky-top {
+        position: static !important;
+        max-height: none !important;
+    }
+
+    /* Form fields lebih padat di HP */
+    .service-form .card-body {
+        padding: 0.75rem !important;
+    }
+}
+
+/* Very small screens <400px (iPhone SE, older Android) */
+@media (max-width: 400px) {
+    /* Login card padding dikurangi */
+    #login-screen .card-body {
+        padding: 1.5rem !important;
+    }
+
+    /* Judul login lebih kecil */
+    #login-screen h3 {
+        font-size: 1.3rem;
+    }
+
+    /* HP stat cards padding dikurangi */
+    .stat-card .card-body {
+        padding: 0.75rem !important;
+    }
+
+    .stat-card .stat-value {
+        font-size: 1.2rem !important;
+    }
+
+    .stat-card .bg-opacity-10 {
+        padding: 0.4rem !important;
+    }
+
+    .stat-card .bg-opacity-10 i {
+        font-size: 1.2rem !important;
+    }
+
+    /* Product grid: 2 columns, smaller */
+    .product-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+    }
+
+    #product-grid > .col-6 {
+        width: 50% !important;
+        flex: 0 0 50% !important;
+    }
+
+    .product-card .product-name {
+        font-size: 0.75rem;
+    }
+
+    /* Buttons konsisten */
+    .btn {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.85rem;
+    }
+
+    /* Headers lebih kecil */
+    #page-title {
+        font-size: 1rem !important;
+    }
+
+    /* Payment section di POS */
+    .cart-total {
+        font-size: 1.2rem !important;
+    }
+
+    #quick-pay-buttons .btn {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+
+    /* Navbar padding */
+    .navbar.py-3 {
+        padding-top: 0.5rem !important;
+        padding-bottom: 0.5rem !important;
+    }
+
+    /* QRIS/buttons di service page */
+    .btn-outline-primary.w-100.py-3 {
+        padding-top: 0.5rem !important;
+        padding-bottom: 0.5rem !important;
+        font-size: 0.75rem;
+    }
+
+    /* Modal jadi full screen di HP kecil */
+    .modal-dialog {
+        margin: 0.25rem;
+    }
+
+    .modal-body {
+        padding: 0.75rem !important;
+    }
 }
 
 /* Tablet - 768px to 991px */
@@ -480,6 +621,33 @@ body {
 @media (max-width: 768px) {
     .product-grid {
         grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    }
+}
+
+/* Landscape orientation on mobile */
+@media (max-height: 500px) and (orientation: landscape) {
+    /* Login screen compact */
+    #login-screen .card-body {
+        padding: 1rem !important;
+    }
+
+    /* Sidebar lebih compact di landscape */
+    .sidebar-header {
+        padding: 0.5rem 1rem !important;
+    }
+
+    .sidebar-header img {
+        width: 30px !important;
+    }
+
+    .user-info {
+        margin-bottom: 0.5rem !important;
+        padding: 0.5rem !important;
+    }
+
+    #sidebar .nav-link {
+        padding: 6px 12px !important;
+        font-size: 0.85rem;
     }
 }
 
@@ -544,6 +712,22 @@ body {
 .toast.toast-error   { background-color: var(--toast-error) !important;   color: #fff; }
 .toast.toast-warning { background-color: var(--toast-warning) !important; color: #000; }
 .toast.toast-info    { background-color: var(--toast-info) !important;    color: #000; }
+
+/* Toast mobile: lebih lebar dan safe dari bottom */
+@media (max-width: 576px) {
+    .toast-container {
+        left: 0 !important;
+        right: 0 !important;
+        padding: 0.5rem !important;
+        bottom: 0 !important;
+    }
+    .toast-container .toast {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin-bottom: 0.25rem;
+        border-radius: 8px !important;
+    }
+}
 
 
 /* Print Styles */
