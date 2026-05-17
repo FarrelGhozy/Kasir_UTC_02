@@ -455,18 +455,18 @@ body {
 .bottom-nav-inner {
     display: flex;
     align-items: center;
-    justify-content: space-around;
+    justify-content: center;
     height: 60px;
 }
 
 .bottom-nav-item {
+    flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 1px;
-    padding: 4px 4px;
-    min-width: 44px;
+    padding: 2px;
     text-decoration: none;
     color: #6c757d;
     transition: color 0.2s ease;
@@ -475,7 +475,7 @@ body {
 }
 
 .bottom-nav-item i {
-    font-size: 1.2rem;
+    font-size: 1.15rem;
     line-height: 1;
 }
 
@@ -485,7 +485,10 @@ body {
     white-space: nowrap;
 }
 
-/* Admin-only bottom nav item visibility diatur via JS */
+/* Admin-only: default visible, diatur role-nya via JS */
+.bottom-nav-item.admin-only.hidden {
+    display: none;
+}
 
 .bottom-nav-item:hover,
 .bottom-nav-item:active {

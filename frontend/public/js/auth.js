@@ -176,7 +176,7 @@ class Auth {
 
         // Bottom nav / dropdown admin-only items
         document.querySelectorAll('.admin-only').forEach(el => {
-            el.style.display = role === 'admin' ? '' : 'none';
+            el.classList.toggle('hidden', role !== 'admin');
         });
     }
 
