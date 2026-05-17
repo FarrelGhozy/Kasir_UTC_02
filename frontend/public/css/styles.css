@@ -489,6 +489,9 @@ body {
 .bottom-nav-item.admin-only.hidden {
     display: none;
 }
+.bottom-nav-item.admin-only {
+    flex-direction: column !important;
+}
 
 .bottom-nav-item:hover,
 .bottom-nav-item:active {
