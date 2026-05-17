@@ -52,24 +52,20 @@ class App {
     }
 
     setupNavigation() {
-        // Ambil semua link navigasi
-        const navLinks = document.querySelectorAll('#main-nav .nav-link');
+        const allLinks = document.querySelectorAll('[data-page]');
+        console.log(`[Nav] Menemukan ${allLinks.length} link navigasi`);
 
-        navLinks.forEach(link => {
+        allLinks.forEach(link => {
             link.addEventListener('click', (e) => {
                 const page = link.getAttribute('data-page');
-                
-                // Jika link tidak memiliki data-page (misal link ke file .html lain), 
-                // biarkan navigasi browser normal berjalan.
                 if (!page) return;
-
                 e.preventDefault();
 
-                // Update status aktif (highlight menu)
-                navLinks.forEach(l => l.classList.remove('active'));
+                console.log(`[Nav] Navigasi ke: ${page}`);
+
+                allLinks.forEach(l => l.classList.remove('active'));
                 link.classList.add('active');
 
-                // Navigasi ke halaman
                 this.navigateTo(page);
             });
         });

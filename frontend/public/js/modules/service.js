@@ -218,7 +218,7 @@ class Service {
         content.innerHTML = `
             <div class="row g-4">
                 <div class="col-lg-4">
-                    <div class="card shadow-sm border-0 sticky-top" style="top: 20px; z-index: 1; max-height: calc(100vh - 40px); display: flex; flex-direction: column;">
+                    <div class="card shadow-sm border-0 sticky-top" style="top: 20px; z-index: 1; max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px); display: flex; flex-direction: column;">
                         <div class="card-header bg-primary text-white py-3">
                             <h5 class="mb-0"><i class="bi bi-plus-circle me-2"></i>Tiket Servis Baru</h5>
                         </div>
@@ -295,15 +295,15 @@ class Service {
                                 <h6 class="border-bottom pb-2 mb-3 mt-4 fw-bold text-secondary">Perangkat & Masalah</h6>
 
                                 <div class="row g-2 mb-3">
-                                    <div class="col-4">
+                                    <div class="col-4 col-sm-4">
                                         <label class="form-label small fw-bold">Tipe *</label>
                                         <input type="text" class="form-control" id="device-type" placeholder="Laptop/PC" required>
                                     </div>
-                                    <div class="col-4">
+                                    <div class="col-4 col-sm-4">
                                         <label class="form-label small fw-bold">Merek</label>
                                         <input type="text" class="form-control" id="device-brand" placeholder="Asus/HP">
                                     </div>
-                                    <div class="col-4">
+                                    <div class="col-4 col-sm-4">
                                         <label class="form-label small fw-bold">Model/Seri</label>
                                         <input type="text" class="form-control" id="device-model">
                                     </div>

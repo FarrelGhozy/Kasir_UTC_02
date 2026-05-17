@@ -56,25 +56,27 @@ class POS {
                             <h5 class="mb-0"><i class="bi bi-cart3 me-2"></i>Transaksi Saat Ini</h5>
                         </div>
                         <div class="card-body d-flex flex-column p-0">
-                            <div class="cart-container flex-grow-1 p-3" style="overflow-y: auto; max-height: 400px;">
-                                <table class="table table-hover align-middle mb-0">
-                                    <thead class="table-light sticky-top">
-                                        <tr>
-                                            <th>Barang</th>
-                                            <th width="100" class="text-center">Jml</th>
-                                            <th class="text-end">Subtotal</th>
-                                            <th width="40"></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="cart-items">
-                                        <tr>
-                                            <td colspan="4" class="text-center text-muted py-5">
-                                                <i class="bi bi-cart-x display-1 d-block mb-3 text-secondary opacity-25"></i>
-                                                <p>Pilih produk untuk ditambahkan</p>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
+                            <div class="cart-container flex-grow-1 p-3">
+                                <div class="table-responsive">
+                                    <table class="table table-hover align-middle mb-0">
+                                        <thead class="table-light sticky-top">
+                                            <tr>
+                                                <th>Barang</th>
+                                                <th class="text-center">Jml</th>
+                                                <th class="text-end">Subtotal</th>
+                                                <th></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="cart-items">
+                                            <tr>
+                                                <td colspan="4" class="text-center text-muted py-5">
+                                                    <i class="bi bi-cart-x display-1 d-block mb-3 text-secondary opacity-25"></i>
+                                                    <p>Pilih produk untuk ditambahkan</p>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
 
                             <div class="border-top p-4 bg-light">
