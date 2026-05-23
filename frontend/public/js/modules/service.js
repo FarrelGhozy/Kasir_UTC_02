@@ -1,6 +1,6 @@
 // public/js/modules/service.js - Modul Manajemen Servis (FIXED: Add Part & Detail View)
 
-import api, { formatCurrency, formatDateTime, showToast, showError, setupCurrencyInput, parseCurrencyValue, calculateElapsedTime } from '../api.js';
+import api, { formatCurrency, formatDateTime, showToast, showError, setupCurrencyInput, parseCurrencyValue, calculateElapsedTime, validateWhatsApp } from '../api.js';
 
 /**
  * Helper class for Pattern Lock UI
@@ -218,7 +218,7 @@ class Service {
         content.innerHTML = `
             <div class="row g-4">
                 <div class="col-lg-4">
-                    <div class="card shadow-sm border-0 sticky-top" style="top: 20px; z-index: 1; max-height: calc(100vh - 40px); display: flex; flex-direction: column;">
+                    <div class="card shadow-sm border-0 sticky-top" style="top: 20px; z-index: 1; max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px); display: flex; flex-direction: column;">
                         <div class="card-header bg-primary text-white py-3">
                             <h5 class="mb-0"><i class="bi bi-plus-circle me-2"></i>Tiket Servis Baru</h5>
                         </div>
@@ -295,15 +295,15 @@ class Service {
                                 <h6 class="border-bottom pb-2 mb-3 mt-4 fw-bold text-secondary">Perangkat & Masalah</h6>
 
                                 <div class="row g-2 mb-3">
-                                    <div class="col-4">
+                                    <div class="col-4 col-sm-4">
                                         <label class="form-label small fw-bold">Tipe *</label>
                                         <input type="text" class="form-control" id="device-type" placeholder="Laptop/PC" required>
                                     </div>
-                                    <div class="col-4">
+                                    <div class="col-4 col-sm-4">
                                         <label class="form-label small fw-bold">Merek</label>
                                         <input type="text" class="form-control" id="device-brand" placeholder="Asus/HP">
                                     </div>
-                                    <div class="col-4">
+                                    <div class="col-4 col-sm-4">
                                         <label class="form-label small fw-bold">Model/Seri</label>
                                         <input type="text" class="form-control" id="device-model">
                                     </div>
@@ -355,7 +355,7 @@ class Service {
                                 </div>
 
                                 <div class="d-grid">
-                                    <button type="submit" class="btn btn-primary fw-bold py-2">
+                                    <button type="submit" class="btn btn-primary fw-bold py-2" id="save-ticket-btn">
                                         <i class="bi bi-save me-2"></i>Buat Tiket
                                     </button>
                                 </div>
@@ -1333,43 +1333,7 @@ class Service {
     }
 
     async validateWA(phone, targetMsgId = 'wa-validation-msg', submitBtnId = 'save-ticket-btn') {
-        const msgEl = document.getElementById(targetMsgId);
-        const submitBtn = document.getElementById(submitBtnId);
-        
-        if (!phone || phone.length < 9) {
-            if (msgEl) {
-                msgEl.classList.add('d-none');
-            }
-            if (submitBtn) submitBtn.disabled = false;
-            return;
-        }
-
-        if (msgEl) {
-            msgEl.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Mengecek WhatsApp...';
-            msgEl.className = 'small mt-1 text-muted';
-            msgEl.classList.remove('d-none');
-        }
-
-        try {
-            const res = await api.checkWA(phone);
-            if (res.exists) {
-                if (msgEl) {
-                    msgEl.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>Terdaftar di WhatsApp';
-                    msgEl.className = 'small mt-1 text-success';
-                }
-                if (submitBtn) submitBtn.disabled = false;
-            } else {
-                if (msgEl) {
-                    msgEl.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i>Nomor tidak terdaftar di WhatsApp';
-                    msgEl.className = 'small mt-1 text-danger';
-                }
-                if (submitBtn) submitBtn.disabled = true;
-                showToast('Nomor tidak terdaftar di WhatsApp', 'warning');
-            }
-        } catch (error) {
-            console.error('WA Validation error:', error);
-            if (msgEl) msgEl.classList.add('d-none');
-        }
+        return validateWhatsApp(phone, targetMsgId, submitBtnId);
     }
 
     openDetail(id) {
@@ -1572,23 +1536,6 @@ class Service {
         } catch (error) {
             console.error('Gagal mengompres gambar:', error);
             return file;
-        }
-    }
-
-    async validateWA(phone) {
-        if (!phone || phone.length < 10) return;
-        const msgEl = document.getElementById('wa-validation-msg');
-        msgEl.innerHTML = '<small class="text-muted"><i class="spinner-border spinner-border-sm me-1"></i>Memvalidasi WhatsApp...</small>';
-        
-        try {
-            const res = await api.validateWA(phone);
-            if (res.data && res.data.exists) {
-                msgEl.innerHTML = '<small class="text-success"><i class="bi bi-check-circle-fill me-1"></i>Nomor terdaftar di WhatsApp</small>';
-            } else {
-                msgEl.innerHTML = '<div class="alert alert-warning py-1 px-2 small mt-1 mb-0"><i class="bi bi-exclamation-triangle-fill me-1"></i>Nomor tidak terdeteksi di WhatsApp. Pelanggan mungkin tidak akan menerima notifikasi otomatis.</div>';
-            }
-        } catch (error) {
-            msgEl.innerHTML = '';
         }
     }
 

@@ -13,13 +13,26 @@ exports.checkWANumber = async (req, res, next) => {
 
     const result = await whatsappService.checkExists(phone);
     
+    // Sesuai permintaan instruksi: isValid dan isError
+    // result.error ada jika koneksi ke WAHA gagal
+    const isError = !!result.error;
+    const isValid = result.exists === true || result.status === 'exists';
+
     res.status(200).json({
       success: true,
-      exists: result.exists === true || result.status === 'exists',
+      isValid: isValid,
+      isError: isError,
+      exists: isValid, // Tetap sertakan exists untuk backward compatibility jika ada
       details: result
     });
   } catch (error) {
-    next(error);
+    // Jika terjadi error sistem, kirim isError: true agar frontend bisa menangani (Scenario Timeout/WAHA Error)
+    res.status(200).json({
+      success: true,
+      isValid: false,
+      isError: true,
+      message: error.message
+    });
   }
 };
 

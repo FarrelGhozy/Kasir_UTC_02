@@ -1,4 +1,4 @@
-import api, { formatCurrency, formatDateTime, showToast, setupCurrencyInput, parseCurrencyValue, calculateElapsedTime } from '../api.js';
+import api, { formatCurrency, formatDateTime, showToast, setupCurrencyInput, parseCurrencyValue, calculateElapsedTime, validateWhatsApp } from '../api.js';
 
 class Order {
     constructor() {
@@ -65,7 +65,7 @@ class Order {
                                 </div>
 
                                 <div class="d-grid">
-                                    <button type="submit" class="btn btn-success fw-bold py-2">
+                                    <button type="submit" class="btn btn-success fw-bold py-2" id="save-order-btn">
                                         <i class="bi bi-save me-2"></i>Simpan Pesanan
                                     </button>
                                 </div>
@@ -357,41 +357,7 @@ class Order {
     }
 
     async validateWA(phone) {
-        const msgEl = document.getElementById('order-wa-validation-msg');
-        const submitBtn = document.querySelector('#order-form button[type="submit"]');
-        
-        if (!phone || phone.length < 9) {
-            if (msgEl) msgEl.classList.add('d-none');
-            if (submitBtn) submitBtn.disabled = false;
-            return;
-        }
-
-        if (msgEl) {
-            msgEl.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Mengecek WhatsApp...';
-            msgEl.className = 'small mt-1 text-muted';
-            msgEl.classList.remove('d-none');
-        }
-
-        try {
-            const res = await api.checkWA(phone);
-            if (res.exists) {
-                if (msgEl) {
-                    msgEl.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>Terdaftar di WhatsApp';
-                    msgEl.className = 'small mt-1 text-success';
-                }
-                if (submitBtn) submitBtn.disabled = false;
-            } else {
-                if (msgEl) {
-                    msgEl.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i>Nomor tidak terdaftar di WhatsApp';
-                    msgEl.className = 'small mt-1 text-danger';
-                }
-                if (submitBtn) submitBtn.disabled = true;
-                showToast('Nomor tidak terdaftar di WhatsApp', 'warning');
-            }
-        } catch (error) {
-            console.error('WA Validation error:', error);
-            if (msgEl) msgEl.classList.add('d-none');
-        }
+        return validateWhatsApp(phone, 'order-wa-validation-msg', 'save-order-btn');
     }
 
     setupEventListeners() {

@@ -162,26 +162,22 @@ class Auth {
     updateNavigationByRole() {
         const role = this.user.role;
 
-        // Tampilkan semua item navigasi untuk semua peran (Akses Maksimal)
+        // Sidebar nav items
         const navPos = document.getElementById('nav-pos');
         const navService = document.getElementById('nav-service');
         const navAdminTech = document.getElementById('nav-admin-tech');
 
-        // Pastikan semua menu terlihat
         if (navPos) navPos.classList.remove('d-none');
         if (navService) navService.classList.remove('d-none');
 
-        // Hanya tampilkan Menu Admin Khusus jika role adalah admin
         if (navAdminTech) {
-            if (role === 'admin') {
-                navAdminTech.style.display = 'block';
-            } else {
-                navAdminTech.style.display = 'none';
-            }
+            navAdminTech.style.display = role === 'admin' ? 'block' : 'none';
         }
-        
-        // Catatan: Admin tetap memiliki akses ke semua hal.
-        // Kasir dan Teknisi kini dapat mengakses modul satu sama lain untuk melihat data.
+
+        // Bottom nav / dropdown admin-only items
+        document.querySelectorAll('.admin-only').forEach(el => {
+            el.classList.toggle('hidden', role !== 'admin');
+        });
     }
 
     getRoleName(role) {
@@ -195,8 +191,10 @@ class Auth {
 
     updateClock() {
         const now = new Date();
+        const tz = 'Asia/Jakarta';
         
         const dateStr = now.toLocaleDateString('id-ID', {
+            timeZone: tz,
             weekday: 'long',
             year: 'numeric',
             month: 'long',
@@ -204,6 +202,7 @@ class Auth {
         });
         
         const timeStr = now.toLocaleTimeString('id-ID', {
+            timeZone: tz,
             hour: '2-digit',
             minute: '2-digit',
             second: '2-digit'
