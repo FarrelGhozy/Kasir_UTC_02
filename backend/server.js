@@ -105,6 +105,9 @@ app.use('/api', apiLimiter);
 app.use('/api', apiRoutes);
 app.use('/api', webhookRoutes);
 
+// Backward compatibility: serve foto dari URL lama (database existing)
+app.use('/backend/uploads/services', express.static(path.join(__dirname, 'uploads', 'services')));
+
 // Health Check
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK', message: 'API Bengkel UTC Ready' });

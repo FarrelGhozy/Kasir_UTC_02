@@ -1,7 +1,7 @@
 const axios = require('axios');
 
-const WAHA_BASE_URL = process.env.WAHA_BASE_URL;
-const WAHA_SESSION = process.env.WAHA_SESSION;
+const WAHA_BASE_URL = process.env.WAHA_URL;
+const WAHA_SESSION = process.env.WAHA_SESSION || 'default';
 const WAHA_API_KEY = process.env.WAHA_API_KEY;
 
 async function sendReply(phone, text) {

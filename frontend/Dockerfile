@@ -25,6 +25,11 @@ RUN echo 'server {\
     proxy_read_timeout 60s;\
     proxy_send_timeout 60s;\
   }\
+  location /backend/uploads/services/ {\
+    proxy_pass '"$API_PROXY_PASS"';\
+    proxy_set_header Host $host;\
+    proxy_set_header X-Real-IP $remote_addr;\
+  }\
   location / {\
     try_files $uri $uri/ /index.html;\
   }\
