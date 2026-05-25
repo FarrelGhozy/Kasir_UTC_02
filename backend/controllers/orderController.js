@@ -1,4 +1,5 @@
 const SpecialOrder = require('../models/SpecialOrder');
+const SystemLog = require('../models/SystemLog');
 const User = require('../models/User');
 const whatsappService = require('../services/whatsappService');
 
@@ -29,7 +30,14 @@ exports.createOrder = async (req, res, next) => {
 
     // Kirim notifikasi WA - SEKUENSE 3 PESAN
     if (order.customer.phone) {
-      whatsappService.sendOrderWelcomeMessages(order);
+      whatsappService.sendOrderWelcomeMessages(order).catch(err => {
+        SystemLog.create({
+          level: 'ERROR',
+          source: 'WhatsAppService',
+          message: 'Gagal kirim sekuense pesan sambutan (3 pesan)',
+          details: { order_id: order._id, error: err.message }
+        });
+      });
     }
 
     res.status(201).json({ success: true, data: order });
@@ -47,7 +55,7 @@ exports.getAllOrders = async (req, res, next) => {
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const orders = await SpecialOrder.find(filter)
-      .sort({ 'timestamps.created_at': -1 })
+      .sort({ 'history.created_at': -1 })
       .skip(skip)
       .limit(parseInt(limit));
 
@@ -84,9 +92,9 @@ exports.updateOrderStatus = async (req, res, next) => {
     if (!order) return res.status(404).json({ success: false, message: 'Pesanan tidak ditemukan' });
 
     order.status = status;
-    if (status === 'Ordered') order.timestamps.ordered_at = new Date();
-    if (status === 'Arrived') order.timestamps.arrived_at = new Date();
-    if (status === 'Picked_Up') order.timestamps.picked_up_at = new Date();
+    if (status === 'Ordered') order.history.ordered_at = new Date();
+    if (status === 'Arrived') order.history.arrived_at = new Date();
+    if (status === 'Picked_Up') order.history.picked_up_at = new Date();
 
     await order.save();
 

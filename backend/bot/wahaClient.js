@@ -1,20 +1,20 @@
 const axios = require('axios');
 
-const WAHA_URL = process.env.WAHA_URL;
-const WAHA_SESSION = process.env.WAHA_SESSION || 'default';
+const WAHA_BASE_URL = process.env.WAHA_BASE_URL;
+const WAHA_SESSION = process.env.WAHA_SESSION;
 const WAHA_API_KEY = process.env.WAHA_API_KEY;
 
 async function sendReply(phone, text) {
   try {
-    if (!WAHA_URL || !WAHA_API_KEY) {
-      console.error('[Bot] WAHA_URL atau WAHA_API_KEY tidak dikonfigurasi');
+    if (!WAHA_BASE_URL || !WAHA_API_KEY) {
+      console.error('[Bot] WAHA_BASE_URL atau WAHA_API_KEY tidak dikonfigurasi');
       return;
     }
 
     let cleanPhone = phone.toString().split('@')[0].replace(/\D/g, '');
     const chatId = `${cleanPhone}@c.us`;
 
-    const url = `${WAHA_URL}/api/sendText`;
+    const url = `${WAHA_BASE_URL}/api/sendText`;
     console.log(`[Bot] Mengirim balasan ke ${chatId}...`);
     
     await axios.post(url, {
