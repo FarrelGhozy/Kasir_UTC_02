@@ -23,7 +23,7 @@ class Pelayanan {
                         </button>
                     </div>
                 </div>
-                <div class="card-body p-0">
+                <div class="card-body p-0 pt-3 px-0">
                     <div id="panel-service"></div>
                     <div id="panel-order" class="d-none"></div>
                 </div>
