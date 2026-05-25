@@ -139,8 +139,12 @@ class Dashboard {
 
     async loadDashboardData() {
         try {
-            // 1. Load Data Statistik
-            const dailyReport = await api.getDailyRevenue();
+            // 1. Load Data Statistik — parallel
+            const [dailyReport, servicesRes] = await Promise.all([
+                api.getDailyRevenue(),
+                api.getServiceTickets({ status: 'Queue,Diagnosing,Waiting_Part,In_Progress' })
+            ]);
+
             const revenueEl = document.getElementById('stat-revenue');
             revenueEl.classList.remove('skeleton', 'skeleton-text');
             revenueEl.textContent = formatCurrency(dailyReport.data.total_revenue);
@@ -149,18 +153,17 @@ class Dashboard {
             txEl.classList.remove('skeleton', 'skeleton-text');
             txEl.textContent = dailyReport.data.retail_sales.transactions;
 
-            const services = await api.getServiceTickets({ 
-                status: 'Queue,Diagnosing,Waiting_Part,In_Progress' 
-            });
-            const activeServices = services.data.filter(t => t.status !== 'Cancelled' && t.status !== 'Completed' && t.status !== 'Picked_Up');
+            const activeServices = servicesRes.data.filter(t => t.status !== 'Cancelled' && t.status !== 'Completed' && t.status !== 'Picked_Up');
             const svcEl = document.getElementById('stat-services');
             svcEl.classList.remove('skeleton', 'skeleton-text');
             svcEl.textContent = activeServices.length;
 
-            // 2. Load Tabel
-            await this.loadLowStock();
-            await this.loadRecentActivity();
-            await this.loadMonthlyCharts();
+            // 2. Load Tabel — parallel
+            await Promise.all([
+                this.loadLowStock(),
+                this.loadRecentActivity(),
+                this.loadMonthlyCharts()
+            ]);
 
         } catch (error) {
             console.error('Gagal memuat data dasbor:', error);

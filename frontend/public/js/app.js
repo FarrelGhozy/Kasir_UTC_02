@@ -97,9 +97,7 @@ class App {
 
         // Muat konten modul
         if (this.modules[page]) {
-            setTimeout(() => {
-                this.modules[page].render();
-            }, 300); // Penundaan kecil untuk transisi yang halus
+            this.modules[page].render();
         } else {
             this.show404();
         }

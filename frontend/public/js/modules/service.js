@@ -410,9 +410,11 @@ class Service {
         // Initialize currency inputs
         document.querySelectorAll('.currency-input').forEach(input => setupCurrencyInput(input));
 
-        await this.loadTechnicians();
-        await this.loadTickets();
-        await this.loadItems();
+        await Promise.all([
+            this.loadTechnicians(),
+            this.loadTickets(),
+            this.loadItems()
+        ]);
         this.setupEventListeners();
     }
 
