@@ -57,9 +57,15 @@ exports.register = async (req, res, next) => {
  */
 exports.login = async (req, res, next) => {
   try {
+    if (!req.body) {
+      return res.status(400).json({
+        success: false,
+        message: 'Data permintaan tidak valid'
+      });
+    }
+
     const { username, password } = req.body;
 
-    // Validasi input
     if (!username || !password) {
       return res.status(400).json({
         success: false,

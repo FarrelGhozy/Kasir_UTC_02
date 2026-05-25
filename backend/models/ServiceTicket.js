@@ -213,7 +213,7 @@ serviceTicketSchema.index({ 'history.created_at': -1 });
 serviceTicketSchema.index({ 'customer.phone': 1 });
 serviceTicketSchema.index({ status: 1, 'history.picked_up_at': 1 });
 serviceTicketSchema.index({ 'technician.id': 1, status: 1 });
-serviceTicketSchema.index({ ticket_number: 1 });
+// ticket_number already indexed via unique: true in schema
 
 // Middleware pre-save (Kompatibel dengan Async)
 serviceTicketSchema.pre('save', async function() {
