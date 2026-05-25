@@ -60,14 +60,16 @@ app.use(cors({
                      allowedOrigins.includes('*');
 
     if (isAllowed) {
-      callback(null, true);
-    } else if (process.env.NODE_ENV !== 'production') {
+      return callback(null, true);
+    }
+    
+    if (process.env.NODE_ENV !== 'production') {
       const isLocalDev = origin.includes('localhost') || origin.includes('127.0.0.1');
       if (isLocalDev) return callback(null, true);
     }
     
     console.log(`CORS blocked for origin: ${origin}`);
-    callback(null, false);
+    return callback(null, false);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
