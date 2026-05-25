@@ -148,7 +148,6 @@ exports.getDailyRevenue = async (req, res, next) => {
     }
 
     const txnMatch = buildReportPipeline(startOfDay, endOfDay, {});
-    const svcMatch = buildReportPipeline(startOfDay, endOfDay, { status: 'Picked_Up' });
 
     // Ambil pendapatan transaksi
     const transactionRevenue = await Transaction.aggregate([
@@ -162,9 +161,18 @@ exports.getDailyRevenue = async (req, res, next) => {
       }
     ]);
 
-    // Ambil pendapatan servis (tiket resmi diambil)
+    // Ambil pendapatan servis (Picked_Up) — tolerir jika picked_up_at null
     const serviceRevenue = await ServiceTicket.aggregate([
-      { $match: svcMatch },
+      {
+        $match: {
+          status: 'Picked_Up',
+          $or: [
+            { 'history.picked_up_at': { $gte: startOfDay, $lte: endOfDay } },
+            { 'history.picked_up_at': null, 'history.completed_at': { $gte: startOfDay, $lte: endOfDay } },
+            { 'history.picked_up_at': null, 'history.completed_at': null, 'history.created_at': { $gte: startOfDay, $lte: endOfDay } }
+          ]
+        }
+      },
       {
         $group: {
           _id: null,
@@ -226,7 +234,6 @@ exports.getMonthlyRevenue = async (req, res, next) => {
     const endDate = new Date(Date.UTC(targetYear, targetMonth - 1, daysInMonth, 16, 59, 59, 999));
 
     const txnMatch = buildReportPipeline(startDate, endDate, {});
-    const svcMatch = buildReportPipeline(startDate, endDate, { status: 'Picked_Up' });
 
     // Pendapatan transaksi dikelompokkan per hari (timezone-aware)
     const transactionRevenue = await Transaction.aggregate([
@@ -243,13 +250,26 @@ exports.getMonthlyRevenue = async (req, res, next) => {
       { $sort: { _id: 1 } }
     ]);
 
-    // Pendapatan servis dikelompokkan per hari (timezone-aware)
+    // Pendapatan servis (Picked_Up) — pakai $or agar tetap kebaca jika picked_up_at null
     const serviceRevenue = await ServiceTicket.aggregate([
-      { $match: svcMatch },
+      {
+        $match: {
+          status: 'Picked_Up',
+          $or: [
+            { 'history.picked_up_at': { $gte: startDate, $lte: endDate } },
+            { 'history.picked_up_at': null, 'history.completed_at': { $gte: startDate, $lte: endDate } },
+            { 'history.picked_up_at': null, 'history.completed_at': null, 'history.created_at': { $gte: startDate, $lte: endDate } }
+          ]
+        }
+      },
       {
         $group: {
           _id: {
-            $dateToString: { format: '%d', date: '$history.picked_up_at', timezone: TIMEZONE }
+            $dateToString: {
+              format: '%d',
+              date: { $ifNull: ['$history.picked_up_at', { $ifNull: ['$history.completed_at', '$history.created_at'] }] },
+              timezone: TIMEZONE
+            }
           },
           revenue: { $sum: '$total_cost' },
           count: { $sum: 1 }
@@ -344,7 +364,6 @@ exports.getRevenueByRange = async (req, res, next) => {
     const utcEnd = new Date(Date.UTC(ey, em, ed, 16, 59, 59, 999));
 
     const txnMatch = buildReportPipeline(utcStart, utcEnd, {});
-    const svcMatch = buildReportPipeline(utcStart, utcEnd, { status: 'Picked_Up' });
 
     // Pendapatan Ritel
     const retailRevenue = await Transaction.aggregate([
@@ -358,9 +377,18 @@ exports.getRevenueByRange = async (req, res, next) => {
       }
     ]);
 
-    // Pendapatan Servis (Hanya yang sudah diambil)
+    // Pendapatan Servis (Picked_Up) — tolerir jika picked_up_at null
     const serviceRevenue = await ServiceTicket.aggregate([
-      { $match: svcMatch },
+      {
+        $match: {
+          status: 'Picked_Up',
+          $or: [
+            { 'history.picked_up_at': { $gte: utcStart, $lte: utcEnd } },
+            { 'history.picked_up_at': null, 'history.completed_at': { $gte: utcStart, $lte: utcEnd } },
+            { 'history.picked_up_at': null, 'history.completed_at': null, 'history.created_at': { $gte: utcStart, $lte: utcEnd } }
+          ]
+        }
+      },
       {
         $group: {
           _id: null,
