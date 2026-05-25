@@ -1,6 +1,6 @@
 // public/js/modules/reports.js - Modul Laporan & Analitik
 
-import api, { formatCurrency, formatDate, formatDateTime } from '../api.js';
+import api, { formatCurrency, formatDate, formatDateTime, loadScript } from '../api.js';
 import auth from '../auth.js';
 
 class Reports {
@@ -467,6 +467,16 @@ class Reports {
     }
 
     async processFullRecap(range) {
+        // Dynamic load jspdf & chart.js hanya saat dibutuhkan
+        if (typeof window.jspdf === 'undefined') {
+            await Promise.all([
+                loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'),
+                loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js')
+            ]);
+        }
+        if (typeof Chart === 'undefined') {
+            await loadScript('https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js');
+        }
         const modalEl = document.getElementById('recapRangeModal');
         const modal = bootstrap.Modal.getInstance(modalEl);
         if (modal) modal.hide();

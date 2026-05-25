@@ -1,6 +1,6 @@
 // public/js/modules/dashboard.js - Modul Ringkasan Dasbor (FIXED: Gabungan Aktivitas)
 
-import api, { formatCurrency, showError } from '../api.js';
+import api, { formatCurrency, showError, loadScript } from '../api.js';
 
 class Dashboard {
     constructor() {
@@ -347,6 +347,9 @@ class Dashboard {
     }
 
     async loadMonthlyCharts() {
+        if (typeof Chart === 'undefined') {
+            await loadScript('https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js');
+        }
         const { start, startISO, endISO } = this.getLastThirtyDaysRange();
         const buckets = this.buildDailyBuckets(start, 30);
         const bucketMap = new Map(buckets.map(b => [b.key, b]));

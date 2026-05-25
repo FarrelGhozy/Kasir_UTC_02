@@ -462,6 +462,22 @@ export async function validateWhatsApp(phone, msgElementId, submitBtnId) {
 const api = new API(API_BASE_URL);
 export default api;
 
+/**
+ * Dynamic script loader — load CDN script hanya saat dibutuhkan
+ * @param {string} src - URL script
+ * @returns {Promise<void>}
+ */
+export function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector(`script[src="${src}"]`)) return resolve();
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error(`Gagal memuat script: ${src}`));
+    document.head.appendChild(s);
+  });
+}
+
 // ==================== FUNGSI UTILITAS ====================
 
 /**

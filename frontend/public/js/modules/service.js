@@ -1,6 +1,6 @@
 // public/js/modules/service.js - Modul Manajemen Servis (FIXED: Add Part & Detail View)
 
-import api, { formatCurrency, formatDateTime, showToast, showError, setupCurrencyInput, parseCurrencyValue, calculateElapsedTime, validateWhatsApp, escapeHTML } from '../api.js';
+import api, { formatCurrency, formatDateTime, showToast, showError, setupCurrencyInput, parseCurrencyValue, calculateElapsedTime, validateWhatsApp, escapeHTML, loadScript } from '../api.js';
 
 /**
  * Helper class for Pattern Lock UI
@@ -1525,6 +1525,14 @@ class Service {
     }
 
     async compressImage(file) {
+        if (!window.imageCompression) {
+            try {
+                await loadScript('https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js');
+            } catch {
+                console.error('Gagal memuat library kompresi gambar');
+                return file;
+            }
+        }
         if (!window.imageCompression) {
             console.error('Library image-compression tidak ditemukan');
             return file;

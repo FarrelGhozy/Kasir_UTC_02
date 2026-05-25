@@ -1,6 +1,6 @@
 // public/js/modules/inventory.js - Modul Manajemen Gudang (Inventaris) - REVISI
 
-import api, { formatCurrency, showToast, confirmDialog, setupCurrencyInput, parseCurrencyValue, escapeHTML } from '../api.js';
+import api, { formatCurrency, showToast, confirmDialog, setupCurrencyInput, parseCurrencyValue, escapeHTML, loadScript } from '../api.js';
 
 class Inventory {
     constructor() {
@@ -436,6 +436,11 @@ class Inventory {
         const originalText = processBtn.innerHTML;
         processBtn.disabled = true;
         processBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Memproses...';
+
+        // Dynamic load PapaParse
+        if (typeof Papa === 'undefined') {
+            await loadScript('https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js');
+        }
 
         Papa.parse(file, {
             header: true,
