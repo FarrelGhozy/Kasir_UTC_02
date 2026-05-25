@@ -769,7 +769,4 @@ class Inventory {
     }
 }
 
-// Buat inventory dapat diakses secara global (opsional, tapi bagus untuk debug)
-window.inventory = new Inventory();
-
 export default Inventory;

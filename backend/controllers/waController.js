@@ -26,12 +26,11 @@ exports.checkWANumber = async (req, res, next) => {
       details: result
     });
   } catch (error) {
-    // Jika terjadi error sistem, kirim isError: true agar frontend bisa menangani (Scenario Timeout/WAHA Error)
-    res.status(200).json({
-      success: true,
+    res.status(502).json({
+      success: false,
       isValid: false,
       isError: true,
-      message: error.message
+      message: 'Gagal memeriksa nomor WhatsApp: ' + error.message
     });
   }
 };
@@ -56,6 +55,6 @@ exports.getWAHAStatus = async (req, res, next) => {
       raw: result.status
     });
   } catch (error) {
-    res.status(200).json({ success: true, status: 'ERROR', message: error.message });
+    res.status(502).json({ success: false, status: 'ERROR', message: error.message });
   }
 };

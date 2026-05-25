@@ -17,7 +17,11 @@ const errorHandler = async (err, req, res, next) => {
       details: {
         path: req.originalUrl,
         method: req.method,
-        body: req.body,
+        body: req.body ? (() => {
+          const sanitized = { ...req.body };
+          ['password', 'password_baru', 'password_lama', 'token', 'accessToken', 'secret'].forEach(k => delete sanitized[k]);
+          return sanitized;
+        })() : undefined,
         stack: err.stack,
         user: req.user ? req.user.id : 'Guest'
       }

@@ -16,7 +16,14 @@ class Auth {
 
         if (token && user) {
             this.token = token;
-            this.user = JSON.parse(user);
+            try {
+                this.user = JSON.parse(user);
+            } catch (e) {
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                this.showLoginScreen();
+                return;
+            }
             this.showMainApp();
         } else {
             this.showLoginScreen();
@@ -99,9 +106,10 @@ class Auth {
             this.updateNavigationByRole();
         }
 
-        // Update jam
+        // Update jam (bersihkan interval lama jika ada)
+        if (this._clockInterval) clearInterval(this._clockInterval);
         this.updateClock();
-        setInterval(() => this.updateClock(), 1000);
+        this._clockInterval = setInterval(() => this.updateClock(), 1000);
 
         // Cek status WAHA secara global
         this.checkWAHAStatus();
