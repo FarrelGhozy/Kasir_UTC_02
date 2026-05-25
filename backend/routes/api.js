@@ -138,7 +138,7 @@ router.post('/admin/backup/import', protect, authorize('admin'), backupControlle
 // --- Uploads (terproteksi auth) ---
 const path = require('path');
 const fs = require('fs');
-router.get('/uploads/:filename', protect, (req, res) => {
+router.get('/uploads/:filename', (req, res) => {
   const filename = path.basename(req.params.filename);
   const filePath = path.join(__dirname, '..', 'uploads', 'services', filename);
   if (!fs.existsSync(filePath)) {

@@ -4,14 +4,17 @@ const fs = require('fs');
 const crypto = require('crypto');
 
 // Pastikan folder uploads ada
-const uploadDir = path.join(__dirname, '..', 'uploads', 'services');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
+const uploadServicesDir = path.join(__dirname, '..', 'uploads', 'services');
+const uploadItemsDir = path.join(__dirname, '..', 'uploads', 'items');
+[uploadServicesDir, uploadItemsDir].forEach(dir => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+});
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, uploadDir);
+    cb(null, uploadServicesDir);
   },
   filename: function (req, file, cb) {
     try {

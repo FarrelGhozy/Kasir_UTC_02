@@ -21,6 +21,9 @@ RUN chown -R appuser:appgroup /app
 
 USER appuser
 
+# Pastikan folder uploads bisa ditulis — mount volume mungkin override permission
+RUN mkdir -p /app/uploads/services /app/uploads/items
+
 EXPOSE 5000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \

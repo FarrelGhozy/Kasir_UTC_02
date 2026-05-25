@@ -27,6 +27,7 @@ if (!process.env.WAHA_URL) console.warn('[WARN] WAHA_URL tidak di-set — fitur 
 if (!process.env.WAHA_API_KEY) console.warn('[WARN] WAHA_API_KEY tidak di-set — fitur WhatsApp tidak akan berfungsi');
 
 const app = express();
+app.set('trust proxy', true);
 const PORT = process.env.PORT || 5000;
 
 // ==========================================
