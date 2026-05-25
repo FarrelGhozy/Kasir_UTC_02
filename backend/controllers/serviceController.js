@@ -147,7 +147,11 @@ exports.getAllTickets = async (req, res, next) => {
     if (start_date || end_date) {
       filter['history.created_at'] = {};
       if (start_date) filter['history.created_at'].$gte = new Date(start_date);
-      if (end_date) filter['history.created_at'].$lte = new Date(end_date);
+      if (end_date) {
+        const end = new Date(end_date);
+        end.setHours(23, 59, 59, 999);
+        filter['history.created_at'].$lte = end;
+      }
     }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);

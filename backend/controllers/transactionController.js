@@ -159,7 +159,11 @@ exports.getAllTransactions = async (req, res, next) => {
     if (start_date || end_date) {
       filter.date = {};
       if (start_date) filter.date.$gte = new Date(start_date);
-      if (end_date) filter.date.$lte = new Date(end_date);
+      if (end_date) {
+        const end = new Date(end_date);
+        end.setHours(23, 59, 59, 999);
+        filter.date.$lte = end;
+      }
     }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);

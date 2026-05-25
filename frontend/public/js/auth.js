@@ -31,9 +31,6 @@ class Auth {
 
         // Setup form login
         this.setupLoginForm();
-        
-        // Setup tombol logout
-        this.setupLogoutButton();
     }
 
     setupLoginForm() {
@@ -78,6 +75,9 @@ class Auth {
     }
 
     setupLogoutButton() {
+        if (this._logoutSetup) return;
+        this._logoutSetup = true;
+
         const logoutBtn = document.getElementById('logout-btn');
         const logoutTopBtn = document.getElementById('logout-btn-top');
         const logoutConfirmBtn = document.getElementById('logout-confirm-btn');
@@ -117,6 +117,9 @@ class Auth {
         if (this._clockInterval) clearInterval(this._clockInterval);
         this.updateClock();
         this._clockInterval = setInterval(() => this.updateClock(), 1000);
+
+        // Setup tombol logout (dipanggil setelah #main-app visible)
+        this.setupLogoutButton();
 
         // Cek status WAHA secara global
         this.checkWAHAStatus();
