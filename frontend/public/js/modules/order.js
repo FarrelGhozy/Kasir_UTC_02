@@ -6,9 +6,9 @@ class Order {
         this.technicians = [];
     }
 
-    async render() {
+    async render(containerId = 'app-content') {
         window.orderModule = this;
-        const content = document.getElementById('app-content');
+        const content = document.getElementById(containerId);
         
         content.innerHTML = `
             <div class="row g-4">

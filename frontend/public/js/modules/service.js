@@ -127,7 +127,7 @@ class Service {
         return this._modals[id];
     }
 
-    async render() {
+    async render(containerId = 'app-content') {
         // Hapus cache modal agar instance stale tidak digunakan setelah re-render
         this._modals = {};
         window.service = this;
@@ -214,7 +214,7 @@ class Service {
             document.head.appendChild(style);
         }
 
-        const content = document.getElementById('app-content');
+        const content = document.getElementById(containerId);
         
         content.innerHTML = `
             <div class="row g-4">
