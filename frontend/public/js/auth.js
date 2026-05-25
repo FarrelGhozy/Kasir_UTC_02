@@ -129,35 +129,50 @@ class Auth {
         try {
             const res = await api.getWAHAStatus();
             if (res.status !== 'CONNECTED') {
-                this.showWAHAAlert(res.status);
+                this.showWAHAAlert(res.status, res.error || null);
             }
         } catch (error) {
             console.error('WAHA Status Check failed:', error);
-            this.showWAHAAlert('ERROR');
+            this.showWAHAAlert('ERROR', error.message);
         }
     }
 
-    showWAHAAlert(status) {
-        // Cek apakah modal sudah ada, jika belum buat
+    showWAHAAlert(status, errorDetail = null) {
         let modalEl = document.getElementById('waha-alert-modal');
+        
+        let title, iconColor, desc, extraAlert;
+        if (status === 'UNREACHABLE') {
+            title = 'Server WhatsApp Tidak Terjangkau';
+            iconColor = 'text-secondary';
+            desc = `Backend tidak bisa terhubung ke server WAHA (Status: <strong>${status}</strong>).`;
+            extraAlert = 'Periksa apakah container WAHA berjalan dan dapat dijangkau dari backend. Coba jalankan: <code>docker compose logs backend | grep WAHA</code>';
+        } else if (status === 'STARTING') {
+            title = 'WhatsApp Belum Siap';
+            iconColor = 'text-warning';
+            desc = `Session WhatsApp sedang dalam proses koneksi (Status: <strong>${status}</strong>).`;
+            extraAlert = 'Buka dashboard WAHA di http://localhost:8000 dan scan QR code jika muncul.';
+        } else {
+            title = 'Layanan WhatsApp Terputus';
+            iconColor = 'text-danger';
+            desc = `Layanan Bot WhatsApp (WAHA) saat ini tidak merespon/terputus (Status: <strong>${status}</strong>).`;
+            extraAlert = 'Fitur notifikasi otomatis pelanggan sedang lumpuh. Harap hubungi Administrator atau cek koneksi server.';
+        }
+
         if (!modalEl) {
             const modalHTML = `
                 <div class="modal fade" id="waha-alert-modal" tabindex="-1" data-bs-backdrop="static">
                     <div class="modal-dialog modal-dialog-centered">
-                        <div class="modal-content border-danger border-4">
-                            <div class="modal-header bg-danger text-white">
+                        <div class="modal-content border-4 border-warning">
+                            <div class="modal-header bg-warning text-dark">
                                 <h5 class="modal-title fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i>Peringatan Sistem</h5>
-                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                             </div>
                             <div class="modal-body text-center p-4">
-                                <i class="bi bi-whatsapp text-danger mb-3" style="font-size: 4rem;"></i>
-                                <h4 class="fw-bold">Layanan WhatsApp Terputus</h4>
-                                <p class="text-muted">
-                                    Layanan Bot WhatsApp (WAHA) saat ini tidak merespon/terputus (Status: <strong>${status}</strong>).
-                                </p>
-                                <div class="alert alert-warning small">
-                                    Fitur notifikasi otomatis pelanggan sedang lumpuh. Harap hubungi Administrator atau cek koneksi server.
-                                </div>
+                                <i class="bi bi-whatsapp ${iconColor} mb-3" style="font-size: 4rem;"></i>
+                                <h4 class="fw-bold">${title}</h4>
+                                <p class="text-muted">${desc}</p>
+                                ${errorDetail ? `<p class="small text-danger">Detail: ${errorDetail}</p>` : ''}
+                                <div class="alert alert-warning small text-start">${extraAlert}</div>
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-secondary w-100" data-bs-dismiss="modal">Saya Mengerti</button>
@@ -168,6 +183,14 @@ class Auth {
             `;
             document.body.insertAdjacentHTML('beforeend', modalHTML);
             modalEl = document.getElementById('waha-alert-modal');
+        } else {
+            // Update konten modal yang sudah ada
+            const icon = modalEl.querySelector('.bi-whatsapp');
+            if (icon) icon.className = `bi bi-whatsapp ${iconColor} mb-3`;
+            const titleEl = modalEl.querySelector('h4');
+            if (titleEl) titleEl.textContent = title;
+            const descEl = modalEl.querySelector('.text-muted');
+            if (descEl) descEl.innerHTML = desc;
         }
         
         const modal = new bootstrap.Modal(modalEl);

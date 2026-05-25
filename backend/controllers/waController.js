@@ -46,13 +46,15 @@ exports.getWAHAStatus = async (req, res, next) => {
     // Normalisasi status untuk frontend
     let status = 'ERROR';
     if (result.status === 'WORKING') status = 'CONNECTED';
+    else if (result.status === 'UNREACHABLE') status = 'UNREACHABLE';
     else if (result.status === 'DISCONNECTED' || result.status === 'STOPPED') status = 'DISCONNECTED';
     else if (result.status === 'SCAN_QR' || result.status === 'STARTING') status = 'STARTING';
 
     res.status(200).json({
       success: true,
       status: status,
-      raw: result.status
+      raw: result.status,
+      error: result.error || null
     });
   } catch (error) {
     res.status(502).json({ success: false, status: 'ERROR', message: error.message });
