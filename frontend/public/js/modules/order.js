@@ -226,7 +226,7 @@ class Order {
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-start mb-2">
                             <div>
-                                <h6 class="fw-bold mb-0 text-primary">${o.item_name}</h6>
+                                <h6 class="fw-bold mb-0 text-primary">${escapeHTML(o.item_name)}</h6>
                                 <small class="text-muted">#${o.order_number} | ${formatDateTime(o.createdAt)}</small>
                             </div>
                             <div class="text-end">
@@ -240,8 +240,8 @@ class Order {
                         <div class="row small mb-3">
                             <div class="col-md-4">
                                 <small class="text-secondary fw-bold">PELANGGAN</small>
-                                <div class="fw-bold">${o.customer.name}</div>
-                                <div class="text-muted">${o.customer.phone}</div>
+                                <div class="fw-bold">${escapeHTML(o.customer.name)}</div>
+                                <div class="text-muted">${escapeHTML(o.customer.phone)}</div>
                             </div>
                             <div class="col-md-4">
                                 <small class="text-secondary fw-bold">ESTIMASI & DP</small>

@@ -258,22 +258,25 @@ serviceTicketSchema.statics.generateTicketNumber = async function() {
   return `${prefix}-${String(nextNumber).padStart(4, '0')}`;
 };
 
-// Method instance untuk menambah part (Tanpa Session untuk kompatibilitas Localhost)
+// Method instance untuk menambah part (DENGAN ATOMIC $inc)
 serviceTicketSchema.methods.addPart = async function(itemId, quantity) {
   const Item = mongoose.model('Item');
   
-  const item = await Item.findById(itemId);
+  // Atomic stock deduction — cegah race condition
+  const item = await Item.findOneAndUpdate(
+    { _id: itemId, stock: { $gte: quantity } },
+    { $inc: { stock: -quantity } },
+    { new: true }
+  );
+  
   if (!item) {
-    throw new Error('Barang tidak ditemukan');
+    // Cek apakah karena item tidak ditemukan atau stok kurang
+    const exists = await Item.findById(itemId);
+    if (!exists) {
+      throw new Error('Barang tidak ditemukan');
+    }
+    throw new Error(`Stok tidak cukup untuk ${exists.name}. Tersedia: ${exists.stock}, Diminta: ${quantity}`);
   }
-  
-  if (item.stock < quantity) {
-    throw new Error(`Stok tidak cukup untuk ${item.name}. Tersedia: ${item.stock}, Diminta: ${quantity}`);
-  }
-  
-  // Kurangi stok
-  item.stock -= quantity;
-  await item.save();
   
   // Tambahkan ke parts_used
   const subtotal = item.selling_price * quantity;

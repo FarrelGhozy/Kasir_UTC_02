@@ -15,7 +15,7 @@ const SystemLog = require('../models/SystemLog');
 exports.exportData = async (req, res, next) => {
   try {
     const data = {
-      users: await User.find({}).select('+password').lean(),
+      users: await User.find({}).lean(),
       items: await Item.find({}).lean(),
       service_tickets: await ServiceTicket.find({}).lean(),
       transactions: await Transaction.find({}).lean(),

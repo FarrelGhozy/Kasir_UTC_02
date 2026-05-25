@@ -1,6 +1,6 @@
 // public/js/modules/dashboard.js - Modul Ringkasan Dasbor (FIXED: Gabungan Aktivitas)
 
-import api, { formatCurrency, showError, loadScript } from '../api.js';
+import api, { formatCurrency, showError, loadScript, escapeHTML } from '../api.js';
 
 class Dashboard {
     constructor() {
@@ -439,8 +439,8 @@ class Dashboard {
                         <div class="list-group-item px-4 py-3">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
-                                    <h6 class="mb-1 fw-bold text-dark">${item.name}</h6>
-                                    <small class="text-muted">SKU: ${item.sku}</small>
+                                    <h6 class="mb-1 fw-bold text-dark">${escapeHTML(item.name)}</h6>
+                                    <small class="text-muted">SKU: ${escapeHTML(item.sku)}</small>
                                 </div>
                                 <div class="text-end">
                                     <span class="badge bg-danger rounded-pill">${item.stock} unit</span>
@@ -518,7 +518,7 @@ class Dashboard {
                                         <i class="bi ${act.icon} me-2 ${act.color}"></i>#${act.id}
                                     </h6>
                                     <small class="text-muted d-block">
-                                        <i class="bi bi-person-circle me-1"></i>${act.actor}
+                                        <i class="bi bi-person-circle me-1"></i>${escapeHTML(act.actor)}
                                     </small>
                                     <small class="text-muted">
                                         <i class="bi bi-clock me-1"></i>${act.date.toLocaleString('id-ID')}

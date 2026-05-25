@@ -789,7 +789,7 @@ class Service {
             this.tickets = res.data.filter(t => t.status !== 'Cancelled');
             this.renderTicketList();
         } catch (err) {
-            container.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
+            container.innerHTML = `<div class="alert alert-danger">${escapeHTML(err.message)}</div>`;
         }
     }
 
@@ -881,7 +881,7 @@ class Service {
                             <div class="text-end">
                                 ${this.getStatusBadge(t.status)}
                                 <div class="small text-secondary mt-1" style="font-size: 0.75rem;">
-                                    <i class="bi bi-person-badge me-1"></i>${t.technician.name}
+                                     <i class="bi bi-person-badge me-1"></i>${escapeHTML(t.technician.name)}
                                 </div>
                             </div>
                         </div>
@@ -1181,7 +1181,7 @@ class Service {
         if (t.parts_used && t.parts_used.length > 0) {
             partsListContainer.innerHTML = t.parts_used.map(p => `
                 <tr>
-                    <td class="ps-2">${p.name}</td>
+                    <td class="ps-2">${escapeHTML(p.name)}</td>
                     <td class="text-center">${p.qty}</td>
                     <td class="text-end pe-2">
                         <button type="button" class="btn btn-sm btn-outline-danger py-0 px-1" onclick="service.deletePart('${t._id}', '${p._id}')">
@@ -1346,7 +1346,7 @@ class Service {
 
         const partList = t.parts_used.length ? t.parts_used.map(p => 
             `<tr>
-                <td>${p.name}</td>
+                <td>${escapeHTML(p.name)}</td>
                 <td class="text-center">${p.qty}</td>
                 <td class="text-end">${formatCurrency(p.subtotal)}</td>
             </tr>`
@@ -1358,10 +1358,10 @@ class Service {
                     <div class="p-3 bg-light rounded shadow-sm h-100">
                         <h6 class="fw-bold text-primary border-bottom pb-2 mb-3"><i class="bi bi-person me-2"></i>INFO PELANGGAN</h6>
                         <table class="table table-sm table-borderless mb-0">
-                            <tr><td width="110" class="text-secondary">Nama</td><td>: <strong>${t.customer.name}</strong></td></tr>
-                            <tr><td class="text-secondary">Telepon</td><td>: ${t.customer.phone}</td></tr>
-                            <tr><td class="text-secondary">Email</td><td>: ${t.customer.email || '-'}</td></tr>
-                            <tr><td class="text-secondary">Tipe</td><td>: <span class="badge bg-info text-dark">${t.customer.type}</span></td></tr>
+                            <tr><td width="110" class="text-secondary">Nama</td><td>: <strong>${escapeHTML(t.customer.name)}</strong></td></tr>
+                            <tr><td class="text-secondary">Telepon</td><td>: ${escapeHTML(t.customer.phone)}</td></tr>
+                            <tr><td class="text-secondary">Email</td><td>: ${escapeHTML(t.customer.email || '-')}</td></tr>
+                            <tr><td class="text-secondary">Tipe</td><td>: <span class="badge bg-info text-dark">${escapeHTML(t.customer.type)}</span></td></tr>
                         </table>
                     </div>
                 </div>
@@ -1369,16 +1369,16 @@ class Service {
                     <div class="p-3 bg-light rounded shadow-sm h-100">
                         <h6 class="fw-bold text-primary border-bottom pb-2 mb-3"><i class="bi bi-laptop me-2"></i>PERANGKAT</h6>
                         <table class="table table-sm table-borderless mb-0">
-                            <tr><td width="110" class="text-secondary">Unit / Tipe</td><td>: <strong>${t.device.type} ${t.device.brand || ''}</strong></td></tr>
-                            <tr><td class="text-secondary">Model/Seri</td><td>: ${t.device.model || '-'}</td></tr>
-                            <tr><td class="text-secondary">Serial No.</td><td>: ${t.device.serial_number || '-'}</td></tr>
+                            <tr><td width="110" class="text-secondary">Unit / Tipe</td><td>: <strong>${escapeHTML(t.device.type)} ${escapeHTML(t.device.brand || '')}</strong></td></tr>
+                            <tr><td class="text-secondary">Model/Seri</td><td>: ${escapeHTML(t.device.model || '-')}</td></tr>
+                            <tr><td class="text-secondary">Serial No.</td><td>: ${escapeHTML(t.device.serial_number || '-')}</td></tr>
                             <tr><td class="text-secondary">Password</td><td>: <span class="badge bg-warning text-dark">${escapeHTML(t.device.password || '-')}</span></td></tr>
                             <tr>
                                 <td class="text-secondary">Pola</td>
                                 <td>: ${this.renderPatternVisualization(t.device.pattern)}</td>
                             </tr>
-                            <tr><td class="text-secondary">Keluhan</td><td>: <span class="text-danger">${t.device.symptoms}</span></td></tr>
-                            <tr><td class="text-secondary">Kelengkapan</td><td>: ${t.device.accessories || '-'}</td></tr>
+                            <tr><td class="text-secondary">Keluhan</td><td>: <span class="text-danger">${escapeHTML(t.device.symptoms)}</span></td></tr>
+                            <tr><td class="text-secondary">Kelengkapan</td><td>: ${escapeHTML(t.device.accessories || '-')}</td></tr>
                         </table>
                     </div>
                 </div>
@@ -1405,7 +1405,7 @@ class Service {
                     <div class="p-3 bg-light rounded shadow-sm h-100">
                         <h6 class="fw-bold text-primary border-bottom pb-2 mb-3"><i class="bi bi-clock me-2"></i>TIMELINE & PETUGAS</h6>
                         <table class="table table-sm table-borderless mb-0">
-                            <tr><td width="110" class="text-secondary">Teknisi</td><td>: <strong>${t.technician.name}</strong></td></tr>
+                            <tr><td width="110" class="text-secondary">Teknisi</td><td>: <strong>${escapeHTML(t.technician.name)}</strong></td></tr>
                             <tr><td class="text-secondary">Waktu Masuk</td><td>: ${formatDateTime(t.history.created_at)}</td></tr>
                             ${t.history.completed_at ? `<tr><td class="text-secondary text-success fw-bold">Waktu Selesai</td><td>: ${formatDateTime(t.history.completed_at)}</td></tr>` : ''}
                             ${t.history.picked_up_at ? `<tr><td class="text-secondary text-primary fw-bold">Waktu Keluar</td><td>: ${formatDateTime(t.history.picked_up_at)}</td></tr>` : ''}
@@ -1415,7 +1415,7 @@ class Service {
                 <div class="col-md-6">
                     <div class="p-3 bg-light rounded shadow-sm h-100">
                         <h6 class="fw-bold text-primary border-bottom pb-2 mb-3"><i class="bi bi-journal-text me-2"></i>CATATAN</h6>
-                        <p class="small text-muted mb-0">${t.notes || 'Tidak ada catatan tambahan.'}</p>
+                        <p class="small text-muted mb-0">${escapeHTML(t.notes || 'Tidak ada catatan tambahan.')}</p>
                     </div>
                 </div>
             </div>
@@ -1479,12 +1479,12 @@ class Service {
                 </div>
                 <div class="row"><span>Tiket</span> <span>${t.ticket_number}</span></div>
                 <div class="row"><span>Tgl</span> <span>${new Date().toLocaleDateString('id-ID')}</span></div>
-                <div class="row"><span>Klien</span> <span>${t.customer.name}</span></div>
+                <div class="row"><span>Klien</span> <span>${escapeHTML(t.customer.name)}</span></div>
                 <div class="divider"></div>
-                <div class="row"><span>Perangkat</span> <span>${t.device.type} ${t.device.brand || ''}</span></div>
+                <div class="row"><span>Perangkat</span> <span>${escapeHTML(t.device.type)} ${escapeHTML(t.device.brand || '')}</span></div>
                 <div class="row"><span>Sandi/Pola</span> <span>${escapeHTML(t.device.password || '-')}/${escapeHTML(t.device.pattern || '-')}</span></div>
                 <div class="divider"></div>
-                ${t.parts_used.map(p => `<div class="row"><span>${p.name} x${p.qty}</span><span>${new Intl.NumberFormat('id-ID').format(p.subtotal)}</span></div>`).join('')}
+                ${t.parts_used.map(p => `<div class="row"><span>${escapeHTML(p.name)} x${p.qty}</span><span>${new Intl.NumberFormat('id-ID').format(p.subtotal)}</span></div>`).join('')}
                 <div class="row"><span>Jasa</span><span>${new Intl.NumberFormat('id-ID').format(t.service_fee)}</span></div>
                 <div class="divider"></div>
                 <div class="row bold"><span>TOTAL</span><span>${new Intl.NumberFormat('id-ID', {style:'currency',currency:'IDR'}).format(t.total_cost)}</span></div>
@@ -1760,5 +1760,4 @@ class Service {
     }
 }
 
-window.service = new Service();
 export default Service;

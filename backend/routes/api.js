@@ -139,7 +139,8 @@ router.post('/admin/backup/import', protect, authorize('admin'), backupControlle
 const path = require('path');
 const fs = require('fs');
 router.get('/uploads/:filename', protect, (req, res) => {
-  const filePath = path.join(__dirname, '..', 'uploads', 'services', req.params.filename);
+  const filename = path.basename(req.params.filename);
+  const filePath = path.join(__dirname, '..', 'uploads', 'services', filename);
   if (!fs.existsSync(filePath)) {
     return res.status(404).json({ success: false, message: 'File tidak ditemukan' });
   }
