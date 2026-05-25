@@ -76,15 +76,14 @@ exports.getAllItems = async (req, res, next) => {
     if (category) filter.category = category;
     
     if (search && typeof search === 'string') {
-      const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       filter.$or = [
-        { name: { $regex: escaped, $options: 'i' } },
-        { sku: { $regex: escaped, $options: 'i' } }
+        { $text: { $search: search } },
+        { sku: { $regex: search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' } }
       ];
     }
     
     if (low_stock === 'true') {
-      filter.$expr = { $lte: ['$stock', '$min_stock_alert'] };
+      filter.isLowStock = true;
     }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -294,6 +293,13 @@ exports.importItems = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Data barang tidak valid' });
     }
 
+    // Batch lookup existing SKUs
+    const skus = items.map(i => i.sku).filter(Boolean);
+    const existingItems = {};
+    (await Item.find({ sku: { $in: skus } })).forEach(item => {
+      existingItems[item.sku] = item;
+    });
+
     let addedCount = 0;
     let updatedCount = 0;
     let failedCount = 0;
@@ -307,7 +313,7 @@ exports.importItems = async (req, res, next) => {
           continue;
         }
 
-        const existingItem = await Item.findOne({ sku });
+        const existingItem = existingItems[sku];
 
         if (existingItem) {
           // Update

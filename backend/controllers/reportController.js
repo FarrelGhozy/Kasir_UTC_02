@@ -389,7 +389,8 @@ exports.getTopSellingItems = async (req, res, next) => {
 
     const topItems = await Transaction.aggregate([
       ...(Object.keys(matchStage).length > 0 ? [{ $match: matchStage }] : []),
-      { $unwind: '$items' },
+      { $match: { 'items': { $exists: true, $ne: [] } } },
+      { $unwind: { path: '$items', preserveNullAndEmptyArrays: false } },
       {
         $group: {
           _id: '$items.item_id',

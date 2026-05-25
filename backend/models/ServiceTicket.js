@@ -210,6 +210,7 @@ const serviceTicketSchema = new mongoose.Schema({
 serviceTicketSchema.index({ status: 1 });
 serviceTicketSchema.index({ 'technician.id': 1 });
 serviceTicketSchema.index({ 'history.created_at': -1 });
+serviceTicketSchema.index({ 'history.completed_at': -1 });
 serviceTicketSchema.index({ 'customer.phone': 1 });
 serviceTicketSchema.index({ status: 1, 'history.picked_up_at': 1 });
 serviceTicketSchema.index({ 'technician.id': 1, status: 1 });

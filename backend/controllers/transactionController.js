@@ -27,6 +27,13 @@ exports.createRetailTransaction = async (req, res, next) => {
     // --- FASE 1: VALIDASI ---
     // Validasi semua input tanpa mengubah database
     
+    // Batch lookup semua item sekali
+    const itemIds = items.map(i => i.item_id);
+    const itemMap = {};
+    (await Item.find({ _id: { $in: itemIds } })).forEach(item => {
+      itemMap[item._id.toString()] = item;
+    });
+
     const transactionItems = [];
     let grandTotal = 0;
 
@@ -39,8 +46,8 @@ exports.createRetailTransaction = async (req, res, next) => {
         });
       }
 
-      const itemDB = await Item.findById(cartItem.item_id);
-      
+      const itemDB = itemMap[cartItem.item_id];
+
       if (!itemDB) {
         return res.status(404).json({
           success: false,

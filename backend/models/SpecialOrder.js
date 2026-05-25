@@ -134,6 +134,7 @@ specialOrderSchema.statics.generateOrderNumber = async function() {
 };
 
 specialOrderSchema.index({ status: 1, 'history.created_at': -1 });
+specialOrderSchema.index({ 'customer.phone': 1 });
 // order_number already indexed via unique: true in schema
 
 specialOrderSchema.set('toJSON', { virtuals: true });

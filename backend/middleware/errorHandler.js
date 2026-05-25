@@ -8,27 +8,23 @@ const errorHandler = async (err, req, res, next) => {
   // Log ke Konsol untuk Debugging
   console.error('❌ GLOBAL ERROR:', err);
 
-  // LOG KE DATABASE SYSTEMLOGS SECARA OTOMATIS
-  try {
-    await SystemLog.create({
-      level: 'ERROR',
-      source: 'GlobalErrorHandler',
-      message: err.message || 'Kesalahan Server',
-      details: {
-        path: req.originalUrl,
-        method: req.method,
-        body: req.body ? (() => {
-          const sanitized = { ...req.body };
-          ['password', 'password_baru', 'password_lama', 'token', 'accessToken', 'secret'].forEach(k => delete sanitized[k]);
-          return sanitized;
-        })() : undefined,
-        stack: err.stack,
-        user: req.user ? req.user.id : 'Guest'
-      }
-    });
-  } catch (logErr) {
-    console.error('Gagal mencatat log ke DB:', logErr);
-  }
+  // LOG KE DATABASE SYSTEMLOGS — fire-and-forget, jangan blocking response
+  SystemLog.create({
+    level: 'ERROR',
+    source: 'GlobalErrorHandler',
+    message: err.message || 'Kesalahan Server',
+    details: {
+      path: req.originalUrl,
+      method: req.method,
+      body: req.body ? (() => {
+        const sanitized = { ...req.body };
+        ['password', 'password_baru', 'password_lama', 'token', 'accessToken', 'secret'].forEach(k => delete sanitized[k]);
+        return sanitized;
+      })() : undefined,
+      stack: err.stack,
+      user: req.user ? req.user.id : 'Guest'
+    }
+  }).catch(err => console.error('Gagal mencatat log ke DB:', err));
 
   // Mongoose bad ObjectId (ID tidak valid)
   if (err.name === 'CastError') {

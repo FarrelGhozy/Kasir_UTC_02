@@ -87,6 +87,7 @@ const transactionSchema = new mongoose.Schema({
 transactionSchema.index({ date: -1 });
 transactionSchema.index({ cashier_id: 1, date: -1 });
 transactionSchema.index({ payment_method: 1, date: -1 });
+transactionSchema.index({ 'items.item_id': 1 });
 
 // ✅ PERBAIKAN UTAMA: Menghapus parameter 'next' (Async compatible)
 transactionSchema.pre('save', async function() {

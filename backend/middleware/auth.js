@@ -29,17 +29,13 @@ exports.protect = async (req, res, next) => {
       // Verifikasi token
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-      // Ambil user dari token
-      req.user = await User.findById(decoded.id).select('-password');
+      // Ambil data user dari JWT payload (skip DB query)
+      req.user = {
+        id: decoded.id,
+        role: decoded.role
+      };
 
-      if (!req.user) {
-        return res.status(401).json({
-          success: false,
-          message: 'Pengguna tidak ditemukan'
-        });
-      }
-
-      if (!req.user.isActive) {
+      if (decoded.isActive === false) {
         return res.status(403).json({
           success: false,
           message: 'Akun telah dinonaktifkan'

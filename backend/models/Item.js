@@ -71,6 +71,10 @@ const itemSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  isLowStock: {
+    type: Boolean,
+    default: false
+  },
   created_at: {
     type: Date,
     default: Date.now
@@ -89,6 +93,7 @@ itemSchema.index({ stock: 1 });
 itemSchema.index({ name: 'text' });
 itemSchema.index({ isActive: 1, category: 1 });
 itemSchema.index({ isActive: 1, stock: 1 });
+itemSchema.index({ isLowStock: 1, isActive: 1 });
 // SKU sudah unique: true di definisi schema
 
 // Virtual untuk margin keuntungan
@@ -143,15 +148,13 @@ itemSchema.statics.addStockAtomic = async function(id, quantity) {
 
 // Method static untuk mengambil item dengan stok menipis
 itemSchema.statics.getLowStockItems = function() {
-  return this.find({
-    $expr: { $lte: ['$stock', '$min_stock_alert'] },
-    isActive: true
-  }).sort({ stock: 1 });
+  return this.find({ isLowStock: true, isActive: true }).sort({ stock: 1 });
 };
 
-// Middleware pre-save untuk update timestamp
+// Middleware pre-save untuk update timestamp dan isLowStock
 itemSchema.pre('save', function() {
   this.updated_at = new Date();
+  this.isLowStock = this.stock <= this.min_stock_alert;
 });
 
 // Pastikan virtuals disertakan dalam JSON
