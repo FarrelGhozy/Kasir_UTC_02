@@ -9,7 +9,8 @@ const customerSchema = new mongoose.Schema({
   phone: {
     type: String,
     required: [true, 'Nomor telepon pelanggan wajib diisi'],
-    trim: true
+    trim: true,
+    match: [/^(08|\+628|628)\d{7,12}$/, 'Format nomor telepon tidak valid. Gunakan format: 08xx-xxxx-xxxx atau +628xx-xxxx-xxxx']
   },
   type: {
     type: String,
@@ -61,14 +62,24 @@ const specialOrderSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
-  timestamps: {
+  history: {
     created_at: { type: Date, default: Date.now },
     ordered_at: Date,
     arrived_at: Date,
     picked_up_at: Date,
     last_customer_reminder_at: Date
   }
-});
+}, { timestamps: true });
+
+// Valid state transitions map
+specialOrderSchema.statics.validTransitions = {
+  'Pending': ['Searching', 'Cancelled'],
+  'Searching': ['Ordered', 'Cancelled'],
+  'Ordered': ['Arrived', 'Cancelled'],
+  'Arrived': ['Picked_Up', 'Cancelled'],
+  'Picked_Up': ['Cancelled'],
+  'Cancelled': ['Pending']
+};
 
 // Calculate remaining payment
 specialOrderSchema.virtual('remaining_payment').get(function() {
@@ -76,6 +87,26 @@ specialOrderSchema.virtual('remaining_payment').get(function() {
 });
 
 specialOrderSchema.pre('save', async function() {
+  // Status transition validation
+  if (this.isModified('status') && !this.isNew) {
+    const original = await this.constructor.findById(this._id).select('status').lean();
+    const originalStatus = original?.status;
+    if (originalStatus) {
+      const transitions = this.constructor.validTransitions;
+      const allowedNext = transitions[originalStatus];
+      if (!allowedNext) {
+        throw new Error(`Status tidak dikenali: ${originalStatus}`);
+      }
+      if (!allowedNext.includes(this.status)) {
+        throw new Error(
+          `Transisi status tidak valid: ${originalStatus} → ${this.status}. ` +
+          `Status yang diizinkan: ${allowedNext.join(', ') || 'tidak ada (status final)'}`
+        );
+      }
+    }
+  }
+
+  // Generate nomor pesanan
   if (this.isNew && !this.order_number) {
     try {
       this.order_number = await this.constructor.generateOrderNumber();
@@ -90,7 +121,7 @@ specialOrderSchema.statics.generateOrderNumber = async function() {
   const prefix = `ORD-${year}`;
   const lastOrder = await this.findOne({
     order_number: new RegExp(`^${prefix}`)
-  }).sort({ 'timestamps.created_at': -1 });
+  }).sort({ 'history.created_at': -1 });
   
   let nextNumber = 1;
   if (lastOrder) {
@@ -101,6 +132,10 @@ specialOrderSchema.statics.generateOrderNumber = async function() {
   }
   return `${prefix}-${String(nextNumber).padStart(4, '0')}`;
 };
+
+specialOrderSchema.index({ status: 1, 'history.created_at': -1 });
+specialOrderSchema.index({ 'customer.phone': 1 });
+// order_number already indexed via unique: true in schema
 
 specialOrderSchema.set('toJSON', { virtuals: true });
 specialOrderSchema.set('toObject', { virtuals: true });

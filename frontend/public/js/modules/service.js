@@ -1,6 +1,6 @@
 // public/js/modules/service.js - Modul Manajemen Servis (FIXED: Add Part & Detail View)
 
-import api, { formatCurrency, formatDateTime, showToast, showError, setupCurrencyInput, parseCurrencyValue, calculateElapsedTime, validateWhatsApp } from '../api.js';
+import api, { formatCurrency, formatDateTime, showToast, showError, setupCurrencyInput, parseCurrencyValue, calculateElapsedTime, validateWhatsApp, escapeHTML, loadScript } from '../api.js';
 
 /**
  * Helper class for Pattern Lock UI
@@ -127,8 +127,9 @@ class Service {
         return this._modals[id];
     }
 
-    async render() {
-        // PERBAIKAN: Pastikan global 'service' merujuk ke instance yang aktif
+    async render(containerId = 'app-content') {
+        // Hapus cache modal agar instance stale tidak digunakan setelah re-render
+        this._modals = {};
         window.service = this;
 
         // CSS Hack — inject only once
@@ -213,7 +214,7 @@ class Service {
             document.head.appendChild(style);
         }
 
-        const content = document.getElementById('app-content');
+        const content = document.getElementById(containerId);
         
         content.innerHTML = `
             <div class="row g-4">
@@ -409,9 +410,11 @@ class Service {
         // Initialize currency inputs
         document.querySelectorAll('.currency-input').forEach(input => setupCurrencyInput(input));
 
-        await this.loadTechnicians();
-        await this.loadTickets();
-        await this.loadItems();
+        await Promise.all([
+            this.loadTechnicians(),
+            this.loadTickets(),
+            this.loadItems()
+        ]);
         this.setupEventListeners();
     }
 
@@ -786,7 +789,7 @@ class Service {
             this.tickets = res.data.filter(t => t.status !== 'Cancelled');
             this.renderTicketList();
         } catch (err) {
-            container.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
+            container.innerHTML = `<div class="alert alert-danger">${escapeHTML(err.message)}</div>`;
         }
     }
 
@@ -812,20 +815,20 @@ class Service {
             
             // Logika Durasi
             let durationLabel = 'Durasi Masuk';
-            let durationValue = calculateElapsedTime(t.timestamps.created_at);
+            let durationValue = calculateElapsedTime(t.history.created_at);
             let durationColor = 'text-muted';
 
             if (t.status === 'Completed') {
                 durationLabel = 'Selesai Sejak';
-                durationValue = calculateElapsedTime(t.timestamps.completed_at);
+                durationValue = calculateElapsedTime(t.history.completed_at);
                 durationColor = 'text-success';
             } else if (t.status === 'Picked_Up') {
                 durationLabel = 'Total Servis';
-                durationValue = calculateElapsedTime(t.timestamps.created_at, t.timestamps.picked_up_at);
+                durationValue = calculateElapsedTime(t.history.created_at, t.history.picked_up_at);
                 durationColor = 'text-dark';
             } else {
                 // Untuk status aktif (Queue, Diagnosing, etc)
-                const hours = (new Date() - new Date(t.timestamps.created_at)) / (1000 * 60 * 60);
+                const hours = (new Date() - new Date(t.history.created_at)) / (1000 * 60 * 60);
                 if (hours > 48) durationColor = 'text-danger fw-bold';
                 else if (hours > 24) durationColor = 'text-warning fw-bold';
             }
@@ -873,12 +876,12 @@ class Service {
                         <div class="d-flex justify-content-between align-items-start mb-2">
                             <div>
                                 <h6 class="fw-bold mb-0 text-dark">#${t.ticket_number}</h6>
-                                <small class="text-muted">${formatDateTime(t.timestamps.created_at)}</small>
+                                <small class="text-muted">${formatDateTime(t.history.created_at)}</small>
                             </div>
                             <div class="text-end">
                                 ${this.getStatusBadge(t.status)}
                                 <div class="small text-secondary mt-1" style="font-size: 0.75rem;">
-                                    <i class="bi bi-person-badge me-1"></i>${t.technician.name}
+                                     <i class="bi bi-person-badge me-1"></i>${escapeHTML(t.technician.name)}
                                 </div>
                             </div>
                         </div>
@@ -887,11 +890,11 @@ class Service {
                             <div class="col-6">
                                 <small class="text-secondary fw-bold" style="font-size:0.7rem">PELANGGAN</small>
                                 <div class="fw-bold text-truncate">
-                                    ${t.customer.name} 
-                                    <span class="badge bg-light text-dark border ms-1" style="font-size:0.6rem; font-weight: normal;">${t.customer.type}</span>
+                                    ${escapeHTML(t.customer.name)} 
+                                    <span class="badge bg-light text-dark border ms-1" style="font-size:0.6rem; font-weight: normal;">${escapeHTML(t.customer.type)}</span>
                                 </div>
                                 <div class="small text-muted d-flex align-items-center gap-1">
-                                    ${t.customer.phone || 'N/A'}
+                                    ${escapeHTML(t.customer.phone || 'N/A')}
                                     ${t.customer.phone ? `
                                         <button class="btn btn-success btn-xs ms-1 px-1 py-0 shadow-sm" onclick="service.resendWA('${t._id}')" title="Kirim Ulang WA" style="font-size: 0.65rem; border-radius: 4px;">
                                             <i class="bi bi-whatsapp me-1"></i>Kirim WA
@@ -900,7 +903,7 @@ class Service {
                                 </div>
                                 ${t.customer.email ? `
                                     <div class="small text-muted mt-1 text-truncate" style="font-size: 0.7rem;">
-                                        <i class="bi bi-envelope me-1"></i>${t.customer.email}
+                                        <i class="bi bi-envelope me-1"></i>${escapeHTML(t.customer.email)}
                                     </div>
                                 ` : ''}
                             </div>
@@ -917,10 +920,10 @@ class Service {
                             <div class="col-7">
                                 <small class="text-secondary fw-bold" style="font-size:0.7rem">PERANGKAT</small>
                                 <div class="fw-bold text-primary mb-1" style="font-size: 1.1rem; line-height: 1.2;">
-                                    ${t.device.type} ${t.device.brand || ''} ${t.device.model || ''}
+                                    ${escapeHTML(t.device.type)} ${escapeHTML(t.device.brand || '')} ${escapeHTML(t.device.model || '')}
                                 </div>
                                 <div class="small text-danger fw-semibold" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
-                                    <i class="bi bi-exclamation-circle me-1"></i>${t.device.symptoms}
+                                    <i class="bi bi-exclamation-circle me-1"></i>${escapeHTML(t.device.symptoms)}
                                 </div>
                             </div>
                             <div class="col-5 text-end">
@@ -1178,7 +1181,7 @@ class Service {
         if (t.parts_used && t.parts_used.length > 0) {
             partsListContainer.innerHTML = t.parts_used.map(p => `
                 <tr>
-                    <td class="ps-2">${p.name}</td>
+                    <td class="ps-2">${escapeHTML(p.name)}</td>
                     <td class="text-center">${p.qty}</td>
                     <td class="text-end pe-2">
                         <button type="button" class="btn btn-sm btn-outline-danger py-0 px-1" onclick="service.deletePart('${t._id}', '${p._id}')">
@@ -1343,7 +1346,7 @@ class Service {
 
         const partList = t.parts_used.length ? t.parts_used.map(p => 
             `<tr>
-                <td>${p.name}</td>
+                <td>${escapeHTML(p.name)}</td>
                 <td class="text-center">${p.qty}</td>
                 <td class="text-end">${formatCurrency(p.subtotal)}</td>
             </tr>`
@@ -1355,10 +1358,10 @@ class Service {
                     <div class="p-3 bg-light rounded shadow-sm h-100">
                         <h6 class="fw-bold text-primary border-bottom pb-2 mb-3"><i class="bi bi-person me-2"></i>INFO PELANGGAN</h6>
                         <table class="table table-sm table-borderless mb-0">
-                            <tr><td width="110" class="text-secondary">Nama</td><td>: <strong>${t.customer.name}</strong></td></tr>
-                            <tr><td class="text-secondary">Telepon</td><td>: ${t.customer.phone}</td></tr>
-                            <tr><td class="text-secondary">Email</td><td>: ${t.customer.email || '-'}</td></tr>
-                            <tr><td class="text-secondary">Tipe</td><td>: <span class="badge bg-info text-dark">${t.customer.type}</span></td></tr>
+                            <tr><td width="110" class="text-secondary">Nama</td><td>: <strong>${escapeHTML(t.customer.name)}</strong></td></tr>
+                            <tr><td class="text-secondary">Telepon</td><td>: ${escapeHTML(t.customer.phone)}</td></tr>
+                            <tr><td class="text-secondary">Email</td><td>: ${escapeHTML(t.customer.email || '-')}</td></tr>
+                            <tr><td class="text-secondary">Tipe</td><td>: <span class="badge bg-info text-dark">${escapeHTML(t.customer.type)}</span></td></tr>
                         </table>
                     </div>
                 </div>
@@ -1366,16 +1369,16 @@ class Service {
                     <div class="p-3 bg-light rounded shadow-sm h-100">
                         <h6 class="fw-bold text-primary border-bottom pb-2 mb-3"><i class="bi bi-laptop me-2"></i>PERANGKAT</h6>
                         <table class="table table-sm table-borderless mb-0">
-                            <tr><td width="110" class="text-secondary">Unit / Tipe</td><td>: <strong>${t.device.type} ${t.device.brand || ''}</strong></td></tr>
-                            <tr><td class="text-secondary">Model/Seri</td><td>: ${t.device.model || '-'}</td></tr>
-                            <tr><td class="text-secondary">Serial No.</td><td>: ${t.device.serial_number || '-'}</td></tr>
-                            <tr><td class="text-secondary">Password</td><td>: <span class="badge bg-warning text-dark">${t.device.password || '-'}</span></td></tr>
+                            <tr><td width="110" class="text-secondary">Unit / Tipe</td><td>: <strong>${escapeHTML(t.device.type)} ${escapeHTML(t.device.brand || '')}</strong></td></tr>
+                            <tr><td class="text-secondary">Model/Seri</td><td>: ${escapeHTML(t.device.model || '-')}</td></tr>
+                            <tr><td class="text-secondary">Serial No.</td><td>: ${escapeHTML(t.device.serial_number || '-')}</td></tr>
+                            <tr><td class="text-secondary">Password</td><td>: <span class="badge bg-warning text-dark">${escapeHTML(t.device.password || '-')}</span></td></tr>
                             <tr>
                                 <td class="text-secondary">Pola</td>
                                 <td>: ${this.renderPatternVisualization(t.device.pattern)}</td>
                             </tr>
-                            <tr><td class="text-secondary">Keluhan</td><td>: <span class="text-danger">${t.device.symptoms}</span></td></tr>
-                            <tr><td class="text-secondary">Kelengkapan</td><td>: ${t.device.accessories || '-'}</td></tr>
+                            <tr><td class="text-secondary">Keluhan</td><td>: <span class="text-danger">${escapeHTML(t.device.symptoms)}</span></td></tr>
+                            <tr><td class="text-secondary">Kelengkapan</td><td>: ${escapeHTML(t.device.accessories || '-')}</td></tr>
                         </table>
                     </div>
                 </div>
@@ -1402,17 +1405,17 @@ class Service {
                     <div class="p-3 bg-light rounded shadow-sm h-100">
                         <h6 class="fw-bold text-primary border-bottom pb-2 mb-3"><i class="bi bi-clock me-2"></i>TIMELINE & PETUGAS</h6>
                         <table class="table table-sm table-borderless mb-0">
-                            <tr><td width="110" class="text-secondary">Teknisi</td><td>: <strong>${t.technician.name}</strong></td></tr>
-                            <tr><td class="text-secondary">Waktu Masuk</td><td>: ${formatDateTime(t.timestamps.created_at)}</td></tr>
-                            ${t.timestamps.completed_at ? `<tr><td class="text-secondary text-success fw-bold">Waktu Selesai</td><td>: ${formatDateTime(t.timestamps.completed_at)}</td></tr>` : ''}
-                            ${t.timestamps.picked_up_at ? `<tr><td class="text-secondary text-primary fw-bold">Waktu Keluar</td><td>: ${formatDateTime(t.timestamps.picked_up_at)}</td></tr>` : ''}
+                            <tr><td width="110" class="text-secondary">Teknisi</td><td>: <strong>${escapeHTML(t.technician.name)}</strong></td></tr>
+                            <tr><td class="text-secondary">Waktu Masuk</td><td>: ${formatDateTime(t.history.created_at)}</td></tr>
+                            ${t.history.completed_at ? `<tr><td class="text-secondary text-success fw-bold">Waktu Selesai</td><td>: ${formatDateTime(t.history.completed_at)}</td></tr>` : ''}
+                            ${t.history.picked_up_at ? `<tr><td class="text-secondary text-primary fw-bold">Waktu Keluar</td><td>: ${formatDateTime(t.history.picked_up_at)}</td></tr>` : ''}
                         </table>
                     </div>
                 </div>
                 <div class="col-md-6">
                     <div class="p-3 bg-light rounded shadow-sm h-100">
                         <h6 class="fw-bold text-primary border-bottom pb-2 mb-3"><i class="bi bi-journal-text me-2"></i>CATATAN</h6>
-                        <p class="small text-muted mb-0">${t.notes || 'Tidak ada catatan tambahan.'}</p>
+                        <p class="small text-muted mb-0">${escapeHTML(t.notes || 'Tidak ada catatan tambahan.')}</p>
                     </div>
                 </div>
             </div>
@@ -1476,12 +1479,12 @@ class Service {
                 </div>
                 <div class="row"><span>Tiket</span> <span>${t.ticket_number}</span></div>
                 <div class="row"><span>Tgl</span> <span>${new Date().toLocaleDateString('id-ID')}</span></div>
-                <div class="row"><span>Klien</span> <span>${t.customer.name}</span></div>
+                <div class="row"><span>Klien</span> <span>${escapeHTML(t.customer.name)}</span></div>
                 <div class="divider"></div>
-                <div class="row"><span>Perangkat</span> <span>${t.device.type} ${t.device.brand || ''}</span></div>
-                <div class="row"><span>Sandi/Pola</span> <span>${t.device.password || '-'}/${t.device.pattern || '-'}</span></div>
+                <div class="row"><span>Perangkat</span> <span>${escapeHTML(t.device.type)} ${escapeHTML(t.device.brand || '')}</span></div>
+                <div class="row"><span>Sandi/Pola</span> <span>${escapeHTML(t.device.password || '-')}/${escapeHTML(t.device.pattern || '-')}</span></div>
                 <div class="divider"></div>
-                ${t.parts_used.map(p => `<div class="row"><span>${p.name} x${p.qty}</span><span>${new Intl.NumberFormat('id-ID').format(p.subtotal)}</span></div>`).join('')}
+                ${t.parts_used.map(p => `<div class="row"><span>${escapeHTML(p.name)} x${p.qty}</span><span>${new Intl.NumberFormat('id-ID').format(p.subtotal)}</span></div>`).join('')}
                 <div class="row"><span>Jasa</span><span>${new Intl.NumberFormat('id-ID').format(t.service_fee)}</span></div>
                 <div class="divider"></div>
                 <div class="row bold"><span>TOTAL</span><span>${new Intl.NumberFormat('id-ID', {style:'currency',currency:'IDR'}).format(t.total_cost)}</span></div>
@@ -1522,6 +1525,14 @@ class Service {
     }
 
     async compressImage(file) {
+        if (!window.imageCompression) {
+            try {
+                await loadScript('https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js');
+            } catch {
+                console.error('Gagal memuat library kompresi gambar');
+                return file;
+            }
+        }
         if (!window.imageCompression) {
             console.error('Library image-compression tidak ditemukan');
             return file;
@@ -1586,10 +1597,11 @@ class Service {
     }
 
     setupEventListeners() {
-        // Cek Role untuk tombol Admin
+        // Tampilkan tombol System Logs untuk admin
         const user = JSON.parse(localStorage.getItem('user') || '{}');
         if (user.role === 'admin') {
-            document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'block');
+            const logsBtn = document.getElementById('view-logs-btn');
+            if (logsBtn) logsBtn.style.display = 'inline-block';
         }
 
         document.getElementById('service-form').addEventListener('submit', async (e) => {
@@ -1748,5 +1760,4 @@ class Service {
     }
 }
 
-window.service = new Service();
 export default Service;

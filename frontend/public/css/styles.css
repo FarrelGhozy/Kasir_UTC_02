@@ -24,21 +24,13 @@
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background-image: linear-gradient(rgba(248, 249, 250, 0.88), rgba(248, 249, 250, 0.88)), url('../assets/unidapuenya.jpg');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
     background-color: var(--light-bg);
     overflow-x: hidden;
 }
-
-#login-screen {
-    background-image: linear-gradient(rgba(248, 249, 250, 0.72), rgba(248, 249, 250, 0.72)), url('../assets/unidapuenya.jpg');
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-}
-
-#login-screen .card {
-    background-color: rgba(255, 255, 255, 0.94);
-}
-
 
 /* Sidebar Styles */
 
@@ -456,7 +448,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 60px;
+    height: 64px;
 }
 
 .bottom-nav-item {
@@ -465,8 +457,7 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 1px;
-    padding: 2px;
+    padding: 6px 0;
     text-decoration: none;
     color: #6c757d;
     transition: color 0.2s ease;
@@ -475,20 +466,23 @@ body {
 }
 
 .bottom-nav-item i {
-    font-size: 1.15rem;
+    font-size: 1.35rem;
     line-height: 1;
+    transition: transform 0.2s ease;
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .bottom-nav-item span {
-    font-size: 0.6rem;
+    font-size: 0.65rem;
     font-weight: 600;
     white-space: nowrap;
 }
 
-/* Admin-only: default visible, diatur role-nya via JS */
-.bottom-nav-item.admin-only.hidden {
-    display: none;
-}
+/* Admin-only: default visible, diatur role-nya via JS (class d-none dari auth.js) */
 .bottom-nav-item.admin-only {
     flex-direction: column !important;
 }
@@ -500,23 +494,23 @@ body {
 
 .bottom-nav-item.active {
     color: var(--primary-color);
-    position: relative;
-}
-
-.bottom-nav-item.active::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 20px;
-    height: 3px;
-    background: var(--primary-color);
-    border-radius: 0 0 3px 3px;
 }
 
 .bottom-nav-item.active i {
-    transform: scale(1.1);
+    transform: scale(1.15);
+}
+
+.bottom-nav-item.active i::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 40px;
+    height: 40px;
+    background: rgba(13, 110, 253, 0.12);
+    border-radius: 50%;
+    z-index: -1;
 }
 
 /* Mobile: additional layout tweaks */
@@ -941,4 +935,15 @@ body {
 .pattern-mini-dot.active {
     background: var(--primary-color) !important;
     border-color: #0a58ca !important;
+}
+
+/* Backup/restore card — icon responsive */
+.backup-icon {
+    font-size: 4rem;
+}
+
+@media (max-width: 576px) {
+    .backup-icon {
+        font-size: 2rem !important;
+    }
 }

@@ -8,6 +8,30 @@ const API_BASE_URL = isLocalHost
 class API {
     constructor(baseURL) {
         this.baseURL = baseURL;
+        this._cache = new Map();
+        this._CACHE_TTL = 30000; // 30 detik
+    }
+
+    _getCacheKey(endpoint, options) {
+        return `${options.method || 'GET'}:${endpoint}`;
+    }
+
+    _getCached(key) {
+        const entry = this._cache.get(key);
+        if (!entry) return null;
+        if (Date.now() - entry.ts > this._CACHE_TTL) {
+            this._cache.delete(key);
+            return null;
+        }
+        return entry.data;
+    }
+
+    _setCache(key, data) {
+        this._cache.set(key, { data, ts: Date.now() });
+    }
+
+    _clearCache() {
+        this._cache.clear();
     }
 
     /**
@@ -74,11 +98,24 @@ class API {
      * Penangan request generik
      */
     async request(endpoint, options = {}) {
+        const method = options.method || 'GET';
+        const isGet = method === 'GET';
+        const cacheKey = this._getCacheKey(endpoint, options);
+
+        // Clear cache on mutations
+        if (!isGet) this._clearCache();
+
+        // Return cached response for GET
+        if (isGet) {
+            const cached = this._getCached(cacheKey);
+            if (cached) return cached;
+        }
+
         const url = `${this.baseURL}${endpoint}`;
         const authenticated = options.authenticated !== false;
 
         const config = {
-            method: options.method || 'GET',
+            method,
             headers: this.getHeaders(authenticated),
         };
 
@@ -92,7 +129,10 @@ class API {
 
         try {
             const response = await fetch(url, config);
-            return await this.handleResponse(response);
+            const data = await this.handleResponse(response);
+            // Cache GET responses
+            if (isGet) this._setCache(cacheKey, data);
+            return data;
         } catch (error) {
             console.error('Kesalahan Permintaan API:', error);
             throw error;
@@ -422,6 +462,22 @@ export async function validateWhatsApp(phone, msgElementId, submitBtnId) {
 const api = new API(API_BASE_URL);
 export default api;
 
+/**
+ * Dynamic script loader — load CDN script hanya saat dibutuhkan
+ * @param {string} src - URL script
+ * @returns {Promise<void>}
+ */
+export function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector(`script[src="${src}"]`)) return resolve();
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error(`Gagal memuat script: ${src}`));
+    document.head.appendChild(s);
+  });
+}
+
 // ==================== FUNGSI UTILITAS ====================
 
 /**
@@ -462,6 +518,15 @@ export function formatDateTime(date) {
 }
 
 /**
+ * Escape HTML untuk cegah XSS
+ */
+export function escapeHTML(str) {
+  if (str === null || str === undefined) return '';
+  const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+  return String(str).replace(/[&<>"']/g, c => map[c]);
+}
+
+/**
  * Tampilkan notifikasi toast
  */
 export function showToast(message, type = 'success') {
@@ -478,11 +543,12 @@ export function showToast(message, type = 'success') {
                  type === 'error' ? 'x-circle' : 
                  type === 'warning' ? 'exclamation-triangle' : 'info-circle';
     
+    const safeMsg = escapeHTML(message);
     const toastHTML = `
         <div id="${toastId}" class="toast align-items-center text-white ${bgClass} border-0" role="alert">
             <div class="d-flex">
                 <div class="toast-body">
-                    <i class="bi bi-${icon} me-2"></i>${message}
+                    <i class="bi bi-${icon} me-2"></i>${safeMsg}
                 </div>
                 <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
             </div>
@@ -526,7 +592,7 @@ export function showError(containerId, message) {
         container.innerHTML = `
             <div class="alert alert-danger" role="alert">
                 <i class="bi bi-exclamation-triangle me-2"></i>
-                <strong>Kesalahan:</strong> ${message}
+                <strong>Kesalahan:</strong> ${escapeHTML(message)}
             </div>
         `;
     }

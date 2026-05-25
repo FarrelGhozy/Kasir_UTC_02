@@ -23,4 +23,9 @@ const systemLogSchema = new mongoose.Schema({
   }
 });
 
+systemLogSchema.index({ timestamp: -1 });
+systemLogSchema.index({ level: 1, timestamp: -1 });
+// Auto-delete logs older than 90 days
+systemLogSchema.index({ timestamp: 1 }, { expireAfterSeconds: 90 * 24 * 60 * 60 });
+
 module.exports = mongoose.model('SystemLog', systemLogSchema);

@@ -135,6 +135,18 @@ router.delete('/admin/technicians/:id', protect, authorize('admin'), adminContro
 router.get('/admin/backup/export', protect, authorize('admin'), backupController.exportData);
 router.post('/admin/backup/import', protect, authorize('admin'), backupController.importData);
 
+// --- Uploads (terproteksi auth) ---
+const path = require('path');
+const fs = require('fs');
+router.get('/uploads/:filename', protect, (req, res) => {
+  const filename = path.basename(req.params.filename);
+  const filePath = path.join(__dirname, '..', 'uploads', 'services', filename);
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ success: false, message: 'File tidak ditemukan' });
+  }
+  res.sendFile(filePath);
+});
+
 // --- WhatsApp Helper ---
 router.get('/check-wa', protect, waController.checkWANumber);
 router.get('/waha-status', protect, waController.getWAHAStatus);

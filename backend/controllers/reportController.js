@@ -4,6 +4,38 @@ const ServiceTicket = require('../models/ServiceTicket');
 const Item = require('../models/Item');
 
 /**
+ * Validasi parameter tanggal, lempar error 400 jika format tidak valid
+ */
+function validateDateParam(dateStr, paramName) {
+  if (!dateStr) return null;
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) {
+    const err = new Error(`Parameter '${paramName}' tidak valid`);
+    err.statusCode = 400;
+    throw err;
+  }
+  return date;
+}
+
+/**
+ * Bangun match stage untuk pipeline agregasi dengan filter tanggal
+ * @param {Date|null} startDate - Tanggal mulai (nullable)
+ * @param {Date|null} endDate - Tanggal akhir (nullable)
+ * @param {Object} matchStage - Base match stage (contoh: { status: 'Picked_Up' })
+ * @returns {Object} - Match stage dengan filter tanggal
+ */
+function buildReportPipeline(startDate, endDate, matchStage = {}) {
+  if (startDate || endDate) {
+    const dateFilter = {};
+    if (startDate) dateFilter.$gte = startDate;
+    if (endDate) dateFilter.$lte = endDate;
+    const dateField = matchStage.status ? 'history.picked_up_at' : 'date';
+    matchStage[dateField] = dateFilter;
+  }
+  return matchStage;
+}
+
+/**
  * @desc    Ambil rekapitulasi penuh untuk backup/laporan lengkap (dengan filter rentang)
  * @route   GET /api/reports/full-recap
  * @access  Private (Admin)
@@ -11,27 +43,25 @@ const Item = require('../models/Item');
 exports.getFullRecap = async (req, res, next) => {
   try {
     const { range = 'all' } = req.query;
-    let dateFilter = {};
-    let dateFilterSvc = {};
 
-    if (range === '30days') {
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      thirtyDaysAgo.setHours(0, 0, 0, 0);
-      
-      dateFilter = { date: { $gte: thirtyDaysAgo } };
-      dateFilterSvc = { 'timestamps.picked_up_at': { $gte: thirtyDaysAgo } };
-    }
+    const thirtyDaysAgo = range === '30days' ? (() => {
+      const d = new Date();
+      d.setDate(d.getDate() - 30);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    })() : null;
+
+    const txnMatch = buildReportPipeline(thirtyDaysAgo, null, {});
+    const svcMatch = buildReportPipeline(thirtyDaysAgo, null, { status: 'Picked_Up' });
 
     // 1. Ambil semua data inventaris (selalu semua data untuk stok saat ini)
     const inventory = await Item.find({ isActive: true }).sort({ category: 1, name: 1 });
 
     // 2. Ambil tiket servis sesuai filter
-    const serviceMatch = { status: 'Picked_Up', ...dateFilterSvc };
-    const services = await ServiceTicket.find(serviceMatch).sort({ 'timestamps.picked_up_at': -1 });
+    const services = await ServiceTicket.find(svcMatch).sort({ 'history.picked_up_at': -1 });
 
     // 3. Ambil transaksi ritel sesuai filter
-    const transactions = await Transaction.find(dateFilter).sort({ date: -1 });
+    const transactions = await Transaction.find(txnMatch).sort({ date: -1 });
 
     // 4. Hitung ringkasan statistik
     const totalInventoryValue = inventory.reduce((sum, item) => sum + (item.stock * item.purchase_price), 0);
@@ -39,23 +69,21 @@ exports.getFullRecap = async (req, res, next) => {
     const totalRetailRevenue = transactions.reduce((sum, t) => sum + t.grand_total, 0);
 
     // 5. Ambil data untuk grafik (tren pendapatan)
-    const startRange = range === '30days' ? new Date(new Date().setDate(new Date().getDate() - 30)) : null;
-    
     const serviceTrends = await ServiceTicket.aggregate([
-      { $match: serviceMatch },
+      ...(Object.keys(svcMatch).length > 0 ? [{ $match: svcMatch }] : []),
       {
         $group: {
-          _id: { $dateToString: { format: "%Y-%m-%d", date: "$timestamps.picked_up_at" } },
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$history.picked_up_at", timezone: 'Asia/Jakarta' } },
           amount: { $sum: "$total_cost" }
         }
       }
     ]);
 
     const retailTrends = await Transaction.aggregate([
-      { $match: dateFilter },
+      ...(Object.keys(txnMatch).length > 0 ? [{ $match: txnMatch }] : []),
       {
         $group: {
-          _id: { $dateToString: { format: "%Y-%m-%d", date: "$date" } },
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$date", timezone: 'Asia/Jakarta' } },
           amount: { $sum: "$grand_total" }
         }
       }
@@ -97,21 +125,20 @@ exports.getFullRecap = async (req, res, next) => {
 exports.getDailyRevenue = async (req, res, next) => {
   try {
     const { date } = req.query;
-    const targetDate = date ? new Date(date) : new Date();
-    
+    const targetDate = date ? validateDateParam(date, 'date') : new Date();
+
     const startOfDay = new Date(targetDate);
     startOfDay.setHours(0, 0, 0, 0);
-    
+
     const endOfDay = new Date(targetDate);
     endOfDay.setHours(23, 59, 59, 999);
 
+    const txnMatch = buildReportPipeline(startOfDay, endOfDay, {});
+    const svcMatch = buildReportPipeline(startOfDay, endOfDay, { status: 'Picked_Up' });
+
     // Ambil pendapatan transaksi
     const transactionRevenue = await Transaction.aggregate([
-      {
-        $match: {
-          date: { $gte: startOfDay, $lte: endOfDay }
-        }
-      },
+      { $match: txnMatch },
       {
         $group: {
           _id: null,
@@ -123,12 +150,7 @@ exports.getDailyRevenue = async (req, res, next) => {
 
     // Ambil pendapatan servis (tiket resmi diambil)
     const serviceRevenue = await ServiceTicket.aggregate([
-      {
-        $match: {
-          status: 'Picked_Up',
-          'timestamps.picked_up_at': { $gte: startOfDay, $lte: endOfDay }
-        }
-      },
+      { $match: svcMatch },
       {
         $group: {
           _id: null,
@@ -173,16 +195,22 @@ exports.getMonthlyRevenue = async (req, res, next) => {
     const targetYear = year ? parseInt(year) : new Date().getFullYear();
     const targetMonth = month ? parseInt(month) : new Date().getMonth() + 1;
 
+    if (year && (isNaN(targetYear) || targetYear < 2000 || targetYear > 2100)) {
+      return res.status(400).json({ success: false, message: 'Parameter tahun tidak valid' });
+    }
+    if (month && (isNaN(targetMonth) || targetMonth < 1 || targetMonth > 12)) {
+      return res.status(400).json({ success: false, message: 'Parameter bulan tidak valid (1-12)' });
+    }
+
     const startDate = new Date(targetYear, targetMonth - 1, 1);
     const endDate = new Date(targetYear, targetMonth, 0, 23, 59, 59, 999);
 
+    const txnMatch = buildReportPipeline(startDate, endDate, {});
+    const svcMatch = buildReportPipeline(startDate, endDate, { status: 'Picked_Up' });
+
     // Pendapatan transaksi dikelompokkan per hari
     const transactionRevenue = await Transaction.aggregate([
-      {
-        $match: {
-          date: { $gte: startDate, $lte: endDate }
-        }
-      },
+      { $match: txnMatch },
       {
         $group: {
           _id: { $dayOfMonth: '$date' },
@@ -195,15 +223,10 @@ exports.getMonthlyRevenue = async (req, res, next) => {
 
     // Pendapatan servis dikelompokkan per hari (hanya yang sudah diambil)
     const serviceRevenue = await ServiceTicket.aggregate([
-      {
-        $match: {
-          status: 'Picked_Up',
-          'timestamps.picked_up_at': { $gte: startDate, $lte: endDate }
-        }
-      },
+      { $match: svcMatch },
       {
         $group: {
-          _id: { $dayOfMonth: '$timestamps.picked_up_at' },
+          _id: { $dayOfMonth: '$history.picked_up_at' },
           revenue: { $sum: '$total_cost' },
           count: { $sum: 1 }
         }
@@ -283,19 +306,18 @@ exports.getRevenueByRange = async (req, res, next) => {
       });
     }
 
-    const startDate = new Date(start_date);
-    startDate.setHours(0, 0, 0, 0);
-    
-    const endDate = new Date(end_date);
-    endDate.setHours(23, 59, 59, 999);
+    const validStart = validateDateParam(start_date, 'start_date');
+    const validEnd = validateDateParam(end_date, 'end_date');
+
+    validStart.setHours(0, 0, 0, 0);
+    validEnd.setHours(23, 59, 59, 999);
+
+    const txnMatch = buildReportPipeline(validStart, validEnd, {});
+    const svcMatch = buildReportPipeline(validStart, validEnd, { status: 'Picked_Up' });
 
     // Pendapatan Ritel
     const retailRevenue = await Transaction.aggregate([
-      {
-        $match: {
-          date: { $gte: startDate, $lte: endDate }
-        }
-      },
+      { $match: txnMatch },
       {
         $group: {
           _id: null,
@@ -307,12 +329,7 @@ exports.getRevenueByRange = async (req, res, next) => {
 
     // Pendapatan Servis (Hanya yang sudah diambil)
     const serviceRevenue = await ServiceTicket.aggregate([
-      {
-        $match: {
-          status: 'Picked_Up',
-          'timestamps.picked_up_at': { $gte: startDate, $lte: endDate }
-        }
-      },
+      { $match: svcMatch },
       {
         $group: {
           _id: null,
@@ -354,16 +371,26 @@ exports.getTopSellingItems = async (req, res, next) => {
   try {
     const { start_date, end_date, limit = 10 } = req.query;
 
-    const matchStage = {};
-    if (start_date || end_date) {
-      matchStage.date = {};
-      if (start_date) matchStage.date.$gte = new Date(start_date);
-      if (end_date) matchStage.date.$lte = new Date(end_date);
+    const startDate = validateDateParam(start_date, 'start_date');
+    const endDate = validateDateParam(end_date, 'end_date');
+
+    let startOfDay = null;
+    let endOfDay = null;
+    if (startDate) {
+      startOfDay = new Date(startDate);
+      startOfDay.setHours(0, 0, 0, 0);
     }
+    if (endDate) {
+      endOfDay = new Date(endDate);
+      endOfDay.setHours(23, 59, 59, 999);
+    }
+
+    const matchStage = buildReportPipeline(startOfDay, endOfDay, {});
 
     const topItems = await Transaction.aggregate([
       ...(Object.keys(matchStage).length > 0 ? [{ $match: matchStage }] : []),
-      { $unwind: '$items' },
+      { $match: { 'items': { $exists: true, $ne: [] } } },
+      { $unwind: { path: '$items', preserveNullAndEmptyArrays: false } },
       {
         $group: {
           _id: '$items.item_id',
@@ -395,12 +422,21 @@ exports.getCashierPerformance = async (req, res, next) => {
   try {
     const { start_date, end_date } = req.query;
 
-    const matchStage = {};
-    if (start_date || end_date) {
-      matchStage.date = {};
-      if (start_date) matchStage.date.$gte = new Date(start_date);
-      if (end_date) matchStage.date.$lte = new Date(end_date);
+    const startDate = validateDateParam(start_date, 'start_date');
+    const endDate = validateDateParam(end_date, 'end_date');
+
+    let startOfDay = null;
+    let endOfDay = null;
+    if (startDate) {
+      startOfDay = new Date(startDate);
+      startOfDay.setHours(0, 0, 0, 0);
     }
+    if (endDate) {
+      endOfDay = new Date(endDate);
+      endOfDay.setHours(23, 59, 59, 999);
+    }
+
+    const matchStage = buildReportPipeline(startOfDay, endOfDay, {});
 
     const performance = await Transaction.aggregate([
       ...(Object.keys(matchStage).length > 0 ? [{ $match: matchStage }] : []),
@@ -434,12 +470,21 @@ exports.getTechnicianPerformance = async (req, res, next) => {
   try {
     const { start_date, end_date } = req.query;
 
-    const matchStage = { status: 'Picked_Up' };
-    if (start_date || end_date) {
-      matchStage['timestamps.picked_up_at'] = {};
-      if (start_date) matchStage['timestamps.picked_up_at'].$gte = new Date(start_date);
-      if (end_date) matchStage['timestamps.picked_up_at'].$lte = new Date(end_date);
+    const startDate = validateDateParam(start_date, 'start_date');
+    const endDate = validateDateParam(end_date, 'end_date');
+
+    let startOfDay = null;
+    let endOfDay = null;
+    if (startDate) {
+      startOfDay = new Date(startDate);
+      startOfDay.setHours(0, 0, 0, 0);
     }
+    if (endDate) {
+      endOfDay = new Date(endDate);
+      endOfDay.setHours(23, 59, 59, 999);
+    }
+
+    const matchStage = buildReportPipeline(startOfDay, endOfDay, { status: 'Picked_Up' });
 
     const performance = await ServiceTicket.aggregate([
       { $match: matchStage },

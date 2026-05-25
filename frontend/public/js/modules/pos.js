@@ -1,6 +1,6 @@
 // public/js/modules/pos.js - Modul Kasir dengan Fitur Cetak Struk / PDF
 
-import api, { formatCurrency, showToast, showError, setupCurrencyInput, parseCurrencyValue } from '../api.js';
+import api, { formatCurrency, showToast, showError, setupCurrencyInput, parseCurrencyValue, formatInputCurrency, escapeHTML } from '../api.js';
 
 class POS {
     constructor() {
@@ -194,8 +194,8 @@ class POS {
                         <div class="mb-3 text-primary opacity-75">
                             <i class="bi bi-box-seam" style="font-size: 2.5rem;"></i>
                         </div>
-                        <h6 class="card-title text-truncate mb-1 fw-bold" title="${item.name}">${item.name}</h6>
-                        <small class="text-muted sku-label d-block mb-1">${item.sku}</small>
+                        <h6 class="card-title text-truncate mb-1 fw-bold" title="${escapeHTML(item.name)}">${escapeHTML(item.name)}</h6>
+                        <small class="text-muted sku-label d-block mb-1">${escapeHTML(item.sku)}</small>
                         <div class="mt-auto">
                             <h5 class="text-primary fw-bold mb-2">${formatCurrency(item.selling_price)}</h5>
                             <span class="badge ${this.getStockBadgeClass(item.stock, item.min_stock_alert)} rounded-pill">
@@ -277,7 +277,7 @@ class POS {
         cartItemsContainer.innerHTML = this.cart.map((item, index) => `
             <tr>
                 <td>
-                    <div class="fw-bold text-truncate" style="max-width: 150px;">${item.name}</div>
+                    <div class="fw-bold text-truncate" style="max-width: 150px;">${escapeHTML(item.name)}</div>
                     <small class="text-muted">${formatCurrency(item.price)}</small>
                 </td>
                 <td>
@@ -393,8 +393,9 @@ class POS {
                 const denomination = parseInt(btn.getAttribute('data-denomination'));
                 const amountInput = document.getElementById('amount-paid');
                 if (amountInput) {
-                    const current = parseFloat(amountInput.value) || 0;
-                    amountInput.value = current + denomination;
+                    const current = parseCurrencyValue(amountInput.value) || 0;
+                    const total = current + denomination;
+                    amountInput.value = formatInputCurrency(total);
                     this.updateChange();
                 }
             });
@@ -573,7 +574,7 @@ class POS {
 
                 ${transaction.items.map(item => `
                     <div class="item-container">
-                        <div class="item-name">${item.name}</div>
+                        <div class="item-name">${escapeHTML(item.name)}</div>
                         <div class="item-details">
                             <span>${item.qty} x ${new Intl.NumberFormat('id-ID').format(item.price)}</span>
                             <span>${new Intl.NumberFormat('id-ID').format(item.subtotal)}</span>

@@ -71,6 +71,10 @@ const itemSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  isLowStock: {
+    type: Boolean,
+    default: false
+  },
   created_at: {
     type: Date,
     default: Date.now
@@ -87,6 +91,9 @@ const itemSchema = new mongoose.Schema({
 itemSchema.index({ category: 1 });
 itemSchema.index({ stock: 1 });
 itemSchema.index({ name: 'text' });
+itemSchema.index({ isActive: 1, category: 1 });
+itemSchema.index({ isActive: 1, stock: 1 });
+itemSchema.index({ isLowStock: 1, isActive: 1 });
 // SKU sudah unique: true di definisi schema
 
 // Virtual untuk margin keuntungan
@@ -100,37 +107,54 @@ itemSchema.virtual('is_low_stock').get(function() {
   return this.stock <= this.min_stock_alert;
 });
 
-// Method instance untuk mengurangi stok (dengan validasi)
+// Method instance untuk mengurangi stok
 itemSchema.methods.deductStock = async function(quantity) {
-  if (this.stock < quantity) {
+  const Item = mongoose.model('Item');
+  const result = await Item.findOneAndUpdate(
+    { _id: this._id, stock: { $gte: quantity } },
+    { $inc: { stock: -quantity } },
+    { new: true }
+  );
+  if (!result) {
     throw new Error(`Stok tidak cukup untuk ${this.name}. Tersedia: ${this.stock}, Diminta: ${quantity}`);
   }
-  
-  this.stock -= quantity;
-  this.updated_at = new Date();
-  await this.save();
-  return this;
+  return result;
 };
 
 // Method instance untuk menambah stok
 itemSchema.methods.addStock = async function(quantity) {
-  this.stock += quantity;
-  this.updated_at = new Date();
-  await this.save();
-  return this;
+  const Item = mongoose.model('Item');
+  return Item.findByIdAndUpdate(this._id, { $inc: { stock: quantity } }, { new: true });
+};
+
+// Static method atomic untuk deduct stok
+itemSchema.statics.deductStockAtomic = async function(id, quantity) {
+  const result = await this.findOneAndUpdate(
+    { _id: id, stock: { $gte: quantity } },
+    { $inc: { stock: -quantity } },
+    { new: true }
+  );
+  if (!result) {
+    const item = await this.findById(id);
+    throw new Error(item ? `Stok tidak cukup untuk ${item.name}` : 'Barang tidak ditemukan');
+  }
+  return result;
+};
+
+// Static method atomic untuk add stok
+itemSchema.statics.addStockAtomic = async function(id, quantity) {
+  return this.findByIdAndUpdate(id, { $inc: { stock: quantity } }, { new: true });
 };
 
 // Method static untuk mengambil item dengan stok menipis
 itemSchema.statics.getLowStockItems = function() {
-  return this.find({
-    $expr: { $lte: ['$stock', '$min_stock_alert'] },
-    isActive: true
-  }).sort({ stock: 1 });
+  return this.find({ isLowStock: true, isActive: true }).sort({ stock: 1 });
 };
 
-// Middleware pre-save untuk update timestamp
+// Middleware pre-save untuk update timestamp dan isLowStock
 itemSchema.pre('save', function() {
   this.updated_at = new Date();
+  this.isLowStock = this.stock <= this.min_stock_alert;
 });
 
 // Pastikan virtuals disertakan dalam JSON

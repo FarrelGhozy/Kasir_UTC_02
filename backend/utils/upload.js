@@ -1,6 +1,7 @@
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 
 // Pastikan folder uploads ada
 const uploadDir = path.join(__dirname, '..', 'uploads', 'services');
@@ -40,10 +41,12 @@ const storage = multer.diskStorage({
         }
       }
 
-      const randomStr = Math.round(Math.random() * 1E6);
-      const ext = path.extname(file.originalname) || '.jpg';
+      const allowedExts = ['.jpg', '.jpeg', '.png', '.webp'];
+      const originalExt = path.extname(file.originalname).toLowerCase();
+      const ext = allowedExts.includes(originalExt) ? originalExt : '.jpg';
+
+      const randomStr = crypto.randomBytes(4).toString('hex');
       
-      // Format: NamaCostumer_Jenislaptop_random (with side prefix for uniqueness within same request)
       const finalName = `${customerName}_${deviceType}_${file.fieldname}_${randomStr}${ext}`;
       console.log(`Uploading: ${finalName}`);
       cb(null, finalName);
@@ -54,11 +57,13 @@ const storage = multer.diskStorage({
   }
 });
 
+const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp'];
+
 const fileFilter = (req, file, cb) => {
-  if (file.mimetype.startsWith('image/')) {
+  if (allowedMimeTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error('Hanya file gambar yang diperbolehkan!'), false);
+    cb(new Error('Hanya file gambar (JPG, PNG, WebP) yang diperbolehkan!'), false);
   }
 };
 

@@ -10,8 +10,12 @@ exports.protect = async (req, res, next) => {
     let token;
 
     // Cek token di headers
-    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-      token = req.headers.authorization.split(' ')[1];
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+      const parts = req.headers.authorization.split(' ');
+      if (parts.length !== 2 || !parts[1]) {
+        return res.status(401).json({ success: false, message: 'Format token tidak valid' });
+      }
+      token = parts[1];
     }
 
     if (!token) {
@@ -25,17 +29,13 @@ exports.protect = async (req, res, next) => {
       // Verifikasi token
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-      // Ambil user dari token
-      req.user = await User.findById(decoded.id).select('-password');
+      // Ambil data user dari JWT payload (skip DB query)
+      req.user = {
+        id: decoded.id,
+        role: decoded.role
+      };
 
-      if (!req.user) {
-        return res.status(401).json({
-          success: false,
-          message: 'Pengguna tidak ditemukan'
-        });
-      }
-
-      if (!req.user.isActive) {
+      if (decoded.isActive === false) {
         return res.status(403).json({
           success: false,
           message: 'Akun telah dinonaktifkan'

@@ -2,6 +2,13 @@ const express = require('express');
 const router = express.Router();
 const { handleIncomingMessage } = require('../bot/botHandler');
 
+function validateWebhookAuth(req) {
+  const secret = process.env.WAHA_WEBHOOK_SECRET;
+  if (!secret) return true; // Jika tidak dikonfigurasi, lewati (backward compat)
+  const token = req.query.token || req.headers['x-webhook-token'];
+  return token === secret;
+}
+
 function normalizeWAHA(payload) {
   // Format WAHA Plus (raw Baileys message): { key: { remoteJid, fromMe }, message: { conversation, ... } }
   if (payload.key) {
@@ -46,8 +53,12 @@ router.get('/waha-webhook', (req, res) => {
 
 router.post('/waha-webhook', async (req, res) => {
   try {
+    if (!validateWebhookAuth(req)) {
+      console.warn('[WAHA Webhook] Auth gagal — token tidak valid');
+      return res.status(403).send('Forbidden');
+    }
+
     const payload = req.body;
-    console.log(`[WAHA Webhook] Data Diterima:`, JSON.stringify(payload, null, 2));
 
     if (payload.event === 'message' || payload.event === 'message.upsert' || payload.event === 'message.any') {
       const raw = payload.payload || payload.data;

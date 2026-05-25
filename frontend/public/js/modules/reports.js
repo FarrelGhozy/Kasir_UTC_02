@@ -1,6 +1,6 @@
 // public/js/modules/reports.js - Modul Laporan & Analitik
 
-import api, { formatCurrency, formatDate, formatDateTime } from '../api.js';
+import api, { formatCurrency, formatDate, formatDateTime, loadScript, showToast } from '../api.js';
 import auth from '../auth.js';
 
 class Reports {
@@ -8,8 +8,8 @@ class Reports {
         this.currentReport = 'daily';
     }
 
-    async render() {
-        const content = document.getElementById('app-content');
+    async render(containerId = 'app-content') {
+        const content = document.getElementById(containerId);
         const isAdmin = auth.hasRole('admin');
         
         content.innerHTML = `
@@ -462,11 +462,24 @@ class Reports {
     }
 
     downloadFullRecap() {
-        const modal = new bootstrap.Modal(document.getElementById('recapRangeModal'));
+        const modalEl = document.getElementById('recapRangeModal');
+        const existingModal = bootstrap.Modal.getInstance(modalEl);
+        if (existingModal) existingModal.dispose();
+        const modal = new bootstrap.Modal(modalEl);
         modal.show();
     }
 
     async processFullRecap(range) {
+        // Dynamic load jspdf & chart.js hanya saat dibutuhkan
+        if (typeof window.jspdf === 'undefined') {
+            await Promise.all([
+                loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'),
+                loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js')
+            ]);
+        }
+        if (typeof Chart === 'undefined') {
+            await loadScript('https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js');
+        }
         const modalEl = document.getElementById('recapRangeModal');
         const modal = bootstrap.Modal.getInstance(modalEl);
         if (modal) modal.hide();
@@ -639,7 +652,7 @@ class Reports {
                 head: [['Tiket', 'Tanggal', 'Pelanggan', 'Keluhan', 'Teknisi', 'Status', 'Total']],
                 body: data.services.map(s => [
                     s.ticket_number,
-                    formatDate(s.timestamps.picked_up_at),
+                    formatDate(s.history?.picked_up_at),
                     s.customer.name,
                     s.device.symptoms,
                     s.technician.name,

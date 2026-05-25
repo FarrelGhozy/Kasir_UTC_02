@@ -1,9 +1,10 @@
-import api, { showToast } from '../api.js';
+import api, { showToast, escapeHTML } from '../api.js';
+import Reports from './reports.js';
 
 class Admin {
     constructor() {
         this.technicians = [];
-        this.activeTab = 'users'; // 'users' or 'backup'
+        this.reportsModule = new Reports();
     }
 
     async render() {
@@ -12,24 +13,26 @@ class Admin {
         
         content.innerHTML = `
             <div class="card shadow-sm border-0">
-                <div class="card-header bg-white p-0">
-                    <ul class="nav nav-tabs border-0" id="adminTabs" role="tablist">
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link px-4 py-3 fw-bold active" id="users-tab" data-bs-toggle="tab" data-bs-target="#users-panel" type="button" role="tab">
-                                <i class="bi bi-people me-2"></i>Manajemen Pengguna
-                            </button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link px-4 py-3 fw-bold text-secondary" id="backup-tab" data-bs-toggle="tab" data-bs-target="#backup-panel" type="button" role="tab">
-                                <i class="bi bi-database-fill-gear me-2"></i>Backup & Restore Data
-                            </button>
-                        </li>
-                    </ul>
+                <div class="card-header bg-white border-0 pt-3 pb-0 px-3 px-md-4">
+                    <div class="btn-group w-100 shadow-sm" role="group" aria-label="Pilih menu admin">
+                        <button class="btn btn-outline-primary fw-bold py-2 active" id="reports-tab" data-page="reports">
+                            <i class="bi bi-graph-up me-2"></i>Laporan & Analitik
+                        </button>
+                        <button class="btn btn-outline-primary fw-bold py-2" id="users-tab" data-page="users">
+                            <i class="bi bi-people me-2"></i>Manajemen Pengguna
+                        </button>
+                        <button class="btn btn-outline-primary fw-bold py-2" id="backup-tab" data-page="backup">
+                            <i class="bi bi-database-fill-gear me-2"></i>Backup & Restore
+                        </button>
+                    </div>
                 </div>
-                <div class="card-body p-4">
-                    <div class="tab-content" id="adminTabsContent">
-                        <!-- TAB 1: MANAJEMEN PENGGUNA -->
-                        <div class="tab-pane fade show active" id="users-panel" role="tabpanel">
+                <div class="card-body p-3 p-md-4">
+                    <div id="admin-panels">
+                        <!-- PANEL 1: LAPORAN & ANALITIK -->
+                        <div id="reports-panel"></div>
+
+                        <!-- PANEL 2: MANAJEMEN PENGGUNA -->
+                        <div id="users-panel" class="d-none">
                             <div class="row g-4">
                                 <div class="col-lg-4">
                                     <div class="card border border-light-subtle bg-light bg-opacity-50">
@@ -87,34 +90,39 @@ class Admin {
                             </div>
                         </div>
 
-                        <!-- TAB 2: BACKUP & RESTORE -->
-                        <div class="tab-pane fade" id="backup-panel" role="tabpanel">
-                            <div class="row justify-content-center py-4">
-                                <div class="col-md-6">
-                                    <div class="card border-0 shadow-sm bg-light">
-                                        <div class="card-body p-4 text-center">
-                                            <div class="mb-4">
-                                                <i class="bi bi-cloud-download text-primary" style="font-size: 4rem;"></i>
-                                                <h5 class="fw-bold mt-3">Ekspor Data (Backup)</h5>
-                                                <p class="text-muted">Unduh seluruh data database ke dalam file JSON untuk cadangan.</p>
-                                                <button class="btn btn-primary px-4 fw-bold" id="export-btn">
-                                                    <i class="bi bi-download me-2"></i>Export Data Sekarang
-                                                </button>
-                                            </div>
-                                            <hr class="my-5">
-                                            <div class="mb-2">
-                                                <i class="bi bi-cloud-upload text-danger" style="font-size: 4rem;"></i>
-                                                <h5 class="fw-bold mt-3">Impor Data (Restore)</h5>
-                                                <p class="text-muted">Pulihkan database dari file backup sebelumnya.</p>
-                                                <div class="alert alert-warning small border-warning">
-                                                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                                                    <strong>PENTING:</strong> Melakukan import akan menimpa seluruh data saat ini.
-                                                </div>
-                                                <div class="input-group mb-3">
-                                                    <input type="file" class="form-control" id="import-file" accept=".json">
-                                                    <button class="btn btn-danger fw-bold" type="button" id="import-btn">
-                                                        <i class="bi bi-upload me-2"></i>Import Data
+                        <!-- PANEL 3: BACKUP & RESTORE -->
+                        <div id="backup-panel" class="d-none">
+                            <div class="row justify-content-center py-2 py-md-4">
+                                <div class="col-md-8">
+                                    <div class="row g-3">
+                                        <div class="col-sm-6">
+                                            <div class="card border-0 shadow-sm bg-light h-100">
+                                                <div class="card-body p-3 p-md-4 text-center">
+                                                    <i class="bi bi-cloud-upload text-primary backup-icon" style="font-size: 2.5rem; font-size: clamp(2rem, 5vw, 4rem);"></i>
+                                                    <h5 class="fw-bold mt-2 mt-md-3">Ekspor Data (Backup)</h5>
+                                                    <p class="text-muted small">Unduh seluruh data database ke dalam file JSON untuk cadangan.</p>
+                                                    <button class="btn btn-primary px-4 fw-bold btn-sm btn-md-normal" id="export-btn">
+                                                        <i class="bi bi-download me-2"></i>Export Data Sekarang
                                                     </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-sm-6">
+                                            <div class="card border-0 shadow-sm bg-light h-100">
+                                                <div class="card-body p-3 p-md-4 text-center d-flex flex-column">
+                                                    <i class="bi bi-cloud-download text-danger backup-icon" style="font-size: 2.5rem; font-size: clamp(2rem, 5vw, 4rem);"></i>
+                                                    <h5 class="fw-bold mt-2 mt-md-3">Impor Data (Restore)</h5>
+                                                    <p class="text-muted small">Pulihkan database dari file backup sebelumnya.</p>
+                                                    <div class="alert alert-warning small border-warning py-2 mb-3">
+                                                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                                                        <strong>PENTING:</strong> Import akan menimpa seluruh data saat ini.
+                                                    </div>
+                                                    <div class="input-group input-group-sm mb-2 mt-auto">
+                                                        <input type="file" class="form-control" id="import-file" accept=".json">
+                                                        <button class="btn btn-danger fw-bold" type="button" id="import-btn">
+                                                            <i class="bi bi-upload me-2"></i>Import
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -161,6 +169,7 @@ class Admin {
 
         await this.loadTechnicians();
         this.setupEventListeners();
+        this.reportsModule.render('reports-panel');
     }
 
     async loadTechnicians() {
@@ -178,11 +187,11 @@ class Admin {
 
             tbody.innerHTML = this.technicians.map(t => `
                 <tr>
-                    <td class="ps-3 fw-bold">${t.name}</td>
-                    <td><span class="badge bg-light text-dark border">${t.username}</span></td>
+                    <td class="ps-3 fw-bold">${escapeHTML(t.name)}</td>
+                    <td><span class="badge bg-light text-dark border">${escapeHTML(t.username)}</span></td>
                     <td>
                         <a href="https://wa.me/${t.phone.replace(/\D/g, '')}" target="_blank" class="text-decoration-none text-success small">
-                            <i class="bi bi-whatsapp me-1"></i>${t.phone}
+                            <i class="bi bi-whatsapp me-1"></i>${escapeHTML(t.phone)}
                         </a>
                     </td>
                     <td class="text-end pe-3">
@@ -192,7 +201,7 @@ class Admin {
                 </tr>
             `).join('');
         } catch (e) {
-            tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-danger">${e.message}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-danger">${escapeHTML(e.message)}</td></tr>`;
         }
     }
 
@@ -219,15 +228,17 @@ class Admin {
             showToast('Menyiapkan backup data...', 'info');
             const res = await api.get('/admin/backup/export');
             
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(res.data, null, 2));
+            const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
             const downloadAnchorNode = document.createElement('a');
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
             
-            downloadAnchorNode.setAttribute("href",     dataStr);
+            downloadAnchorNode.setAttribute("href", url);
             downloadAnchorNode.setAttribute("download", `backup_utc_${timestamp}.json`);
             document.body.appendChild(downloadAnchorNode);
             downloadAnchorNode.click();
             downloadAnchorNode.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 10000);
             
             showToast('Backup berhasil diunduh', 'success');
         } catch (e) { showToast('Gagal melakukan backup: ' + e.message, 'error'); }
@@ -320,12 +331,19 @@ class Admin {
         const importBtn = document.getElementById('import-btn');
         if (importBtn) importBtn.addEventListener('click', () => this.handleImport());
 
-        // Change Tab Text Color on switch
-        const tabs = document.querySelectorAll('#adminTabs button');
-        tabs.forEach(tab => {
-            tab.addEventListener('shown.bs.tab', (e) => {
-                tabs.forEach(t => t.classList.add('text-secondary'));
-                e.target.classList.remove('text-secondary');
+        // Toggle panel (Manajemen Pengguna / Backup / Laporan)
+        const toggleBtns = document.querySelectorAll('#users-tab, #backup-tab, #reports-tab');
+        toggleBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const page = btn.dataset.page;
+                toggleBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById('users-panel').classList.toggle('d-none', page !== 'users');
+                document.getElementById('backup-panel').classList.toggle('d-none', page !== 'backup');
+                document.getElementById('reports-panel').classList.toggle('d-none', page !== 'reports');
+                if (page === 'reports') {
+                    this.reportsModule.render('reports-panel');
+                }
             });
         });
     }

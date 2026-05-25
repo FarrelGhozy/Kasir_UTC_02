@@ -16,7 +16,14 @@ class Auth {
 
         if (token && user) {
             this.token = token;
-            this.user = JSON.parse(user);
+            try {
+                this.user = JSON.parse(user);
+            } catch (e) {
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                this.showLoginScreen();
+                return;
+            }
             this.showMainApp();
         } else {
             this.showLoginScreen();
@@ -72,11 +79,18 @@ class Auth {
 
     setupLogoutButton() {
         const logoutBtn = document.getElementById('logout-btn');
-        
-        logoutBtn.addEventListener('click', () => {
-            if (confirm('Apakah Anda yakin ingin keluar?')) {
-                this.logout();
-            }
+        const logoutTopBtn = document.getElementById('logout-btn-top');
+        const logoutConfirmBtn = document.getElementById('logout-confirm-btn');
+        const modal = new bootstrap.Modal(document.getElementById('logoutConfirmModal'));
+
+        const showModal = () => modal.show();
+
+        logoutBtn.addEventListener('click', showModal);
+        if (logoutTopBtn) logoutTopBtn.addEventListener('click', showModal);
+
+        logoutConfirmBtn.addEventListener('click', () => {
+            modal.hide();
+            this.logout();
         });
     }
 
@@ -99,9 +113,10 @@ class Auth {
             this.updateNavigationByRole();
         }
 
-        // Update jam
+        // Update jam (bersihkan interval lama jika ada)
+        if (this._clockInterval) clearInterval(this._clockInterval);
         this.updateClock();
-        setInterval(() => this.updateClock(), 1000);
+        this._clockInterval = setInterval(() => this.updateClock(), 1000);
 
         // Cek status WAHA secara global
         this.checkWAHAStatus();
@@ -161,22 +176,20 @@ class Auth {
 
     updateNavigationByRole() {
         const role = this.user.role;
+        const isAdmin = role === 'admin';
 
-        // Sidebar nav items
-        const navPos = document.getElementById('nav-pos');
-        const navService = document.getElementById('nav-service');
-        const navAdminTech = document.getElementById('nav-admin-tech');
-
-        if (navPos) navPos.classList.remove('d-none');
-        if (navService) navService.classList.remove('d-none');
-
-        if (navAdminTech) {
-            navAdminTech.style.display = role === 'admin' ? 'block' : 'none';
-        }
-
-        // Bottom nav / dropdown admin-only items
+        // Sembunyikan/munculkan item navigasi berdasarkan role
         document.querySelectorAll('.admin-only').forEach(el => {
-            el.classList.toggle('hidden', role !== 'admin');
+            el.classList.toggle('d-none', !isAdmin);
+        });
+        document.querySelectorAll('.teknisi-only').forEach(el => {
+            el.classList.toggle('d-none', role !== 'teknisi');
+        });
+        document.querySelectorAll('.kasir-only').forEach(el => {
+            el.classList.toggle('d-none', role !== 'kasir');
+        });
+        document.querySelectorAll('.non-admin').forEach(el => {
+            el.classList.toggle('d-none', isAdmin);
         });
     }
 

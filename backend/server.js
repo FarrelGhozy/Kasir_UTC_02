@@ -3,11 +3,28 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const rateLimit = require('express-rate-limit');
 const connectDB = require('./config/db');
 const apiRoutes = require('./routes/api');
 const webhookRoutes = require('./routes/webhook');
 const reminderService = require('./services/reminderService');
 const errorHandler = require('./middleware/errorHandler');
+
+// Validasi environment variables kritis saat startup
+const criticalEnvVars = [
+  { name: 'MONGODB_URI', message: 'MONGODB_URI wajib diisi untuk koneksi database' },
+  { name: 'JWT_SECRET', message: 'JWT_SECRET wajib diisi. Generate: openssl rand -hex 32' },
+];
+
+for (const env of criticalEnvVars) {
+  if (!process.env[env.name]) {
+    console.error(`[STARTUP ERROR] ${env.message}`);
+    process.exit(1);
+  }
+}
+
+if (!process.env.WAHA_URL) console.warn('[WARN] WAHA_URL tidak di-set — fitur WhatsApp tidak akan berfungsi');
+if (!process.env.WAHA_API_KEY) console.warn('[WARN] WAHA_API_KEY tidak di-set — fitur WhatsApp tidak akan berfungsi');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -34,35 +51,52 @@ const allowedOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim()).filter(Boolean)
   : defaultAllowedOrigins;
 
-// Permissive CORS logic
+// Strict CORS — production hanya izinkan origin yang terdaftar
 app.use(cors({
   origin: function (origin, callback) {
-    // allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
-    const isAllowed = allowedOrigins.indexOf(origin) !== -1 || 
-                     allowedOrigins.includes('*') ||
-                     origin.includes('localhost') ||
-                     origin.includes('127.0.0.1');
+    const isAllowed = allowedOrigins.indexOf(origin) !== -1 ||
+                     allowedOrigins.includes('*');
 
-    if (isAllowed || process.env.NODE_ENV !== 'production') {
-      callback(null, true);
-    } else {
-      // In production, we are more strict but still allow common patterns
-      console.log(`CORS blocked for origin: ${origin}`);
-      callback(new Error('CORS: Origin tidak diizinkan'));
+    if (isAllowed) {
+      return callback(null, true);
     }
+    
+    if (process.env.NODE_ENV !== 'production') {
+      const isLocalDev = origin.includes('localhost') || origin.includes('127.0.0.1');
+      if (isLocalDev) return callback(null, true);
+    }
+    
+    console.log(`CORS blocked for origin: ${origin}`);
+    return callback(null, false);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '5mb' }));
+app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 
-// Static files for uploads
-app.use('/backend/uploads', express.static(path.join(__dirname, 'uploads')));
+// ==========================================
+// 1b. RATE LIMITING
+// ==========================================
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { success: false, message: 'Terlalu banyak percobaan login. Coba lagi 15 menit.' }
+});
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 500,
+  message: { success: false, message: 'Terlalu banyak permintaan. Coba lagi nanti.' }
+});
+
+app.use('/api/auth/login', loginLimiter);
+app.use('/api', apiLimiter);
 
 // ==========================================
 // 2. ROUTES

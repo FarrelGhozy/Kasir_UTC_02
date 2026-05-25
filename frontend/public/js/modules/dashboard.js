@@ -1,6 +1,6 @@
 // public/js/modules/dashboard.js - Modul Ringkasan Dasbor (FIXED: Gabungan Aktivitas)
 
-import api, { formatCurrency, showError } from '../api.js';
+import api, { formatCurrency, showError, loadScript, escapeHTML } from '../api.js';
 
 class Dashboard {
     constructor() {
@@ -139,8 +139,12 @@ class Dashboard {
 
     async loadDashboardData() {
         try {
-            // 1. Load Data Statistik
-            const dailyReport = await api.getDailyRevenue();
+            // 1. Load Data Statistik — parallel
+            const [dailyReport, servicesRes] = await Promise.all([
+                api.getDailyRevenue(),
+                api.getServiceTickets({ status: 'Queue,Diagnosing,Waiting_Part,In_Progress' })
+            ]);
+
             const revenueEl = document.getElementById('stat-revenue');
             revenueEl.classList.remove('skeleton', 'skeleton-text');
             revenueEl.textContent = formatCurrency(dailyReport.data.total_revenue);
@@ -149,18 +153,17 @@ class Dashboard {
             txEl.classList.remove('skeleton', 'skeleton-text');
             txEl.textContent = dailyReport.data.retail_sales.transactions;
 
-            const services = await api.getServiceTickets({ 
-                status: 'Queue,Diagnosing,Waiting_Part,In_Progress' 
-            });
-            const activeServices = services.data.filter(t => t.status !== 'Cancelled' && t.status !== 'Completed' && t.status !== 'Picked_Up');
+            const activeServices = servicesRes.data.filter(t => t.status !== 'Cancelled' && t.status !== 'Completed' && t.status !== 'Picked_Up');
             const svcEl = document.getElementById('stat-services');
             svcEl.classList.remove('skeleton', 'skeleton-text');
             svcEl.textContent = activeServices.length;
 
-            // 2. Load Tabel
-            await this.loadLowStock();
-            await this.loadRecentActivity();
-            await this.loadMonthlyCharts();
+            // 2. Load Tabel — parallel
+            await Promise.all([
+                this.loadLowStock(),
+                this.loadRecentActivity(),
+                this.loadMonthlyCharts()
+            ]);
 
         } catch (error) {
             console.error('Gagal memuat data dasbor:', error);
@@ -344,6 +347,9 @@ class Dashboard {
     }
 
     async loadMonthlyCharts() {
+        if (typeof Chart === 'undefined') {
+            await loadScript('https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js');
+        }
         const { start, startISO, endISO } = this.getLastThirtyDaysRange();
         const buckets = this.buildDailyBuckets(start, 30);
         const bucketMap = new Map(buckets.map(b => [b.key, b]));
@@ -433,8 +439,8 @@ class Dashboard {
                         <div class="list-group-item px-4 py-3">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
-                                    <h6 class="mb-1 fw-bold text-dark">${item.name}</h6>
-                                    <small class="text-muted">SKU: ${item.sku}</small>
+                                    <h6 class="mb-1 fw-bold text-dark">${escapeHTML(item.name)}</h6>
+                                    <small class="text-muted">SKU: ${escapeHTML(item.sku)}</small>
                                 </div>
                                 <div class="text-end">
                                     <span class="badge bg-danger rounded-pill">${item.stock} unit</span>
@@ -483,7 +489,7 @@ class Dashboard {
                 type: 'service',
                 id: ticket.ticket_number,
                 actor: ticket.technician.name, // Atau nama customer jika lebih relevan
-                date: new Date(ticket.timestamps.completed_at || ticket.timestamps.created_at),
+                date: new Date(ticket.history?.completed_at || ticket.history?.created_at || ticket.createdAt),
                 amount: ticket.total_cost || 0,
                 status: ticket.status === 'Picked_Up' ? 'Diambil' : 'Selesai',
                 icon: 'bi-tools',
@@ -512,7 +518,7 @@ class Dashboard {
                                         <i class="bi ${act.icon} me-2 ${act.color}"></i>#${act.id}
                                     </h6>
                                     <small class="text-muted d-block">
-                                        <i class="bi bi-person-circle me-1"></i>${act.actor}
+                                        <i class="bi bi-person-circle me-1"></i>${escapeHTML(act.actor)}
                                     </small>
                                     <small class="text-muted">
                                         <i class="bi bi-clock me-1"></i>${act.date.toLocaleString('id-ID')}

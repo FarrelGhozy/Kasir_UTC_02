@@ -1,4 +1,4 @@
-import api, { formatCurrency, formatDateTime, showToast, setupCurrencyInput, parseCurrencyValue, calculateElapsedTime, validateWhatsApp } from '../api.js';
+import api, { formatCurrency, formatDateTime, showToast, setupCurrencyInput, parseCurrencyValue, calculateElapsedTime, validateWhatsApp, escapeHTML } from '../api.js';
 
 class Order {
     constructor() {
@@ -6,9 +6,9 @@ class Order {
         this.technicians = [];
     }
 
-    async render() {
+    async render(containerId = 'app-content') {
         window.orderModule = this;
-        const content = document.getElementById('app-content');
+        const content = document.getElementById(containerId);
         
         content.innerHTML = `
             <div class="row g-4">
@@ -207,16 +207,16 @@ class Order {
 
             // Logika Durasi
             let durationLabel = 'Dipesan Sejak';
-            let durationValue = calculateElapsedTime(o.timestamps.created_at);
+            let durationValue = calculateElapsedTime(o.createdAt);
             let durationColor = 'text-muted';
 
             if (o.status === 'Arrived') {
                 durationLabel = 'Sampai Sejak';
-                durationValue = calculateElapsedTime(o.timestamps.arrived_at);
+                durationValue = calculateElapsedTime(o.history.arrived_at);
                 durationColor = 'text-success fw-bold';
             } else if (o.status === 'Picked_Up') {
                 durationLabel = 'Total Waktu';
-                durationValue = calculateElapsedTime(o.timestamps.created_at, o.timestamps.picked_up_at);
+                durationValue = calculateElapsedTime(o.createdAt, o.history.picked_up_at);
                 durationColor = 'text-dark';
             }
 
@@ -226,8 +226,8 @@ class Order {
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-start mb-2">
                             <div>
-                                <h6 class="fw-bold mb-0 text-primary">${o.item_name}</h6>
-                                <small class="text-muted">#${o.order_number} | ${formatDateTime(o.timestamps.created_at)}</small>
+                                <h6 class="fw-bold mb-0 text-primary">${escapeHTML(o.item_name)}</h6>
+                                <small class="text-muted">#${o.order_number} | ${formatDateTime(o.createdAt)}</small>
                             </div>
                             <div class="text-end">
                                 <span class="badge ${badgeClass}">${o.status}</span>
@@ -240,8 +240,8 @@ class Order {
                         <div class="row small mb-3">
                             <div class="col-md-4">
                                 <small class="text-secondary fw-bold">PELANGGAN</small>
-                                <div class="fw-bold">${o.customer.name}</div>
-                                <div class="text-muted">${o.customer.phone}</div>
+                                <div class="fw-bold">${escapeHTML(o.customer.name)}</div>
+                                <div class="text-muted">${escapeHTML(o.customer.phone)}</div>
                             </div>
                             <div class="col-md-4">
                                 <small class="text-secondary fw-bold">ESTIMASI & DP</small>
@@ -298,7 +298,7 @@ class Order {
                     <div style="font-size: 10px;">PESANAN BARANG</div>
                 </div>
                 <div class="row"><span>No. Order</span> <span>${o.order_number}</span></div>
-                <div class="row"><span>Tanggal</span> <span>${new Date(o.timestamps.created_at).toLocaleDateString('id-ID')}</span></div>
+                <div class="row"><span>Tanggal</span> <span>${new Date(o.createdAt).toLocaleDateString('id-ID')}</span></div>
                 <div class="row"><span>Pelanggan</span> <span>${o.customer.name}</span></div>
                 <div class="row"><span>No. HP</span> <span>${o.customer.phone}</span></div>
                 <div class="divider"></div>

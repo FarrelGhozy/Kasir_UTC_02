@@ -145,15 +145,15 @@ exports.getAllTickets = async (req, res, next) => {
     if (customer_phone) filter['customer.phone'] = customer_phone;
     
     if (start_date || end_date) {
-      filter['timestamps.created_at'] = {};
-      if (start_date) filter['timestamps.created_at'].$gte = new Date(start_date);
-      if (end_date) filter['timestamps.created_at'].$lte = new Date(end_date);
+      filter['history.created_at'] = {};
+      if (start_date) filter['history.created_at'].$gte = new Date(start_date);
+      if (end_date) filter['history.created_at'].$lte = new Date(end_date);
     }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     const tickets = await ServiceTicket.find(filter)
-      .sort({ 'timestamps.created_at': -1 })
+      .sort({ 'history.created_at': -1 })
       .skip(skip)
       .limit(parseInt(limit));
 
@@ -241,10 +241,11 @@ exports.updateStatus = async (req, res, next) => {
  */
 exports.addPartToService = async (req, res, next) => {
   try {
-    const { item_id, quantity } = req.body;
+    const { item_id, quantity: rawQty } = req.body;
+    const quantity = Number(rawQty);
 
-    if (!item_id || !quantity || quantity < 1) {
-      return res.status(400).json({ success: false, message: 'ID Barang dan jumlah valid wajib diisi' });
+    if (!item_id || !Number.isInteger(quantity) || quantity < 1) {
+      return res.status(400).json({ success: false, message: 'ID Barang dan jumlah bilangan bulat positif wajib diisi' });
     }
 
     // 1. Cek Tiket
@@ -267,30 +268,27 @@ exports.addPartToService = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Barang tidak ditemukan' });
     }
 
-    // 4. Cek Stok
-    if (item.stock < quantity) {
-      return res.status(400).json({ success: false, message: `Stok tidak cukup untuk ${item.name}. Sisa: ${item.stock}` });
+    // 4. Kurangi Stok ATOMIC (gabung validasi + pengurangan)
+    let updatedItem;
+    try {
+      updatedItem = await Item.deductStockAtomic(item_id, quantity);
+    } catch (stockError) {
+      return res.status(400).json({ success: false, message: stockError.message });
     }
 
-    // 5. Kurangi Stok & Simpan Barang
-    item.stock -= quantity;
-    await item.save();
-
-    // 6. Update Tiket & Simpan — jika gagal, rollback stok
+    // 5. Update Tiket & Simpan — jika gagal, rollback stok atomic
     try {
-      const subtotal = item.selling_price * quantity;
+      const subtotal = updatedItem.selling_price * quantity;
       ticket.parts_used.push({
-        item_id: item._id,
-        name: item.name,
+        item_id: updatedItem._id,
+        name: updatedItem.name,
         qty: quantity,
-        price_at_time: item.selling_price,
+        price_at_time: updatedItem.selling_price,
         subtotal: subtotal
       });
       await ticket.save();
     } catch (ticketSaveError) {
-      // ROLLBACK: Kembalikan stok jika tiket gagal disimpan
-      item.stock += quantity;
-      await item.save();
+      await Item.addStockAtomic(item_id, quantity);
       throw ticketSaveError;
     }
 
@@ -321,12 +319,10 @@ exports.removePartFromService = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Part tidak ditemukan di tiket ini' });
     }
 
-    // Kembalikan Stok
-    const item = await Item.findById(part.item_id);
-    if (item) {
-      item.stock += part.qty;
-      await item.save();
-    }
+    // Kembalikan Stok ATOMIC
+    await Item.addStockAtomic(part.item_id, part.qty).catch(err => {
+      console.error(`[RESTORE] Gagal mengembalikan stok ${part.item_id}:`, err.message);
+    });
 
     // Hapus dari array subdocument menggunakan pull
     ticket.parts_used.pull(part_id);

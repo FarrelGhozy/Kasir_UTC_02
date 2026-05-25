@@ -4,7 +4,7 @@ const Item = require('../models/Item');
 const User = require('../models/User');
 
 /**
- * @desc    Buat transaksi ritel (Dengan Validasi Stok 2 Tahap)
+ * @desc    Buat transaksi ritel (Atomic Stock Deduction)
  * @route   POST /api/transactions
  * @access  Private (Kasir, Admin)
  */
@@ -12,7 +12,6 @@ exports.createRetailTransaction = async (req, res, next) => {
   try {
     const { items, payment_method, amount_paid, notes } = req.body;
 
-    // 1. Validasi Input Dasar
     if (!items || items.length === 0) {
       return res.status(400).json({
         success: false,
@@ -25,84 +24,107 @@ exports.createRetailTransaction = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Kasir tidak ditemukan' });
     }
 
-    // --- FASE 1: VALIDASI & PERSIAPAN (Tanpa Mengubah Database) ---
-    // Kita cek stok SEMUA barang dulu. Kalau ada 1 yang kurang, batalkan semua.
+    // --- FASE 1: VALIDASI ---
+    // Validasi semua input tanpa mengubah database
     
-    const itemsToProcess = [];
+    // Batch lookup semua item sekali
+    const itemIds = items.map(i => i.item_id);
+    const itemMap = {};
+    (await Item.find({ _id: { $in: itemIds } })).forEach(item => {
+      itemMap[item._id.toString()] = item;
+    });
+
+    const transactionItems = [];
     let grandTotal = 0;
 
     for (const cartItem of items) {
-      const itemDB = await Item.findById(cartItem.item_id);
-      
-      // Cek eksistensi barang
+      const qty = Number(cartItem.qty);
+      if (!Number.isInteger(qty) || qty <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Jumlah barang harus bilangan bulat positif'
+        });
+      }
+
+      const itemDB = itemMap[cartItem.item_id];
+
       if (!itemDB) {
         return res.status(404).json({
           success: false,
-          message: `Barang dengan ID ${cartItem.item_id} tidak ditemukan di database`
+          message: `Barang dengan ID ${cartItem.item_id} tidak ditemukan`
         });
       }
 
-      // Cek stok cukup atau tidak
-      if (itemDB.stock < cartItem.qty) {
+      if (itemDB.stock < qty) {
         return res.status(400).json({
           success: false,
-          message: `Stok tidak cukup: ${itemDB.name} (Sisa: ${itemDB.stock}, Diminta: ${cartItem.qty})`
+          message: `Stok tidak cukup: ${itemDB.name} (Sisa: ${itemDB.stock}, Diminta: ${qty})`
         });
       }
 
-      // Hitung subtotal & simpan data sementara di memori
-      const subtotal = itemDB.selling_price * cartItem.qty;
+      const subtotal = itemDB.selling_price * qty;
       grandTotal += subtotal;
 
-      itemsToProcess.push({
-        dbItem: itemDB,     // Object Mongoose asli (untuk di-save nanti)
+      transactionItems.push({
+        item_id: itemDB._id,
         name: itemDB.name,
-        qty: cartItem.qty,
+        qty,
         price: itemDB.selling_price,
-        subtotal: subtotal
+        subtotal
       });
     }
 
-    // Validasi Pembayaran (Khusus Tunai)
-    if (payment_method === 'Cash' && amount_paid < grandTotal) {
+    const pm = String(payment_method || '');
+    const validMethods = ['Cash', 'QRIS', 'Transfer', 'Card'];
+    if (!validMethods.includes(pm)) {
+      return res.status(400).json({
+        success: false,
+        message: `Metode pembayaran harus salah satu: ${validMethods.join(', ')}`
+      });
+    }
+
+    if (pm === 'Cash' && Number(amount_paid) < grandTotal) {
       return res.status(400).json({
         success: false,
         message: `Uang pembayaran kurang! Total: ${grandTotal}, Dibayar: ${amount_paid}`
       });
     }
 
-    // --- FASE 2: EKSEKUSI (Potong Stok & Simpan Transaksi) ---
-    // Karena Fase 1 lolos, berarti semua stok AMAN. Sekarang kita eksekusi.
+    // --- FASE 2: EKSEKUSI ATOMIC ---
+    // Potong stok satu per satu secara atomic, rollback jika gagal
+    const deductedItemIds = [];
 
-    const finalTransactionItems = [];
-
-    for (const proc of itemsToProcess) {
-      // A. POTONG STOK OTOMATIS
-      proc.dbItem.stock -= proc.qty;
-      await proc.dbItem.save(); // Simpan perubahan stok ke DB
-
-      // B. Siapkan data untuk struk
-      finalTransactionItems.push({
-        item_id: proc.dbItem._id,
-        name: proc.name,
-        qty: proc.qty,
-        price: proc.price,
-        subtotal: proc.subtotal
+    try {
+      for (const ti of transactionItems) {
+        const updated = await Item.deductStockAtomic(ti.item_id, ti.qty);
+        deductedItemIds.push(ti.item_id);
+        ti.price = updated.selling_price;
+        ti.subtotal = updated.selling_price * ti.qty;
+      }
+    } catch (stockError) {
+      // Rollback: kembalikan stok yang sudah dipotong
+      for (const id of deductedItemIds) {
+        await Item.addStockAtomic(id, transactionItems.find(t => t.item_id.equals ? t.item_id.equals(id) : t.item_id === id)?.qty || 0).catch(() => {});
+      }
+      return res.status(400).json({
+        success: false,
+        message: stockError.message
       });
     }
 
     // Generate No Faktur
     const invoice_no = await Transaction.generateInvoiceNumber();
 
-    // Simpan Transaksi Utama
+    const finalAmountPaid = amount_paid !== undefined && amount_paid !== null ? Number(amount_paid) : grandTotal;
+
     const transaction = new Transaction({
       invoice_no,
       cashier_id: cashier._id,
       cashier_name: cashier.name,
-      items: finalTransactionItems,
+      items: transactionItems,
       grand_total: grandTotal,
-      payment_method,
-      amount_paid: amount_paid || grandTotal, // Jika non-tunai, anggap pas
+      payment_method: pm,
+      amount_paid: finalAmountPaid,
       notes,
       date: new Date()
     });
@@ -253,17 +275,11 @@ exports.deleteTransaction = async (req, res, next) => {
       });
     }
 
-    // --- KEMBALIKAN STOK (RESTORE STOCK) ---
-    // Loop setiap barang yang dulu dibeli, kembalikan jumlahnya ke gudang
+    // --- KEMBALIKAN STOK ATOMIC ---
     for (const itemSold of transaction.items) {
-      const itemInDb = await Item.findById(itemSold.item_id);
-      
-      if (itemInDb) {
-        // Kembalikan stok
-        itemInDb.stock += itemSold.qty;
-        await itemInDb.save();
-        console.log(`[RESTORE] Mengembalikan ${itemSold.qty} stok untuk ${itemInDb.name}`);
-      }
+      await Item.addStockAtomic(itemSold.item_id, itemSold.qty).catch(err => {
+        console.error(`[RESTORE] Gagal mengembalikan stok ${itemSold.item_id}:`, err.message);
+      });
     }
 
     // Hapus data transaksi permanen
