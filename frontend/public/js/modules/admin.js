@@ -89,32 +89,37 @@ class Admin {
 
                         <!-- TAB 2: BACKUP & RESTORE -->
                         <div class="tab-pane fade" id="backup-panel" role="tabpanel">
-                            <div class="row justify-content-center py-4">
-                                <div class="col-md-6">
-                                    <div class="card border-0 shadow-sm bg-light">
-                                        <div class="card-body p-4 text-center">
-                                            <div class="mb-4">
-                                                <i class="bi bi-cloud-upload text-primary" style="font-size: 4rem;"></i>
-                                                <h5 class="fw-bold mt-3">Ekspor Data (Backup)</h5>
-                                                <p class="text-muted">Unduh seluruh data database ke dalam file JSON untuk cadangan.</p>
-                                                <button class="btn btn-primary px-4 fw-bold" id="export-btn">
-                                                    <i class="bi bi-download me-2"></i>Export Data Sekarang
-                                                </button>
-                                            </div>
-                                            <hr class="my-5">
-                                            <div class="mb-2">
-                                                <i class="bi bi-cloud-download text-danger" style="font-size: 4rem;"></i>
-                                                <h5 class="fw-bold mt-3">Impor Data (Restore)</h5>
-                                                <p class="text-muted">Pulihkan database dari file backup sebelumnya.</p>
-                                                <div class="alert alert-warning small border-warning">
-                                                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                                                    <strong>PENTING:</strong> Melakukan import akan menimpa seluruh data saat ini.
-                                                </div>
-                                                <div class="input-group mb-3">
-                                                    <input type="file" class="form-control" id="import-file" accept=".json">
-                                                    <button class="btn btn-danger fw-bold" type="button" id="import-btn">
-                                                        <i class="bi bi-upload me-2"></i>Import Data
+                            <div class="row justify-content-center py-2 py-md-4">
+                                <div class="col-md-8">
+                                    <div class="row g-3">
+                                        <div class="col-sm-6">
+                                            <div class="card border-0 shadow-sm bg-light h-100">
+                                                <div class="card-body p-3 p-md-4 text-center">
+                                                    <i class="bi bi-cloud-upload text-primary backup-icon" style="font-size: 2.5rem; font-size: clamp(2rem, 5vw, 4rem);"></i>
+                                                    <h5 class="fw-bold mt-2 mt-md-3">Ekspor Data (Backup)</h5>
+                                                    <p class="text-muted small">Unduh seluruh data database ke dalam file JSON untuk cadangan.</p>
+                                                    <button class="btn btn-primary px-4 fw-bold btn-sm btn-md-normal" id="export-btn">
+                                                        <i class="bi bi-download me-2"></i>Export Data Sekarang
                                                     </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-sm-6">
+                                            <div class="card border-0 shadow-sm bg-light h-100">
+                                                <div class="card-body p-3 p-md-4 text-center d-flex flex-column">
+                                                    <i class="bi bi-cloud-download text-danger backup-icon" style="font-size: 2.5rem; font-size: clamp(2rem, 5vw, 4rem);"></i>
+                                                    <h5 class="fw-bold mt-2 mt-md-3">Impor Data (Restore)</h5>
+                                                    <p class="text-muted small">Pulihkan database dari file backup sebelumnya.</p>
+                                                    <div class="alert alert-warning small border-warning py-2 mb-3">
+                                                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                                                        <strong>PENTING:</strong> Import akan menimpa seluruh data saat ini.
+                                                    </div>
+                                                    <div class="input-group input-group-sm mb-2 mt-auto">
+                                                        <input type="file" class="form-control" id="import-file" accept=".json">
+                                                        <button class="btn btn-danger fw-bold" type="button" id="import-btn">
+                                                            <i class="bi bi-upload me-2"></i>Import
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>

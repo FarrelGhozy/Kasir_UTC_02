@@ -936,3 +936,14 @@ body {
     background: var(--primary-color) !important;
     border-color: #0a58ca !important;
 }
+
+/* Backup/restore card — icon responsive */
+.backup-icon {
+    font-size: 4rem;
+}
+
+@media (max-width: 576px) {
+    .backup-icon {
+        font-size: 2rem !important;
+    }
+}
