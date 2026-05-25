@@ -13,20 +13,20 @@ class Admin {
         content.innerHTML = `
             <div class="card shadow-sm border-0">
                 <div class="card-header bg-white p-0">
-                    <ul class="nav nav-tabs border-0" id="adminTabs" role="tablist">
+                    <ul class="nav nav-tabs border-0 nav-fill" id="adminTabs" role="tablist">
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link px-4 py-3 fw-bold active" id="users-tab" data-bs-toggle="tab" data-bs-target="#users-panel" type="button" role="tab">
+                            <button class="nav-link px-2 px-md-4 py-3 fw-bold active" id="users-tab" data-bs-toggle="tab" data-bs-target="#users-panel" type="button" role="tab">
                                 <i class="bi bi-people me-2"></i>Manajemen Pengguna
                             </button>
                         </li>
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link px-4 py-3 fw-bold text-secondary" id="backup-tab" data-bs-toggle="tab" data-bs-target="#backup-panel" type="button" role="tab">
+                            <button class="nav-link px-2 px-md-4 py-3 fw-bold text-secondary" id="backup-tab" data-bs-toggle="tab" data-bs-target="#backup-panel" type="button" role="tab">
                                 <i class="bi bi-database-fill-gear me-2"></i>Backup & Restore Data
                             </button>
                         </li>
                     </ul>
                 </div>
-                <div class="card-body p-4">
+                <div class="card-body p-3 p-md-4">
                     <div class="tab-content" id="adminTabsContent">
                         <!-- TAB 1: MANAJEMEN PENGGUNA -->
                         <div class="tab-pane fade show active" id="users-panel" role="tabpanel">
