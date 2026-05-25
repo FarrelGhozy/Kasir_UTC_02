@@ -128,7 +128,8 @@ class Service {
     }
 
     async render() {
-        // PERBAIKAN: Pastikan global 'service' merujuk ke instance yang aktif
+        // Hapus cache modal agar instance stale tidak digunakan setelah re-render
+        this._modals = {};
         window.service = this;
 
         // CSS Hack — inject only once

@@ -1,6 +1,6 @@
 // public/js/modules/pos.js - Modul Kasir dengan Fitur Cetak Struk / PDF
 
-import api, { formatCurrency, showToast, showError, setupCurrencyInput, parseCurrencyValue, escapeHTML } from '../api.js';
+import api, { formatCurrency, showToast, showError, setupCurrencyInput, parseCurrencyValue, formatInputCurrency, escapeHTML } from '../api.js';
 
 class POS {
     constructor() {
@@ -393,8 +393,9 @@ class POS {
                 const denomination = parseInt(btn.getAttribute('data-denomination'));
                 const amountInput = document.getElementById('amount-paid');
                 if (amountInput) {
-                    const current = parseFloat(amountInput.value) || 0;
-                    amountInput.value = current + denomination;
+                    const current = parseCurrencyValue(amountInput.value) || 0;
+                    const total = current + denomination;
+                    amountInput.value = formatInputCurrency(total);
                     this.updateChange();
                 }
             });
