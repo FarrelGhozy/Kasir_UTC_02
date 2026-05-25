@@ -76,7 +76,7 @@ exports.createTicket = async (req, res, next) => {
       const sides = ['front', 'back', 'left', 'right'];
       sides.forEach(side => {
         if (req.files[side] && req.files[side][0]) {
-          photos[side] = `${baseURL}/backend/uploads/services/${req.files[side][0].filename}`;
+          photos[side] = `${baseURL}/api/uploads/${req.files[side][0].filename}`;
         }
       });
       
@@ -201,7 +201,7 @@ exports.updateStatus = async (req, res, next) => {
       const host = req.get('host');
       const protocol = req.protocol;
       const baseURL = `${protocol}://${host}`;
-      paymentProof = `${baseURL}/backend/uploads/services/${req.file.filename}`;
+      paymentProof = `${baseURL}/api/uploads/${req.file.filename}`;
     }
 
     await ticket.updateStatus(status, payment_method, paymentProof);
@@ -451,7 +451,7 @@ exports.updateTicketDetails = async (req, res, next) => {
       const sides = ['front', 'back', 'left', 'right'];
       sides.forEach(side => {
         if (req.files[side] && req.files[side][0]) {
-          ticket.device.photos[side] = `${baseURL}/backend/uploads/services/${req.files[side][0].filename}`;
+          ticket.device.photos[side] = `${baseURL}/api/uploads/${req.files[side][0].filename}`;
         }
       });
       
