@@ -35,7 +35,7 @@ exports.exportData = async (req, res, next) => {
 };
 
 /**
- * @desc    Import/Restore system data
+ * @desc    Import/Restore system data (AMAN: insert dulu baru delete)
  * @route   POST /api/admin/backup/import
  * @access  Private (Admin)
  */
@@ -47,35 +47,38 @@ exports.importData = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Tidak ada data untuk diimport' });
     }
 
-    // 1. Validasi struktur data minimal
     if (!data.users || !data.items) {
       return res.status(400).json({ success: false, message: 'Format file backup tidak valid' });
     }
 
-    // 2. Simpan user admin saat ini (agar tidak terkunci keluar)
     const currentAdmin = await User.findById(req.user.id);
 
-    // 3. Clear Collections
-    await User.deleteMany({});
+    // 1. Insert data baru dulu
+    const insertOps = [];
+    if (data.users?.length > 0) insertOps.push(User.insertMany(data.users));
+    if (data.items?.length > 0) insertOps.push(Item.insertMany(data.items));
+    if (data.service_tickets?.length > 0) insertOps.push(ServiceTicket.insertMany(data.service_tickets));
+    if (data.transactions?.length > 0) insertOps.push(Transaction.insertMany(data.transactions));
+    if (data.special_orders?.length > 0) insertOps.push(SpecialOrder.insertMany(data.special_orders));
+    if (data.system_logs?.length > 0) insertOps.push(SystemLog.insertMany(data.system_logs));
+
+    await Promise.all(insertOps);
+
+    // 2. Hapus collection lama (hanya jika insert berhasil)
+    await User.deleteMany({ _id: { $nin: (await User.find({ username: currentAdmin.username }).select('_id')).map(u => u._id) } });
     await Item.deleteMany({});
     await ServiceTicket.deleteMany({});
     await Transaction.deleteMany({});
     await SpecialOrder.deleteMany({});
     await SystemLog.deleteMany({});
 
-    // 4. Insert Data
-    if (data.users && data.users.length > 0) await User.insertMany(data.users);
-    if (data.items && data.items.length > 0) await Item.insertMany(data.items);
-    if (data.service_tickets && data.service_tickets.length > 0) await ServiceTicket.insertMany(data.service_tickets);
-    if (data.transactions && data.transactions.length > 0) await Transaction.insertMany(data.transactions);
-    if (data.special_orders && data.special_orders.length > 0) await SpecialOrder.insertMany(data.special_orders);
-    if (data.system_logs && data.system_logs.length > 0) await SystemLog.insertMany(data.system_logs);
-
-    // 5. Pastikan admin pengimpor tetap ada/update jika ID berubah di file backup
+    // 3. Pastikan admin pengimpor tetap bisa login (insertOne dengan password sudah di-hash, lewati pre-save hook)
     const adminExists = await User.findOne({ username: currentAdmin.username });
     if (!adminExists) {
-        // Jika di backup tidak ada admin yang sama, masukkan admin saat ini kembali
-        await User.create(currentAdmin.toObject());
+      const adminDoc = currentAdmin.toObject();
+      delete adminDoc._id;
+      // Pakai insertOne agar pre('save') hook (hash password) tidak terpicu
+      await User.collection.insertOne(adminDoc);
     }
 
     res.status(200).json({

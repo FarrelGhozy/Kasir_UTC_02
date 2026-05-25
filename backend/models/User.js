@@ -53,6 +53,9 @@ const userSchema = new mongoose.Schema({
   timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
 });
 
+userSchema.index({ role: 1, isActive: 1 });
+userSchema.index({ isActive: 1 });
+
 // Middleware pre-save untuk hash password
 userSchema.pre('save', async function() {
   // Hanya hash jika password diubah

@@ -102,6 +102,9 @@ specialOrderSchema.statics.generateOrderNumber = async function() {
   return `${prefix}-${String(nextNumber).padStart(4, '0')}`;
 };
 
+specialOrderSchema.index({ status: 1, 'timestamps.created_at': -1 });
+specialOrderSchema.index({ order_number: 1 });
+
 specialOrderSchema.set('toJSON', { virtuals: true });
 specialOrderSchema.set('toObject', { virtuals: true });
 

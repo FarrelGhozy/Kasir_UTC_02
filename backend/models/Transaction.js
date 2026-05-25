@@ -84,6 +84,10 @@ const transactionSchema = new mongoose.Schema({
   timestamps: true
 });
 
+transactionSchema.index({ date: -1 });
+transactionSchema.index({ cashier_id: 1, date: -1 });
+transactionSchema.index({ payment_method: 1, date: -1 });
+
 // ✅ PERBAIKAN UTAMA: Menghapus parameter 'next' (Async compatible)
 transactionSchema.pre('save', async function() {
   // 1. Hitung Kembalian otomatis

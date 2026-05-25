@@ -211,6 +211,9 @@ serviceTicketSchema.index({ status: 1 });
 serviceTicketSchema.index({ 'technician.id': 1 });
 serviceTicketSchema.index({ 'timestamps.created_at': -1 });
 serviceTicketSchema.index({ 'customer.phone': 1 });
+serviceTicketSchema.index({ status: 1, 'timestamps.picked_up_at': 1 });
+serviceTicketSchema.index({ 'technician.id': 1, status: 1 });
+serviceTicketSchema.index({ ticket_number: 1 });
 
 // Middleware pre-save (Kompatibel dengan Async)
 serviceTicketSchema.pre('save', async function() {

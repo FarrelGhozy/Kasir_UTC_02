@@ -87,6 +87,8 @@ const itemSchema = new mongoose.Schema({
 itemSchema.index({ category: 1 });
 itemSchema.index({ stock: 1 });
 itemSchema.index({ name: 'text' });
+itemSchema.index({ isActive: 1, category: 1 });
+itemSchema.index({ isActive: 1, stock: 1 });
 // SKU sudah unique: true di definisi schema
 
 // Virtual untuk margin keuntungan
