@@ -1,20 +1,30 @@
-# Gunakan Node.js versi ringan
-FROM node:18-alpine
+# Gunakan Node.js LTS terbaru
+FROM node:20-alpine
 
-# Buat folder kerja di dalam container
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
 WORKDIR /app
 
-# Copy file package.json dulu (biar cache efisien)
+# Copy package files dulu (efisien untuk Docker layer cache)
 COPY package*.json ./
 
-# Install library
-RUN npm install
+# Install production dependencies saja
+RUN npm ci --only=production && npm cache clean --force
 
-# Copy semua kode backend ke dalam container
+# Copy kode backend
 COPY . .
 
-# Buka port 5000
+# Hapus file yang tidak perlu di production
+RUN rm -f test_*.js *.log
+
+RUN chown -R appuser:appgroup /app
+
+USER appuser
+
 EXPOSE 5000
 
-# Jalankan server
-CMD ["sh", "-c", "node seed.js && node server.js"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:5000/api/auth/login || exit 1
+
+# Seed dijalankan TERPISAH via docker compose run backend npm run seed
+CMD ["node", "server.js"]

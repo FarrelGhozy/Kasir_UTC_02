@@ -1,19 +1,25 @@
 # frontend/Dockerfile
+FROM nginx:1.25-alpine
 
-FROM nginx:alpine
+# Security headers
+RUN echo 'server {\
+  listen 80;\
+  server_name _;\
+  root /usr/share/nginx/html;\
+  index index.html;\
+  add_header X-Frame-Options "SAMEORIGIN" always;\
+  add_header X-Content-Type-Options "nosniff" always;\
+  add_header X-XSS-Protection "1; mode=block" always;\
+  location / {\
+    try_files $uri $uri/ /index.html;\
+  }\
+  location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|webp|woff2?)$ {\
+    expires 30d;\
+    add_header Cache-Control "public, immutable";\
+  }\
+}' > /etc/nginx/conf.d/default.conf
 
-# 1. Hapus halaman default "Welcome to nginx" agar bersih
-RUN rm -rf /usr/share/nginx/html/*
-
-# 2. Copy isi folder 'public' langsung ke halaman utama
-# (Asumsi: index.html, folder css, folder js, dan assets ada di dalam folder 'public')
 COPY public /usr/share/nginx/html
-
-# CATATAN:
-# Jika folder 'js' dan 'css' Anda TERPISAH (ada di luar folder public),
-# Anda perlu menambah baris copy manual seperti ini:
-# COPY js /usr/share/nginx/html/js
-# COPY css /usr/share/nginx/html/css
 
 EXPOSE 80
 

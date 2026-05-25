@@ -50,24 +50,23 @@ const allowedOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim()).filter(Boolean)
   : defaultAllowedOrigins;
 
-// Permissive CORS logic
+// Strict CORS — production hanya izinkan origin yang terdaftar
 app.use(cors({
   origin: function (origin, callback) {
-    // allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
-    const isAllowed = allowedOrigins.indexOf(origin) !== -1 || 
-                     allowedOrigins.includes('*') ||
-                     origin.includes('localhost') ||
-                     origin.includes('127.0.0.1');
+    const isAllowed = allowedOrigins.indexOf(origin) !== -1 ||
+                     allowedOrigins.includes('*');
 
-    if (isAllowed || process.env.NODE_ENV !== 'production') {
+    if (isAllowed) {
       callback(null, true);
-    } else {
-      // In production, we are more strict but still allow common patterns
-      console.log(`CORS blocked for origin: ${origin}`);
-      callback(new Error('CORS: Origin tidak diizinkan'));
+    } else if (process.env.NODE_ENV !== 'production') {
+      const isLocalDev = origin.includes('localhost') || origin.includes('127.0.0.1');
+      if (isLocalDev) return callback(null, true);
     }
+    
+    console.log(`CORS blocked for origin: ${origin}`);
+    callback(null, false);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -76,9 +75,6 @@ app.use(cors({
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// Static files for uploads
-app.use('/backend/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ==========================================
 // 2. ROUTES

@@ -161,22 +161,20 @@ class Auth {
 
     updateNavigationByRole() {
         const role = this.user.role;
+        const isAdmin = role === 'admin';
 
-        // Sidebar nav items
-        const navPos = document.getElementById('nav-pos');
-        const navService = document.getElementById('nav-service');
-        const navAdminTech = document.getElementById('nav-admin-tech');
-
-        if (navPos) navPos.classList.remove('d-none');
-        if (navService) navService.classList.remove('d-none');
-
-        if (navAdminTech) {
-            navAdminTech.style.display = role === 'admin' ? 'block' : 'none';
-        }
-
-        // Bottom nav / dropdown admin-only items
+        // Sembunyikan/munculkan item navigasi berdasarkan role
         document.querySelectorAll('.admin-only').forEach(el => {
-            el.classList.toggle('hidden', role !== 'admin');
+            el.classList.toggle('d-none', !isAdmin);
+        });
+        document.querySelectorAll('.teknisi-only').forEach(el => {
+            el.classList.toggle('d-none', role !== 'teknisi');
+        });
+        document.querySelectorAll('.kasir-only').forEach(el => {
+            el.classList.toggle('d-none', role !== 'kasir');
+        });
+        document.querySelectorAll('.non-admin').forEach(el => {
+            el.classList.toggle('d-none', isAdmin);
         });
     }
 
