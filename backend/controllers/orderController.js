@@ -1,6 +1,7 @@
 const SpecialOrder = require('../models/SpecialOrder');
 const User = require('../models/User');
 const whatsappService = require('../services/whatsappService');
+const { sendInvoiceEmail } = require('../services/emailService');
 
 exports.createOrder = async (req, res, next) => {
   try {
@@ -26,6 +27,10 @@ exports.createOrder = async (req, res, next) => {
       handled_by,
       notes
     });
+    
+    if (order.customer.email) {
+      await sendInvoiceEmail(order);
+    }
 
     // Kirim notifikasi WA - SEKUENSE 3 PESAN
     if (order.customer.phone) {
@@ -89,6 +94,10 @@ exports.updateOrderStatus = async (req, res, next) => {
     if (status === 'Picked_Up') order.timestamps.picked_up_at = new Date();
 
     await order.save();
+    
+    if (order.customer.email) {
+      await sendInvoiceEmail(order);
+    }
 
     // Kirim notifikasi WA
     whatsappService.notifyOrderStatus(order);
