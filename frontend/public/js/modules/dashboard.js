@@ -244,7 +244,8 @@ class Dashboard {
         if (!canvas || typeof Chart === 'undefined') return;
 
         const maxCustomers = Math.max(...values, 0);
-        const customerAxisMax = Math.max(5, maxCustomers + 1);
+        const stepSize = Math.max(1, Math.ceil(maxCustomers / 8));
+        const customerAxisMax = Math.ceil(maxCustomers * 1.2 / stepSize) * stepSize || 5;
 
         if (this.customerChart) {
             this.customerChart.destroy();
@@ -293,7 +294,8 @@ class Dashboard {
         if (!canvas || typeof Chart === 'undefined') return;
 
         const maxIncome = Math.max(...values, 0);
-        const incomeAxisMax = Math.max(2000000, Math.ceil(maxIncome / 500000) * 500000);
+        const stepSize = Math.max(10000, Math.ceil(maxIncome / 6 / 10000) * 10000);
+        const incomeAxisMax = Math.ceil(maxIncome * 1.3 / stepSize) * stepSize || stepSize;
 
         if (this.incomeChart) {
             this.incomeChart.destroy();
@@ -334,11 +336,12 @@ class Dashboard {
                         beginAtZero: true,
                         max: incomeAxisMax,
                         ticks: {
-                            stepSize: 500000,
+                            stepSize: stepSize,
                             callback: (value) => {
                                 const numeric = Number(value) || 0;
                                 if (numeric >= 1000000) return `Rp ${(numeric / 1000000).toFixed(1)} jt`;
-                                return `Rp ${(numeric / 1000).toFixed(0)} rb`;
+                                if (numeric >= 1000) return `Rp ${(numeric / 1000).toFixed(0)} rb`;
+                                return `Rp ${numeric}`;
                             }
                         }
                     }
