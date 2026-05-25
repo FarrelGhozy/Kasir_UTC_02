@@ -94,7 +94,7 @@ class Admin {
                                     <div class="card border-0 shadow-sm bg-light">
                                         <div class="card-body p-4 text-center">
                                             <div class="mb-4">
-                                                <i class="bi bi-cloud-download text-primary" style="font-size: 4rem;"></i>
+                                                <i class="bi bi-cloud-upload text-primary" style="font-size: 4rem;"></i>
                                                 <h5 class="fw-bold mt-3">Ekspor Data (Backup)</h5>
                                                 <p class="text-muted">Unduh seluruh data database ke dalam file JSON untuk cadangan.</p>
                                                 <button class="btn btn-primary px-4 fw-bold" id="export-btn">
@@ -103,7 +103,7 @@ class Admin {
                                             </div>
                                             <hr class="my-5">
                                             <div class="mb-2">
-                                                <i class="bi bi-cloud-upload text-danger" style="font-size: 4rem;"></i>
+                                                <i class="bi bi-cloud-download text-danger" style="font-size: 4rem;"></i>
                                                 <h5 class="fw-bold mt-3">Impor Data (Restore)</h5>
                                                 <p class="text-muted">Pulihkan database dari file backup sebelumnya.</p>
                                                 <div class="alert alert-warning small border-warning">
