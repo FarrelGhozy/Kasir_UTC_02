@@ -9,6 +9,21 @@ const webhookRoutes = require('./routes/webhook');
 const reminderService = require('./services/reminderService');
 const errorHandler = require('./middleware/errorHandler');
 
+// Validasi environment variables kritis saat startup
+const requiredEnvVars = [
+  { name: 'MONGODB_URI', message: 'MONGODB_URI wajib diisi untuk koneksi database' },
+  { name: 'JWT_SECRET', message: 'JWT_SECRET wajib diisi. Gunakan: openssl rand -hex 32' },
+  { name: 'WAHA_API_KEY', message: 'WAHA_API_KEY wajib diisi untuk koneksi WhatsApp gateway' },
+  { name: 'WAHA_URL', message: 'WAHA_URL wajib diisi. Contoh: http://waha:8000' },
+];
+
+for (const env of requiredEnvVars) {
+  if (!process.env[env.name]) {
+    console.error(`[STARTUP ERROR] ${env.message}`);
+    process.exit(1);
+  }
+}
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 

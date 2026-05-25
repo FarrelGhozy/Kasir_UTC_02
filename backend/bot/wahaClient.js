@@ -1,22 +1,28 @@
 const axios = require('axios');
 
+const WAHA_URL = process.env.WAHA_URL;
+const WAHA_SESSION = process.env.WAHA_SESSION || 'default';
+const WAHA_API_KEY = process.env.WAHA_API_KEY;
+
 async function sendReply(phone, text) {
   try {
-    // Pastikan phone bersih dari karakter aneh dan punya @c.us
+    if (!WAHA_URL || !WAHA_API_KEY) {
+      console.error('[Bot] WAHA_URL atau WAHA_API_KEY tidak dikonfigurasi');
+      return;
+    }
+
     let cleanPhone = phone.toString().split('@')[0].replace(/\D/g, '');
     const chatId = `${cleanPhone}@c.us`;
 
-    const url = `${process.env.WAHA_URL || 'http://waha:8000'}/api/sendText`;
+    const url = `${WAHA_URL}/api/sendText`;
     console.log(`[Bot] Mengirim balasan ke ${chatId}...`);
     
-    const response = await axios.post(url, {
+    await axios.post(url, {
       chatId: chatId,
       text: text,
-      session: process.env.WAHA_SESSION || 'default'
+      session: WAHA_SESSION
     }, {
-      headers: { 
-        'X-Api-Key': process.env.WAHA_API_KEY || 'adminutc28' 
-      },
+      headers: { 'X-Api-Key': WAHA_API_KEY },
       timeout: 10000 
     });
     
