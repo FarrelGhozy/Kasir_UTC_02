@@ -3,6 +3,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const rateLimit = require('express-rate-limit');
 const connectDB = require('./config/db');
 const apiRoutes = require('./routes/api');
 const webhookRoutes = require('./routes/webhook');
@@ -73,8 +74,27 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '5mb' }));
+app.use(express.urlencoded({ extended: true, limit: '5mb' }));
+
+// ==========================================
+// 1b. RATE LIMITING
+// ==========================================
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { success: false, message: 'Terlalu banyak percobaan login. Coba lagi 15 menit.' }
+});
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 500,
+  message: { success: false, message: 'Terlalu banyak permintaan. Coba lagi nanti.' }
+});
+
+app.use('/api/auth/login', loginLimiter);
+app.use('/api', apiLimiter);
 
 // ==========================================
 // 2. ROUTES

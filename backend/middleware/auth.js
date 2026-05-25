@@ -10,8 +10,12 @@ exports.protect = async (req, res, next) => {
     let token;
 
     // Cek token di headers
-    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-      token = req.headers.authorization.split(' ')[1];
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+      const parts = req.headers.authorization.split(' ');
+      if (parts.length !== 2 || !parts[1]) {
+        return res.status(401).json({ success: false, message: 'Format token tidak valid' });
+      }
+      token = parts[1];
     }
 
     if (!token) {
