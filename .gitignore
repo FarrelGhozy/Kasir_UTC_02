@@ -40,3 +40,8 @@ Thumbs.db
 *.swo
 *.sublime-project
 *.sublime-workspace
+
+
+#pembantu 
+CLAUDE.md
+AGENTS.md
