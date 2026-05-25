@@ -485,10 +485,7 @@ body {
     white-space: nowrap;
 }
 
-/* Admin-only: default visible, diatur role-nya via JS */
-.bottom-nav-item.admin-only.hidden {
-    display: none;
-}
+/* Admin-only: default visible, diatur role-nya via JS (class d-none dari auth.js) */
 .bottom-nav-item.admin-only {
     flex-direction: column !important;
 }
