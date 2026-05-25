@@ -13,7 +13,7 @@ RUN echo 'server {\
   add_header X-Frame-Options "SAMEORIGIN" always;\
   add_header X-Content-Type-Options "nosniff" always;\
   add_header X-XSS-Protection "1; mode=block" always;\
-  location /api/ {\
+  location ^~ /api/ {\
     proxy_pass '"$API_PROXY_PASS"';\
     proxy_http_version 1.1;\
     proxy_set_header Upgrade $http_upgrade;\
