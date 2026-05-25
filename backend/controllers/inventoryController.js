@@ -1,6 +1,18 @@
 // controllers/inventoryController.js - Operasi CRUD Barang/Inventaris
 const Item = require('../models/Item');
 
+const allowedItemFields = ['name', 'sku', 'category', 'purchase_price', 'selling_price', 'stock', 'min_stock_alert', 'description', 'unit'];
+
+function sanitizeItemBody(body) {
+  const sanitized = {};
+  for (const field of allowedItemFields) {
+    if (body[field] !== undefined) {
+      sanitized[field] = body[field];
+    }
+  }
+  return sanitized;
+}
+
 /**
  * @desc    Buat barang baru
  * @route   POST /api/inventory
@@ -8,11 +20,9 @@ const Item = require('../models/Item');
  */
 exports.createItem = async (req, res, next) => {
   try {
-    // 1. Normalisasi Input
     const purchasePrice = Number(req.body.purchase_price !== undefined ? req.body.purchase_price : (req.body.purchasePrice || 0));
     const sellingPrice = Number(req.body.selling_price !== undefined ? req.body.selling_price : (req.body.sellingPrice || 0));
 
-    // 2. Validasi Manual
     if (sellingPrice < purchasePrice) {
       return res.status(400).json({
         success: false,
@@ -20,10 +30,11 @@ exports.createItem = async (req, res, next) => {
       });
     }
 
-    req.body.purchase_price = purchasePrice;
-    req.body.selling_price = sellingPrice;
+    const itemData = sanitizeItemBody(req.body);
+    itemData.purchase_price = purchasePrice;
+    itemData.selling_price = sellingPrice;
 
-    const item = await Item.create(req.body);
+    const item = await Item.create(itemData);
 
     res.status(201).json({
       success: true,
@@ -52,17 +63,23 @@ exports.getAllItems = async (req, res, next) => {
       low_stock, 
       page = 1, 
       limit = 20,
-      sort = '-created_at'
+      sort: rawSort = '-created_at'
     } = req.query;
+
+    const allowedSortFields = ['name', 'sku', 'stock', 'category', 'selling_price', 'purchase_price', 'created_at', 'updated_at'];
+    const sortDirection = rawSort.startsWith('-') ? '-' : '';
+    const sortField = rawSort.replace(/^-/, '');
+    const sort = allowedSortFields.includes(sortField) ? (sortDirection + sortField) : '-created_at';
 
     const filter = { isActive: true };
     
     if (category) filter.category = category;
     
-    if (search) {
+    if (search && typeof search === 'string') {
+      const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       filter.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { sku: { $regex: search, $options: 'i' } }
+        { name: { $regex: escaped, $options: 'i' } },
+        { sku: { $regex: escaped, $options: 'i' } }
       ];
     }
     
@@ -110,58 +127,49 @@ exports.getItemById = async (req, res, next) => {
 };
 
 /**
- * @desc    Perbarui data barang (PERBAIKAN UTAMA DI SINI)
+ * @desc    Perbarui data barang
  * @route   PUT /api/inventory/:id
- * @access  Private (Admin)
+ * @access  Private (Admin, Kasir)
  */
 exports.updateItem = async (req, res, next) => {
   try {
-    // 1. Cek data harga
-    let pPriceInput = req.body.purchase_price !== undefined ? req.body.purchase_price : req.body.purchasePrice;
-    let sPriceInput = req.body.selling_price !== undefined ? req.body.selling_price : req.body.sellingPrice;
-
-    // 2. Jika ada update harga, validasi manual
-    if (pPriceInput !== undefined || sPriceInput !== undefined) {
-        
-        const currentItem = await Item.findById(req.params.id);
-        if (!currentItem) {
-            return res.status(404).json({ success: false, message: 'Barang tidak ditemukan' });
-        }
-
-        const finalPPrice = pPriceInput !== undefined ? Number(pPriceInput) : currentItem.purchase_price;
-        const finalSPrice = sPriceInput !== undefined ? Number(sPriceInput) : currentItem.selling_price;
-
-        if (finalSPrice < finalPPrice) {
-            return res.status(400).json({
-                success: false,
-                message: 'Harga jual harus lebih besar atau sama dengan harga beli'
-            });
-        }
-
-        req.body.purchase_price = finalPPrice;
-        req.body.selling_price = finalSPrice;
-    }
-
-    // 3. Eksekusi Update (MATIKAN VALIDATOR MONGOOSE BIAR TIDAK EROR)
-    const item = await Item.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { 
-        new: true, 
-        runValidators: false // <--- KUNCINYA DI SINI (Ganti true jadi false)
-      }
-    );
-
-    if (!item) {
+    const currentItem = await Item.findById(req.params.id);
+    if (!currentItem) {
       return res.status(404).json({ success: false, message: 'Barang tidak ditemukan' });
     }
+
+    const pPriceInput = req.body.purchase_price;
+    const sPriceInput = req.body.selling_price;
+
+    const finalPPrice = pPriceInput !== undefined ? Number(pPriceInput) : currentItem.purchase_price;
+    const finalSPrice = sPriceInput !== undefined ? Number(sPriceInput) : currentItem.selling_price;
+
+    if (finalSPrice < finalPPrice) {
+      return res.status(400).json({
+        success: false,
+        message: 'Harga jual harus lebih besar atau sama dengan harga beli'
+      });
+    }
+
+    const updateData = sanitizeItemBody(req.body);
+    updateData.purchase_price = finalPPrice;
+    updateData.selling_price = finalSPrice;
+
+    Object.assign(currentItem, updateData);
+    await currentItem.save();
 
     res.status(200).json({
       success: true,
       message: 'Barang berhasil diperbarui',
-      data: item
+      data: currentItem
     });
   } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message: 'SKU sudah terdaftar'
+      });
+    }
     next(error);
   }
 };
@@ -201,8 +209,9 @@ exports.getLowStockItems = async (req, res, next) => {
 exports.adjustStock = async (req, res, next) => {
   try {
     const { quantity, type } = req.body;
-    if (!quantity || quantity <= 0) {
-      return res.status(400).json({ success: false, message: 'Jumlah harus positif' });
+    const qty = Number(quantity);
+    if (!Number.isInteger(qty) || qty <= 0) {
+      return res.status(400).json({ success: false, message: 'Jumlah harus bilangan bulat positif' });
     }
 
     const item = await Item.findById(req.params.id);
@@ -306,7 +315,7 @@ exports.importItems = async (req, res, next) => {
           existingItem.category = category || existingItem.category;
           existingItem.purchase_price = Number(purchase_price) || existingItem.purchase_price;
           existingItem.selling_price = Number(selling_price) || existingItem.selling_price;
-          existingItem.stock = Number(stock) !== undefined ? Number(stock) : existingItem.stock;
+          existingItem.stock = stock !== undefined && stock !== '' && !isNaN(Number(stock)) ? Number(stock) : existingItem.stock;
           existingItem.min_stock_alert = Number(min_stock_alert) || existingItem.min_stock_alert;
           existingItem.isActive = true;
 
