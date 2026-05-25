@@ -6,11 +6,9 @@ import { showLoading } from './api.js';
 // Import modul-modul
 import Dashboard from './modules/dashboard.js';
 import POS from './modules/pos.js';
-import Service from './modules/service.js?v=2';
 import Inventory from './modules/inventory.js';
-import Reports from './modules/reports.js';
-import Order from './modules/order.js';
 import Admin from './modules/admin.js';
+import Pelayanan from './modules/pelayanan.js';
 
 class App {
     constructor() {
@@ -19,10 +17,8 @@ class App {
         this.modules = {
             dashboard: new Dashboard(),
             pos: new POS(),
-            service: new Service(),
+            pelayanan: new Pelayanan(),
             inventory: new Inventory(),
-            reports: new Reports(),
-            orders: new Order(),
             admin: new Admin()
         };
 
@@ -80,10 +76,8 @@ class App {
         const pageTitles = {
             dashboard: 'Dashboard',
             pos: 'Kasir (POS)',
-            service: 'Servis (Workshop)',
-            orders: 'Pesanan Barang',
+            pelayanan: 'Pelayanan',
             inventory: 'Gudang (Inventaris)',
-            reports: 'Laporan',
             admin: 'Pengaturan Sistem'
         };
 
@@ -97,7 +91,7 @@ class App {
 
         // Muat konten modul
         if (this.modules[page]) {
-            this.modules[page].render();
+            this.modules[page].render().catch(err => console.error(`[App] Render error di ${page}:`, err));
         } else {
             this.show404();
         }

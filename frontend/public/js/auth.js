@@ -79,11 +79,18 @@ class Auth {
 
     setupLogoutButton() {
         const logoutBtn = document.getElementById('logout-btn');
-        
-        logoutBtn.addEventListener('click', () => {
-            if (confirm('Apakah Anda yakin ingin keluar?')) {
-                this.logout();
-            }
+        const logoutTopBtn = document.getElementById('logout-btn-top');
+        const logoutConfirmBtn = document.getElementById('logout-confirm-btn');
+        const modal = new bootstrap.Modal(document.getElementById('logoutConfirmModal'));
+
+        const showModal = () => modal.show();
+
+        logoutBtn.addEventListener('click', showModal);
+        if (logoutTopBtn) logoutTopBtn.addEventListener('click', showModal);
+
+        logoutConfirmBtn.addEventListener('click', () => {
+            modal.hide();
+            this.logout();
         });
     }
 

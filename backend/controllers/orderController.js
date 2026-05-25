@@ -99,7 +99,7 @@ exports.updateOrderStatus = async (req, res, next) => {
     await order.save();
 
     // Kirim notifikasi WA
-    whatsappService.notifyOrderStatus(order);
+    whatsappService.notifyOrderStatus(order).catch(err => console.error('[WhatsApp] Gagal kirim notifikasi status:', err.message));
 
     res.status(200).json({ success: true, data: order });
   } catch (error) {
@@ -131,7 +131,7 @@ exports.updateOrderDetails = async (req, res, next) => {
         
         // Jika dipindah tugas ke orang baru, beri notifikasi
         if (isReassigned) {
-          whatsappService.notifyOrderAssignment(user, order);
+          whatsappService.notifyOrderAssignment(user, order).catch(err => console.error('[WhatsApp] Gagal kirim notifikasi assignment:', err.message));
         }
       }
     }

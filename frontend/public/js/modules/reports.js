@@ -1,6 +1,6 @@
 // public/js/modules/reports.js - Modul Laporan & Analitik
 
-import api, { formatCurrency, formatDate, formatDateTime, loadScript } from '../api.js';
+import api, { formatCurrency, formatDate, formatDateTime, loadScript, showToast } from '../api.js';
 import auth from '../auth.js';
 
 class Reports {
@@ -8,8 +8,8 @@ class Reports {
         this.currentReport = 'daily';
     }
 
-    async render() {
-        const content = document.getElementById('app-content');
+    async render(containerId = 'app-content') {
+        const content = document.getElementById(containerId);
         const isAdmin = auth.hasRole('admin');
         
         content.innerHTML = `
@@ -462,7 +462,10 @@ class Reports {
     }
 
     downloadFullRecap() {
-        const modal = new bootstrap.Modal(document.getElementById('recapRangeModal'));
+        const modalEl = document.getElementById('recapRangeModal');
+        const existingModal = bootstrap.Modal.getInstance(modalEl);
+        if (existingModal) existingModal.dispose();
+        const modal = new bootstrap.Modal(modalEl);
         modal.show();
     }
 

@@ -1,8 +1,10 @@
 import api, { showToast, escapeHTML } from '../api.js';
+import Reports from './reports.js';
 
 class Admin {
     constructor() {
         this.technicians = [];
+        this.reportsModule = new Reports();
     }
 
     async render() {
@@ -13,7 +15,10 @@ class Admin {
             <div class="card shadow-sm border-0">
                 <div class="card-header bg-white border-0 pt-3 pb-0 px-3 px-md-4">
                     <div class="btn-group w-100 shadow-sm" role="group" aria-label="Pilih menu admin">
-                        <button class="btn btn-outline-primary fw-bold py-2 active" id="users-tab" data-page="users">
+                        <button class="btn btn-outline-primary fw-bold py-2 active" id="reports-tab" data-page="reports">
+                            <i class="bi bi-graph-up me-2"></i>Laporan & Analitik
+                        </button>
+                        <button class="btn btn-outline-primary fw-bold py-2" id="users-tab" data-page="users">
                             <i class="bi bi-people me-2"></i>Manajemen Pengguna
                         </button>
                         <button class="btn btn-outline-primary fw-bold py-2" id="backup-tab" data-page="backup">
@@ -23,8 +28,11 @@ class Admin {
                 </div>
                 <div class="card-body p-3 p-md-4">
                     <div id="admin-panels">
-                        <!-- PANEL 1: MANAJEMEN PENGGUNA -->
-                        <div id="users-panel">
+                        <!-- PANEL 1: LAPORAN & ANALITIK -->
+                        <div id="reports-panel"></div>
+
+                        <!-- PANEL 2: MANAJEMEN PENGGUNA -->
+                        <div id="users-panel" class="d-none">
                             <div class="row g-4">
                                 <div class="col-lg-4">
                                     <div class="card border border-light-subtle bg-light bg-opacity-50">
@@ -82,7 +90,7 @@ class Admin {
                             </div>
                         </div>
 
-                        <!-- PANEL 2: BACKUP & RESTORE -->
+                        <!-- PANEL 3: BACKUP & RESTORE -->
                         <div id="backup-panel" class="d-none">
                             <div class="row justify-content-center py-2 py-md-4">
                                 <div class="col-md-8">
@@ -161,6 +169,7 @@ class Admin {
 
         await this.loadTechnicians();
         this.setupEventListeners();
+        this.reportsModule.render('reports-panel');
     }
 
     async loadTechnicians() {
@@ -322,8 +331,8 @@ class Admin {
         const importBtn = document.getElementById('import-btn');
         if (importBtn) importBtn.addEventListener('click', () => this.handleImport());
 
-        // Toggle panel (Manajemen Pengguna / Backup)
-        const toggleBtns = document.querySelectorAll('#users-tab, #backup-tab');
+        // Toggle panel (Manajemen Pengguna / Backup / Laporan)
+        const toggleBtns = document.querySelectorAll('#users-tab, #backup-tab, #reports-tab');
         toggleBtns.forEach(btn => {
             btn.addEventListener('click', () => {
                 const page = btn.dataset.page;
@@ -331,6 +340,10 @@ class Admin {
                 btn.classList.add('active');
                 document.getElementById('users-panel').classList.toggle('d-none', page !== 'users');
                 document.getElementById('backup-panel').classList.toggle('d-none', page !== 'backup');
+                document.getElementById('reports-panel').classList.toggle('d-none', page !== 'reports');
+                if (page === 'reports') {
+                    this.reportsModule.render('reports-panel');
+                }
             });
         });
     }
