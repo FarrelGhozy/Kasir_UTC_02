@@ -1,6 +1,6 @@
 // public/js/modules/inventory.js - Modul Manajemen Gudang (Inventaris) - REVISI
 
-import api, { formatCurrency, showToast, confirmDialog, setupCurrencyInput, parseCurrencyValue } from '../api.js';
+import api, { formatCurrency, showToast, confirmDialog, setupCurrencyInput, parseCurrencyValue, escapeHTML } from '../api.js';
 
 class Inventory {
     constructor() {
@@ -316,8 +316,8 @@ class Inventory {
 
             return `
                 <tr class="${rowClass}">
-                    <td><code class="text-primary fw-bold">${item.sku}</code></td>
-                    <td><strong>${item.name}</strong></td>
+                    <td><code class="text-primary fw-bold">${escapeHTML(item.sku)}</code></td>
+                    <td><strong>${escapeHTML(item.name)}</strong></td>
                     <td><span class="badge bg-secondary bg-opacity-75">${displayCategory}</span></td>
                     <td>${formatCurrency(item.purchase_price)}</td>
                     <td>${formatCurrency(item.selling_price)}</td>

@@ -462,6 +462,15 @@ export function formatDateTime(date) {
 }
 
 /**
+ * Escape HTML untuk cegah XSS
+ */
+export function escapeHTML(str) {
+  if (str === null || str === undefined) return '';
+  const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+  return String(str).replace(/[&<>"']/g, c => map[c]);
+}
+
+/**
  * Tampilkan notifikasi toast
  */
 export function showToast(message, type = 'success') {
@@ -478,11 +487,12 @@ export function showToast(message, type = 'success') {
                  type === 'error' ? 'x-circle' : 
                  type === 'warning' ? 'exclamation-triangle' : 'info-circle';
     
+    const safeMsg = escapeHTML(message);
     const toastHTML = `
         <div id="${toastId}" class="toast align-items-center text-white ${bgClass} border-0" role="alert">
             <div class="d-flex">
                 <div class="toast-body">
-                    <i class="bi bi-${icon} me-2"></i>${message}
+                    <i class="bi bi-${icon} me-2"></i>${safeMsg}
                 </div>
                 <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
             </div>
@@ -526,7 +536,7 @@ export function showError(containerId, message) {
         container.innerHTML = `
             <div class="alert alert-danger" role="alert">
                 <i class="bi bi-exclamation-triangle me-2"></i>
-                <strong>Kesalahan:</strong> ${message}
+                <strong>Kesalahan:</strong> ${escapeHTML(message)}
             </div>
         `;
     }

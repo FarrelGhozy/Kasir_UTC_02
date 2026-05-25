@@ -1,4 +1,4 @@
-import api, { showToast } from '../api.js';
+import api, { showToast, escapeHTML } from '../api.js';
 
 class Admin {
     constructor() {
@@ -178,11 +178,11 @@ class Admin {
 
             tbody.innerHTML = this.technicians.map(t => `
                 <tr>
-                    <td class="ps-3 fw-bold">${t.name}</td>
-                    <td><span class="badge bg-light text-dark border">${t.username}</span></td>
+                    <td class="ps-3 fw-bold">${escapeHTML(t.name)}</td>
+                    <td><span class="badge bg-light text-dark border">${escapeHTML(t.username)}</span></td>
                     <td>
                         <a href="https://wa.me/${t.phone.replace(/\D/g, '')}" target="_blank" class="text-decoration-none text-success small">
-                            <i class="bi bi-whatsapp me-1"></i>${t.phone}
+                            <i class="bi bi-whatsapp me-1"></i>${escapeHTML(t.phone)}
                         </a>
                     </td>
                     <td class="text-end pe-3">
@@ -192,7 +192,7 @@ class Admin {
                 </tr>
             `).join('');
         } catch (e) {
-            tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-danger">${e.message}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-danger">${escapeHTML(e.message)}</td></tr>`;
         }
     }
 
@@ -219,15 +219,17 @@ class Admin {
             showToast('Menyiapkan backup data...', 'info');
             const res = await api.get('/admin/backup/export');
             
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(res.data, null, 2));
+            const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
             const downloadAnchorNode = document.createElement('a');
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
             
-            downloadAnchorNode.setAttribute("href",     dataStr);
+            downloadAnchorNode.setAttribute("href", url);
             downloadAnchorNode.setAttribute("download", `backup_utc_${timestamp}.json`);
             document.body.appendChild(downloadAnchorNode);
             downloadAnchorNode.click();
             downloadAnchorNode.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 10000);
             
             showToast('Backup berhasil diunduh', 'success');
         } catch (e) { showToast('Gagal melakukan backup: ' + e.message, 'error'); }

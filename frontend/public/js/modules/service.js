@@ -1,6 +1,6 @@
 // public/js/modules/service.js - Modul Manajemen Servis (FIXED: Add Part & Detail View)
 
-import api, { formatCurrency, formatDateTime, showToast, showError, setupCurrencyInput, parseCurrencyValue, calculateElapsedTime, validateWhatsApp } from '../api.js';
+import api, { formatCurrency, formatDateTime, showToast, showError, setupCurrencyInput, parseCurrencyValue, calculateElapsedTime, validateWhatsApp, escapeHTML } from '../api.js';
 
 /**
  * Helper class for Pattern Lock UI
@@ -887,11 +887,11 @@ class Service {
                             <div class="col-6">
                                 <small class="text-secondary fw-bold" style="font-size:0.7rem">PELANGGAN</small>
                                 <div class="fw-bold text-truncate">
-                                    ${t.customer.name} 
-                                    <span class="badge bg-light text-dark border ms-1" style="font-size:0.6rem; font-weight: normal;">${t.customer.type}</span>
+                                    ${escapeHTML(t.customer.name)} 
+                                    <span class="badge bg-light text-dark border ms-1" style="font-size:0.6rem; font-weight: normal;">${escapeHTML(t.customer.type)}</span>
                                 </div>
                                 <div class="small text-muted d-flex align-items-center gap-1">
-                                    ${t.customer.phone || 'N/A'}
+                                    ${escapeHTML(t.customer.phone || 'N/A')}
                                     ${t.customer.phone ? `
                                         <button class="btn btn-success btn-xs ms-1 px-1 py-0 shadow-sm" onclick="service.resendWA('${t._id}')" title="Kirim Ulang WA" style="font-size: 0.65rem; border-radius: 4px;">
                                             <i class="bi bi-whatsapp me-1"></i>Kirim WA
@@ -900,7 +900,7 @@ class Service {
                                 </div>
                                 ${t.customer.email ? `
                                     <div class="small text-muted mt-1 text-truncate" style="font-size: 0.7rem;">
-                                        <i class="bi bi-envelope me-1"></i>${t.customer.email}
+                                        <i class="bi bi-envelope me-1"></i>${escapeHTML(t.customer.email)}
                                     </div>
                                 ` : ''}
                             </div>
@@ -917,10 +917,10 @@ class Service {
                             <div class="col-7">
                                 <small class="text-secondary fw-bold" style="font-size:0.7rem">PERANGKAT</small>
                                 <div class="fw-bold text-primary mb-1" style="font-size: 1.1rem; line-height: 1.2;">
-                                    ${t.device.type} ${t.device.brand || ''} ${t.device.model || ''}
+                                    ${escapeHTML(t.device.type)} ${escapeHTML(t.device.brand || '')} ${escapeHTML(t.device.model || '')}
                                 </div>
                                 <div class="small text-danger fw-semibold" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
-                                    <i class="bi bi-exclamation-circle me-1"></i>${t.device.symptoms}
+                                    <i class="bi bi-exclamation-circle me-1"></i>${escapeHTML(t.device.symptoms)}
                                 </div>
                             </div>
                             <div class="col-5 text-end">
@@ -1369,7 +1369,7 @@ class Service {
                             <tr><td width="110" class="text-secondary">Unit / Tipe</td><td>: <strong>${t.device.type} ${t.device.brand || ''}</strong></td></tr>
                             <tr><td class="text-secondary">Model/Seri</td><td>: ${t.device.model || '-'}</td></tr>
                             <tr><td class="text-secondary">Serial No.</td><td>: ${t.device.serial_number || '-'}</td></tr>
-                            <tr><td class="text-secondary">Password</td><td>: <span class="badge bg-warning text-dark">${t.device.password || '-'}</span></td></tr>
+                            <tr><td class="text-secondary">Password</td><td>: <span class="badge bg-warning text-dark">${escapeHTML(t.device.password || '-')}</span></td></tr>
                             <tr>
                                 <td class="text-secondary">Pola</td>
                                 <td>: ${this.renderPatternVisualization(t.device.pattern)}</td>
@@ -1479,7 +1479,7 @@ class Service {
                 <div class="row"><span>Klien</span> <span>${t.customer.name}</span></div>
                 <div class="divider"></div>
                 <div class="row"><span>Perangkat</span> <span>${t.device.type} ${t.device.brand || ''}</span></div>
-                <div class="row"><span>Sandi/Pola</span> <span>${t.device.password || '-'}/${t.device.pattern || '-'}</span></div>
+                <div class="row"><span>Sandi/Pola</span> <span>${escapeHTML(t.device.password || '-')}/${escapeHTML(t.device.pattern || '-')}</span></div>
                 <div class="divider"></div>
                 ${t.parts_used.map(p => `<div class="row"><span>${p.name} x${p.qty}</span><span>${new Intl.NumberFormat('id-ID').format(p.subtotal)}</span></div>`).join('')}
                 <div class="row"><span>Jasa</span><span>${new Intl.NumberFormat('id-ID').format(t.service_fee)}</span></div>
@@ -1586,10 +1586,11 @@ class Service {
     }
 
     setupEventListeners() {
-        // Cek Role untuk tombol Admin
+        // Tampilkan tombol System Logs untuk admin
         const user = JSON.parse(localStorage.getItem('user') || '{}');
         if (user.role === 'admin') {
-            document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'block');
+            const logsBtn = document.getElementById('view-logs-btn');
+            if (logsBtn) logsBtn.style.display = 'inline-block';
         }
 
         document.getElementById('service-form').addEventListener('submit', async (e) => {

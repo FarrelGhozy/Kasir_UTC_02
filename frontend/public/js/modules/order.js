@@ -1,4 +1,4 @@
-import api, { formatCurrency, formatDateTime, showToast, setupCurrencyInput, parseCurrencyValue, calculateElapsedTime, validateWhatsApp } from '../api.js';
+import api, { formatCurrency, formatDateTime, showToast, setupCurrencyInput, parseCurrencyValue, calculateElapsedTime, validateWhatsApp, escapeHTML } from '../api.js';
 
 class Order {
     constructor() {
