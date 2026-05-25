@@ -240,10 +240,10 @@ serviceTicketSchema.statics.generateTicketNumber = async function() {
   const year = new Date().getFullYear();
   const prefix = `SRV-${year}`;
   
-  // FIX: Sort by history.created_at (waktu), bukan string ticket_number
+  // FIX: Sort by _id (ObjectId berisi timestamp, terjamin unik & asc)
   const lastTicket = await this.findOne({
     ticket_number: new RegExp(`^${prefix}`)
-  }).sort({ 'history.created_at': -1 });
+  }).sort({ _id: -1 });
   
   let nextNumber = 1;
   if (lastTicket) {
