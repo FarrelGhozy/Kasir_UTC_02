@@ -1,6 +1,6 @@
 // public/js/modules/dashboard.js - Modul Ringkasan Dasbor (FIXED: Gabungan Aktivitas)
 
-import api, { formatCurrency, showError, loadScript, escapeHTML } from '../api.js';
+import api, { formatCurrency, showError, loadScript, escapeHTML, toLocalDateString } from '../api.js';
 
 class Dashboard {
     constructor() {
@@ -187,18 +187,19 @@ class Dashboard {
         return {
             start,
             end,
-            startISO: start.toISOString().split('T')[0],
-            endISO: end.toISOString().split('T')[0]
+            startLocal: toLocalDateString(start),
+            endLocal: toLocalDateString(end)
         };
     }
 
-    buildDailyBuckets(startDate, totalDays = 30) {
+    buildDailyBuckets(startLocal, totalDays = 30) {
         const buckets = [];
+        const startDate = new Date(startLocal + 'T00:00:00');
         for (let i = 0; i < totalDays; i += 1) {
             const date = new Date(startDate);
             date.setDate(startDate.getDate() + i);
             buckets.push({
-                key: date.toISOString().slice(0, 10),
+                key: toLocalDateString(date),
                 label: date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' }),
                 customers: 0,
                 income: 0
@@ -243,7 +244,8 @@ class Dashboard {
         if (!canvas || typeof Chart === 'undefined') return;
 
         const maxCustomers = Math.max(...values, 0);
-        const customerAxisMax = Math.max(5, maxCustomers + 1);
+        const stepSize = Math.max(1, Math.ceil(maxCustomers / 8));
+        const customerAxisMax = Math.ceil(maxCustomers * 1.2 / stepSize) * stepSize || 5;
 
         if (this.customerChart) {
             this.customerChart.destroy();
@@ -292,7 +294,8 @@ class Dashboard {
         if (!canvas || typeof Chart === 'undefined') return;
 
         const maxIncome = Math.max(...values, 0);
-        const incomeAxisMax = Math.max(2000000, Math.ceil(maxIncome / 500000) * 500000);
+        const stepSize = Math.max(10000, Math.ceil(maxIncome / 6 / 10000) * 10000);
+        const incomeAxisMax = Math.ceil(maxIncome * 1.3 / stepSize) * stepSize || stepSize;
 
         if (this.incomeChart) {
             this.incomeChart.destroy();
@@ -333,11 +336,12 @@ class Dashboard {
                         beginAtZero: true,
                         max: incomeAxisMax,
                         ticks: {
-                            stepSize: 500000,
+                            stepSize: stepSize,
                             callback: (value) => {
                                 const numeric = Number(value) || 0;
                                 if (numeric >= 1000000) return `Rp ${(numeric / 1000000).toFixed(1)} jt`;
-                                return `Rp ${(numeric / 1000).toFixed(0)} rb`;
+                                if (numeric >= 1000) return `Rp ${(numeric / 1000).toFixed(0)} rb`;
+                                return `Rp ${numeric}`;
                             }
                         }
                     }
@@ -350,21 +354,25 @@ class Dashboard {
         if (typeof Chart === 'undefined') {
             await loadScript('https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js');
         }
-        const { start, startISO, endISO } = this.getLastThirtyDaysRange();
-        const buckets = this.buildDailyBuckets(start, 30);
+        if (typeof Chart === 'undefined') {
+            console.error('Chart.js gagal dimuat dari CDN');
+            return;
+        }
+        const { startLocal, endLocal } = this.getLastThirtyDaysRange();
+        const buckets = this.buildDailyBuckets(startLocal, 30);
         const bucketMap = new Map(buckets.map(b => [b.key, b]));
 
         try {
             const [transactionsRes, servicesRes] = await Promise.all([
-                api.getTransactions({ start_date: startISO, end_date: endISO, limit: 500 }),
-                api.getServiceTickets({ start_date: startISO, end_date: endISO, limit: 500 })
+                api.getTransactions({ start_date: startLocal, end_date: endLocal, limit: 500 }),
+                api.getServiceTickets({ start_date: startLocal, end_date: endLocal, limit: 500 })
             ]);
 
             const transactions = Array.isArray(transactionsRes?.data) ? transactionsRes.data : [];
             const services = Array.isArray(servicesRes?.data) ? servicesRes.data : [];
 
             transactions.forEach((txn) => {
-                const dateKey = new Date(txn.date).toISOString().slice(0, 10);
+                const dateKey = toLocalDateString(txn.date);
                 const bucket = bucketMap.get(dateKey);
                 if (!bucket) return;
                 bucket.customers += 1;
@@ -372,7 +380,7 @@ class Dashboard {
             });
 
             services.forEach((ticket) => {
-                const createdKey = new Date(ticket?.history?.created_at || ticket.createdAt).toISOString().slice(0, 10);
+                const createdKey = toLocalDateString(ticket?.history?.created_at || ticket.createdAt);
                 const createdBucket = bucketMap.get(createdKey);
                 if (createdBucket) {
                     createdBucket.customers += 1;
@@ -382,7 +390,7 @@ class Dashboard {
                 const completedAt = ticket?.history?.completed_at;
                 if (!isRevenueTicket || !completedAt) return;
 
-                const incomeKey = new Date(completedAt).toISOString().slice(0, 10);
+                const incomeKey = toLocalDateString(completedAt);
                 const incomeBucket = bucketMap.get(incomeKey);
                 if (!incomeBucket) return;
                 incomeBucket.income += Number(ticket.total_cost || 0);

@@ -125,16 +125,29 @@ exports.getFullRecap = async (req, res, next) => {
 exports.getDailyRevenue = async (req, res, next) => {
   try {
     const { date } = req.query;
-    const targetDate = date ? validateDateParam(date, 'date') : new Date();
+    let startOfDay, endOfDay, resultDate;
 
-    const startOfDay = new Date(targetDate);
-    startOfDay.setHours(0, 0, 0, 0);
-
-    const endOfDay = new Date(targetDate);
-    endOfDay.setHours(23, 59, 59, 999);
+    if (date) {
+      // Parse string YYYY-MM-DD langsung (timezone-agnostic)
+      const p = date.split('-');
+      const y = parseInt(p[0]), m = parseInt(p[1]) - 1, d = parseInt(p[2]);
+      startOfDay = new Date(Date.UTC(y, m, d - 1, 17, 0, 0, 0));
+      endOfDay = new Date(Date.UTC(y, m, d, 16, 59, 59, 999));
+      resultDate = date;
+    } else {
+      // Hari ini dalam WIB: hitung dari UTC
+      const today = new Date();
+      const wibOffset = 7 * 60 * 60 * 1000;
+      const nowWIB = new Date(today.getTime() + wibOffset);
+      const wy = nowWIB.getUTCFullYear();
+      const wm = nowWIB.getUTCMonth();
+      const wd = nowWIB.getUTCDate();
+      startOfDay = new Date(Date.UTC(wy, wm, wd - 1, 17, 0, 0, 0));
+      endOfDay = new Date(Date.UTC(wy, wm, wd, 16, 59, 59, 999));
+      resultDate = `${wy}-${String(wm + 1).padStart(2, '0')}-${String(wd).padStart(2, '0')}`;
+    }
 
     const txnMatch = buildReportPipeline(startOfDay, endOfDay, {});
-    const svcMatch = buildReportPipeline(startOfDay, endOfDay, { status: 'Picked_Up' });
 
     // Ambil pendapatan transaksi
     const transactionRevenue = await Transaction.aggregate([
@@ -148,9 +161,18 @@ exports.getDailyRevenue = async (req, res, next) => {
       }
     ]);
 
-    // Ambil pendapatan servis (tiket resmi diambil)
+    // Ambil pendapatan servis (Picked_Up) — tolerir jika picked_up_at null
     const serviceRevenue = await ServiceTicket.aggregate([
-      { $match: svcMatch },
+      {
+        $match: {
+          status: 'Picked_Up',
+          $or: [
+            { 'history.picked_up_at': { $gte: startOfDay, $lte: endOfDay } },
+            { 'history.picked_up_at': null, 'history.completed_at': { $gte: startOfDay, $lte: endOfDay } },
+            { 'history.picked_up_at': null, 'history.completed_at': null, 'history.created_at': { $gte: startOfDay, $lte: endOfDay } }
+          ]
+        }
+      },
       {
         $group: {
           _id: null,
@@ -165,7 +187,7 @@ exports.getDailyRevenue = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      date: targetDate.toISOString().split('T')[0],
+      date: resultDate,
       data: {
         retail_sales: {
           revenue: txnData.total,
@@ -202,18 +224,25 @@ exports.getMonthlyRevenue = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Parameter bulan tidak valid (1-12)' });
     }
 
-    const startDate = new Date(targetYear, targetMonth - 1, 1);
-    const endDate = new Date(targetYear, targetMonth, 0, 23, 59, 59, 999);
+    const TIMEZONE = 'Asia/Jakarta';
+
+    // Buat batas UTC yang mencakup seluruh bulan di timezone Asia/Jakarta (WIB, UTC+7)
+    // Awal bulan: tgl-1 00:00 WIB = tgl-1 - 7jam UTC = tgl-1+7jam = hari SEBELUMNYA jam 17:00 UTC
+    const startDate = new Date(Date.UTC(targetYear, targetMonth - 1, 0, 17, 0, 0, 0));
+    // Akhir bulan: tgl-terakhir 23:59:59 WIB = tgl-terakhir 16:59:59 UTC
+    const daysInMonth = new Date(targetYear, targetMonth, 0).getDate();
+    const endDate = new Date(Date.UTC(targetYear, targetMonth - 1, daysInMonth, 16, 59, 59, 999));
 
     const txnMatch = buildReportPipeline(startDate, endDate, {});
-    const svcMatch = buildReportPipeline(startDate, endDate, { status: 'Picked_Up' });
 
-    // Pendapatan transaksi dikelompokkan per hari
+    // Pendapatan transaksi dikelompokkan per hari (timezone-aware)
     const transactionRevenue = await Transaction.aggregate([
       { $match: txnMatch },
       {
         $group: {
-          _id: { $dayOfMonth: '$date' },
+          _id: {
+            $dateToString: { format: '%d', date: '$date', timezone: TIMEZONE }
+          },
           revenue: { $sum: '$grand_total' },
           count: { $sum: 1 }
         }
@@ -221,12 +250,27 @@ exports.getMonthlyRevenue = async (req, res, next) => {
       { $sort: { _id: 1 } }
     ]);
 
-    // Pendapatan servis dikelompokkan per hari (hanya yang sudah diambil)
+    // Pendapatan servis (Picked_Up) — pakai $or agar tetap kebaca jika picked_up_at null
     const serviceRevenue = await ServiceTicket.aggregate([
-      { $match: svcMatch },
+      {
+        $match: {
+          status: 'Picked_Up',
+          $or: [
+            { 'history.picked_up_at': { $gte: startDate, $lte: endDate } },
+            { 'history.picked_up_at': null, 'history.completed_at': { $gte: startDate, $lte: endDate } },
+            { 'history.picked_up_at': null, 'history.completed_at': null, 'history.created_at': { $gte: startDate, $lte: endDate } }
+          ]
+        }
+      },
       {
         $group: {
-          _id: { $dayOfMonth: '$history.picked_up_at' },
+          _id: {
+            $dateToString: {
+              format: '%d',
+              date: { $ifNull: ['$history.picked_up_at', { $ifNull: ['$history.completed_at', '$history.created_at'] }] },
+              timezone: TIMEZONE
+            }
+          },
           revenue: { $sum: '$total_cost' },
           count: { $sum: 1 }
         }
@@ -237,8 +281,9 @@ exports.getMonthlyRevenue = async (req, res, next) => {
     // Gabungkan data berdasarkan hari
     const dailyBreakdown = {};
     transactionRevenue.forEach(item => {
-      dailyBreakdown[item._id] = {
-        day: item._id,
+      const dayNum = parseInt(item._id, 10);
+      dailyBreakdown[dayNum] = {
+        day: dayNum,
         retail_revenue: item.revenue,
         retail_count: item.count,
         service_revenue: 0,
@@ -247,17 +292,18 @@ exports.getMonthlyRevenue = async (req, res, next) => {
     });
 
     serviceRevenue.forEach(item => {
-      if (!dailyBreakdown[item._id]) {
-        dailyBreakdown[item._id] = {
-          day: item._id,
+      const dayNum = parseInt(item._id, 10);
+      if (!dailyBreakdown[dayNum]) {
+        dailyBreakdown[dayNum] = {
+          day: dayNum,
           retail_revenue: 0,
           retail_count: 0,
           service_revenue: item.revenue,
           service_count: item.count
         };
       } else {
-        dailyBreakdown[item._id].service_revenue = item.revenue;
-        dailyBreakdown[item._id].service_count = item.count;
+        dailyBreakdown[dayNum].service_revenue = item.revenue;
+        dailyBreakdown[dayNum].service_count = item.count;
       }
     });
 
@@ -306,14 +352,18 @@ exports.getRevenueByRange = async (req, res, next) => {
       });
     }
 
-    const validStart = validateDateParam(start_date, 'start_date');
-    const validEnd = validateDateParam(end_date, 'end_date');
+    // Parse tanggal langsung dari string YYYY-MM-DD (timezone-agnostic)
+    const sp = start_date.split('-');
+    const ep = end_date.split('-');
+    const sy = parseInt(sp[0]), sm = parseInt(sp[1]) - 1, sd = parseInt(sp[2]);
+    const ey = parseInt(ep[0]), em = parseInt(ep[1]) - 1, ed = parseInt(ep[2]);
 
-    validStart.setHours(0, 0, 0, 0);
-    validEnd.setHours(23, 59, 59, 999);
+    // Konversi ke UTC bounds untuk timezone Asia/Jakarta (WIB, UTC+7)
+    // 00:00 WIB = prev day 17:00 UTC, 23:59:59 WIB = same day 16:59:59 UTC
+    const utcStart = new Date(Date.UTC(sy, sm, sd - 1, 17, 0, 0, 0));
+    const utcEnd = new Date(Date.UTC(ey, em, ed, 16, 59, 59, 999));
 
-    const txnMatch = buildReportPipeline(validStart, validEnd, {});
-    const svcMatch = buildReportPipeline(validStart, validEnd, { status: 'Picked_Up' });
+    const txnMatch = buildReportPipeline(utcStart, utcEnd, {});
 
     // Pendapatan Ritel
     const retailRevenue = await Transaction.aggregate([
@@ -327,9 +377,18 @@ exports.getRevenueByRange = async (req, res, next) => {
       }
     ]);
 
-    // Pendapatan Servis (Hanya yang sudah diambil)
+    // Pendapatan Servis (Picked_Up) — tolerir jika picked_up_at null
     const serviceRevenue = await ServiceTicket.aggregate([
-      { $match: svcMatch },
+      {
+        $match: {
+          status: 'Picked_Up',
+          $or: [
+            { 'history.picked_up_at': { $gte: utcStart, $lte: utcEnd } },
+            { 'history.picked_up_at': null, 'history.completed_at': { $gte: utcStart, $lte: utcEnd } },
+            { 'history.picked_up_at': null, 'history.completed_at': null, 'history.created_at': { $gte: utcStart, $lte: utcEnd } }
+          ]
+        }
+      },
       {
         $group: {
           _id: null,
