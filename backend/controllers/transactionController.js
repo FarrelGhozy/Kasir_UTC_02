@@ -158,9 +158,14 @@ exports.getAllTransactions = async (req, res, next) => {
     
     if (start_date || end_date) {
       filter.date = {};
-      if (start_date) filter.date.$gte = new Date(start_date);
+      if (start_date) {
+        // Parse string YYYY-MM-DD sebagai local date (bukan UTC)
+        const parts = start_date.split('-');
+        filter.date.$gte = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+      }
       if (end_date) {
-        const end = new Date(end_date);
+        const parts = end_date.split('-');
+        const end = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
         end.setHours(23, 59, 59, 999);
         filter.date.$lte = end;
       }

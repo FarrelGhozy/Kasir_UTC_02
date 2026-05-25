@@ -1,6 +1,6 @@
 // public/js/modules/dashboard.js - Modul Ringkasan Dasbor (FIXED: Gabungan Aktivitas)
 
-import api, { formatCurrency, showError, loadScript, escapeHTML } from '../api.js';
+import api, { formatCurrency, showError, loadScript, escapeHTML, toLocalDateString } from '../api.js';
 
 class Dashboard {
     constructor() {
@@ -187,18 +187,19 @@ class Dashboard {
         return {
             start,
             end,
-            startISO: start.toISOString().split('T')[0],
-            endISO: end.toISOString().split('T')[0]
+            startLocal: toLocalDateString(start),
+            endLocal: toLocalDateString(end)
         };
     }
 
-    buildDailyBuckets(startDate, totalDays = 30) {
+    buildDailyBuckets(startLocal, totalDays = 30) {
         const buckets = [];
+        const startDate = new Date(startLocal + 'T00:00:00');
         for (let i = 0; i < totalDays; i += 1) {
             const date = new Date(startDate);
             date.setDate(startDate.getDate() + i);
             buckets.push({
-                key: date.toISOString().slice(0, 10),
+                key: toLocalDateString(date),
                 label: date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' }),
                 customers: 0,
                 income: 0
@@ -350,21 +351,25 @@ class Dashboard {
         if (typeof Chart === 'undefined') {
             await loadScript('https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js');
         }
-        const { start, startISO, endISO } = this.getLastThirtyDaysRange();
-        const buckets = this.buildDailyBuckets(start, 30);
+        if (typeof Chart === 'undefined') {
+            console.error('Chart.js gagal dimuat dari CDN');
+            return;
+        }
+        const { startLocal, endLocal } = this.getLastThirtyDaysRange();
+        const buckets = this.buildDailyBuckets(startLocal, 30);
         const bucketMap = new Map(buckets.map(b => [b.key, b]));
 
         try {
             const [transactionsRes, servicesRes] = await Promise.all([
-                api.getTransactions({ start_date: startISO, end_date: endISO, limit: 500 }),
-                api.getServiceTickets({ start_date: startISO, end_date: endISO, limit: 500 })
+                api.getTransactions({ start_date: startLocal, end_date: endLocal, limit: 500 }),
+                api.getServiceTickets({ start_date: startLocal, end_date: endLocal, limit: 500 })
             ]);
 
             const transactions = Array.isArray(transactionsRes?.data) ? transactionsRes.data : [];
             const services = Array.isArray(servicesRes?.data) ? servicesRes.data : [];
 
             transactions.forEach((txn) => {
-                const dateKey = new Date(txn.date).toISOString().slice(0, 10);
+                const dateKey = toLocalDateString(txn.date);
                 const bucket = bucketMap.get(dateKey);
                 if (!bucket) return;
                 bucket.customers += 1;
@@ -372,7 +377,7 @@ class Dashboard {
             });
 
             services.forEach((ticket) => {
-                const createdKey = new Date(ticket?.history?.created_at || ticket.createdAt).toISOString().slice(0, 10);
+                const createdKey = toLocalDateString(ticket?.history?.created_at || ticket.createdAt);
                 const createdBucket = bucketMap.get(createdKey);
                 if (createdBucket) {
                     createdBucket.customers += 1;
@@ -382,7 +387,7 @@ class Dashboard {
                 const completedAt = ticket?.history?.completed_at;
                 if (!isRevenueTicket || !completedAt) return;
 
-                const incomeKey = new Date(completedAt).toISOString().slice(0, 10);
+                const incomeKey = toLocalDateString(completedAt);
                 const incomeBucket = bucketMap.get(incomeKey);
                 if (!incomeBucket) return;
                 incomeBucket.income += Number(ticket.total_cost || 0);
