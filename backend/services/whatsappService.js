@@ -494,7 +494,19 @@ Bahwa benar Saya sebelumnya telah membaca dan menerima semua penjelasan dari UTC
       // Status WAHA: STARTING, SCAN_QR, WORKING, FAILED, STOPPED
       return response.data;
     } catch (error) {
-      console.error(`[WhatsApp] Gagal cek status session:`, error.message);
+      const statusCode = error.response?.status;
+      const respData = error.response?.data;
+      console.error(`[WhatsApp] Gagal cek status session:`, {
+        message: error.message,
+        status: statusCode,
+        response: respData,
+        url: `${this.baseURL}/api/sessions/${this.session}`,
+        code: error.code
+      });
+      // Bedakan antara session belum dibuat vs WAHA tidak terjangkau
+      if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND' || error.code === 'ETIMEDOUT') {
+        return { status: 'UNREACHABLE', error: `WAHA tidak terjangkau (${error.code})` };
+      }
       return { status: 'DISCONNECTED', error: error.message };
     }
   }
