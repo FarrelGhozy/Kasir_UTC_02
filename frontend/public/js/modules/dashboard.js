@@ -372,14 +372,14 @@ class Dashboard {
             });
 
             services.forEach((ticket) => {
-                const createdKey = new Date(ticket?.timestamps?.created_at).toISOString().slice(0, 10);
+                const createdKey = new Date(ticket?.history?.created_at || ticket.createdAt).toISOString().slice(0, 10);
                 const createdBucket = bucketMap.get(createdKey);
                 if (createdBucket) {
                     createdBucket.customers += 1;
                 }
 
                 const isRevenueTicket = ticket.status === 'Completed' || ticket.status === 'Picked_Up';
-                const completedAt = ticket?.timestamps?.completed_at;
+                const completedAt = ticket?.history?.completed_at;
                 if (!isRevenueTicket || !completedAt) return;
 
                 const incomeKey = new Date(completedAt).toISOString().slice(0, 10);
