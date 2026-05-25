@@ -46,7 +46,7 @@ class ReminderService {
     while (hasMore) {
       const query = {
         status: 'Completed',
-        'timestamps.completed_at': { $exists: true }
+        'history.completed_at': { $exists: true }
       };
       if (lastId) {
         query._id = { $gt: lastId };
@@ -64,9 +64,9 @@ class ReminderService {
 
       for (const ticket of tickets) {
         const now = new Date();
-        const completedAt = new Date(ticket.timestamps.completed_at);
-        const lastReminder = ticket.timestamps.last_customer_reminder_at
-          ? new Date(ticket.timestamps.last_customer_reminder_at)
+        const completedAt = new Date(ticket.history.completed_at);
+        const lastReminder = ticket.history.last_customer_reminder_at
+          ? new Date(ticket.history.last_customer_reminder_at)
           : null;
 
         const hoursSinceCompleted = (now - completedAt) / (1000 * 60 * 60);
@@ -81,7 +81,7 @@ class ReminderService {
             if (result && result.success) {
               await ServiceTicket.updateOne(
                 { _id: ticket._id },
-                { $set: { 'timestamps.last_customer_reminder_at': now } }
+                { $set: { 'history.last_customer_reminder_at': now } }
               );
             } else {
               console.warn(`[ReminderService] Gagal mengirim pengingat customer untuk tiket ${ticket.ticket_number}`);
@@ -187,9 +187,9 @@ class ReminderService {
 
       for (const ticket of tickets) {
         const now = new Date();
-        const createdAt = new Date(ticket.timestamps.created_at);
-        const lastReminder = ticket.timestamps.last_technician_reminder_at
-          ? new Date(ticket.timestamps.last_technician_reminder_at)
+        const createdAt = new Date(ticket.history.created_at);
+        const lastReminder = ticket.history.last_technician_reminder_at
+          ? new Date(ticket.history.last_technician_reminder_at)
           : null;
 
         const hoursSinceCreated = (now - createdAt) / (1000 * 60 * 60);
@@ -208,7 +208,7 @@ class ReminderService {
               if (result && result.success) {
                 await ServiceTicket.updateOne(
                   { _id: ticket._id },
-                  { $set: { 'timestamps.last_technician_reminder_at': now } }
+                  { $set: { 'history.last_technician_reminder_at': now } }
                 );
               } else {
                 console.warn(`[ReminderService] Gagal mengirim pengingat teknisi untuk tiket ${ticket.ticket_number}`);

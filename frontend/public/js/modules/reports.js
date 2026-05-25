@@ -639,7 +639,7 @@ class Reports {
                 head: [['Tiket', 'Tanggal', 'Pelanggan', 'Keluhan', 'Teknisi', 'Status', 'Total']],
                 body: data.services.map(s => [
                     s.ticket_number,
-                    formatDate(s.timestamps.picked_up_at),
+                    formatDate(s.history?.picked_up_at),
                     s.customer.name,
                     s.device.symptoms,
                     s.technician.name,

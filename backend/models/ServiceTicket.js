@@ -183,7 +183,7 @@ const serviceTicketSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'ServiceTicket'
   },
-  timestamps: {
+  history: {
     created_at: {
       type: Date,
       default: Date.now
@@ -209,9 +209,9 @@ const serviceTicketSchema = new mongoose.Schema({
 // Indexes
 serviceTicketSchema.index({ status: 1 });
 serviceTicketSchema.index({ 'technician.id': 1 });
-serviceTicketSchema.index({ 'timestamps.created_at': -1 });
+serviceTicketSchema.index({ 'history.created_at': -1 });
 serviceTicketSchema.index({ 'customer.phone': 1 });
-serviceTicketSchema.index({ status: 1, 'timestamps.picked_up_at': 1 });
+serviceTicketSchema.index({ status: 1, 'history.picked_up_at': 1 });
 serviceTicketSchema.index({ 'technician.id': 1, status: 1 });
 serviceTicketSchema.index({ ticket_number: 1 });
 
@@ -239,10 +239,10 @@ serviceTicketSchema.statics.generateTicketNumber = async function() {
   const year = new Date().getFullYear();
   const prefix = `SRV-${year}`;
   
-  // FIX: Sort by timestamps.created_at (waktu), bukan string ticket_number
+  // FIX: Sort by history.created_at (waktu), bukan string ticket_number
   const lastTicket = await this.findOne({
     ticket_number: new RegExp(`^${prefix}`)
-  }).sort({ 'timestamps.created_at': -1 });
+  }).sort({ 'history.created_at': -1 });
   
   let nextNumber = 1;
   if (lastTicket) {
@@ -313,13 +313,13 @@ serviceTicketSchema.methods.updateStatus = async function(newStatus, paymentMeth
 
   this.status = newStatus;
   
-  if (newStatus === 'Diagnosing' && !this.timestamps.diagnosed_at) {
-    this.timestamps.diagnosed_at = new Date();
-  } else if (newStatus === 'Completed' && !this.timestamps.completed_at) {
-    this.timestamps.completed_at = new Date();
+  if (newStatus === 'Diagnosing' && !this.history.diagnosed_at) {
+    this.history.diagnosed_at = new Date();
+  } else if (newStatus === 'Completed' && !this.history.completed_at) {
+    this.history.completed_at = new Date();
   } else if (newStatus === 'Picked_Up') {
-    if (!this.timestamps.picked_up_at) {
-      this.timestamps.picked_up_at = new Date();
+    if (!this.history.picked_up_at) {
+      this.history.picked_up_at = new Date();
     }
     if (paymentMethod) this.payment_method = paymentMethod;
     if (paymentProof) this.payment_proof = paymentProof;
@@ -336,8 +336,8 @@ serviceTicketSchema.methods.updateStatus = async function(newStatus, paymentMeth
 
 // Virtual untuk durasi pengerjaan dalam hari
 serviceTicketSchema.virtual('duration_days').get(function() {
-  if (!this.timestamps.completed_at) return null;
-  const diff = this.timestamps.completed_at - this.timestamps.created_at;
+  if (!this.history.completed_at) return null;
+  const diff = this.history.completed_at - this.history.created_at;
   return Math.ceil(diff / (1000 * 60 * 60 * 24));
 });
 

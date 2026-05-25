@@ -483,7 +483,7 @@ class Dashboard {
                 type: 'service',
                 id: ticket.ticket_number,
                 actor: ticket.technician.name, // Atau nama customer jika lebih relevan
-                date: new Date(ticket.timestamps.completed_at || ticket.timestamps.created_at),
+                date: new Date(ticket.history?.completed_at || ticket.history?.created_at || ticket.createdAt),
                 amount: ticket.total_cost || 0,
                 status: ticket.status === 'Picked_Up' ? 'Diambil' : 'Selesai',
                 icon: 'bi-tools',

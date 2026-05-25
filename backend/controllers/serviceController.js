@@ -145,15 +145,15 @@ exports.getAllTickets = async (req, res, next) => {
     if (customer_phone) filter['customer.phone'] = customer_phone;
     
     if (start_date || end_date) {
-      filter['timestamps.created_at'] = {};
-      if (start_date) filter['timestamps.created_at'].$gte = new Date(start_date);
-      if (end_date) filter['timestamps.created_at'].$lte = new Date(end_date);
+      filter['history.created_at'] = {};
+      if (start_date) filter['history.created_at'].$gte = new Date(start_date);
+      if (end_date) filter['history.created_at'].$lte = new Date(end_date);
     }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     const tickets = await ServiceTicket.find(filter)
-      .sort({ 'timestamps.created_at': -1 })
+      .sort({ 'history.created_at': -1 })
       .skip(skip)
       .limit(parseInt(limit));
 

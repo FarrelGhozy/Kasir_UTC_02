@@ -813,20 +813,20 @@ class Service {
             
             // Logika Durasi
             let durationLabel = 'Durasi Masuk';
-            let durationValue = calculateElapsedTime(t.timestamps.created_at);
+            let durationValue = calculateElapsedTime(t.history.created_at);
             let durationColor = 'text-muted';
 
             if (t.status === 'Completed') {
                 durationLabel = 'Selesai Sejak';
-                durationValue = calculateElapsedTime(t.timestamps.completed_at);
+                durationValue = calculateElapsedTime(t.history.completed_at);
                 durationColor = 'text-success';
             } else if (t.status === 'Picked_Up') {
                 durationLabel = 'Total Servis';
-                durationValue = calculateElapsedTime(t.timestamps.created_at, t.timestamps.picked_up_at);
+                durationValue = calculateElapsedTime(t.history.created_at, t.history.picked_up_at);
                 durationColor = 'text-dark';
             } else {
                 // Untuk status aktif (Queue, Diagnosing, etc)
-                const hours = (new Date() - new Date(t.timestamps.created_at)) / (1000 * 60 * 60);
+                const hours = (new Date() - new Date(t.history.created_at)) / (1000 * 60 * 60);
                 if (hours > 48) durationColor = 'text-danger fw-bold';
                 else if (hours > 24) durationColor = 'text-warning fw-bold';
             }
@@ -874,7 +874,7 @@ class Service {
                         <div class="d-flex justify-content-between align-items-start mb-2">
                             <div>
                                 <h6 class="fw-bold mb-0 text-dark">#${t.ticket_number}</h6>
-                                <small class="text-muted">${formatDateTime(t.timestamps.created_at)}</small>
+                                <small class="text-muted">${formatDateTime(t.history.created_at)}</small>
                             </div>
                             <div class="text-end">
                                 ${this.getStatusBadge(t.status)}
@@ -1404,9 +1404,9 @@ class Service {
                         <h6 class="fw-bold text-primary border-bottom pb-2 mb-3"><i class="bi bi-clock me-2"></i>TIMELINE & PETUGAS</h6>
                         <table class="table table-sm table-borderless mb-0">
                             <tr><td width="110" class="text-secondary">Teknisi</td><td>: <strong>${t.technician.name}</strong></td></tr>
-                            <tr><td class="text-secondary">Waktu Masuk</td><td>: ${formatDateTime(t.timestamps.created_at)}</td></tr>
-                            ${t.timestamps.completed_at ? `<tr><td class="text-secondary text-success fw-bold">Waktu Selesai</td><td>: ${formatDateTime(t.timestamps.completed_at)}</td></tr>` : ''}
-                            ${t.timestamps.picked_up_at ? `<tr><td class="text-secondary text-primary fw-bold">Waktu Keluar</td><td>: ${formatDateTime(t.timestamps.picked_up_at)}</td></tr>` : ''}
+                            <tr><td class="text-secondary">Waktu Masuk</td><td>: ${formatDateTime(t.history.created_at)}</td></tr>
+                            ${t.history.completed_at ? `<tr><td class="text-secondary text-success fw-bold">Waktu Selesai</td><td>: ${formatDateTime(t.history.completed_at)}</td></tr>` : ''}
+                            ${t.history.picked_up_at ? `<tr><td class="text-secondary text-primary fw-bold">Waktu Keluar</td><td>: ${formatDateTime(t.history.picked_up_at)}</td></tr>` : ''}
                         </table>
                     </div>
                 </div>
