@@ -15,7 +15,7 @@ const SystemLog = require('../models/SystemLog');
 exports.exportData = async (req, res, next) => {
   try {
     const data = {
-      users: await User.find({}).lean(),
+      users: await User.find({}).select('+password').lean(),
       items: await Item.find({}).lean(),
       service_tickets: await ServiceTicket.find({}).lean(),
       transactions: await Transaction.find({}).lean(),
@@ -51,7 +51,7 @@ exports.importData = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Format file backup tidak valid' });
     }
 
-    const currentAdmin = await User.findById(req.user.id).lean();
+    const currentAdmin = await User.findById(req.user.id).select('+password').lean();
 
     // Simpan data admin agar tetap bisa login setelah restore
     const adminDoc = { ...currentAdmin };
