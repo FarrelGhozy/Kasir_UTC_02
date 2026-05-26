@@ -15,7 +15,7 @@ const SystemLog = require('../models/SystemLog');
 exports.exportData = async (req, res, next) => {
   try {
     const data = {
-      users: await User.find({}).lean(),
+      users: await User.find({}).select('+password').lean(),
       items: await Item.find({}).lean(),
       service_tickets: await ServiceTicket.find({}).lean(),
       transactions: await Transaction.find({}).lean(),
@@ -51,34 +51,41 @@ exports.importData = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Format file backup tidak valid' });
     }
 
-    const currentAdmin = await User.findById(req.user.id);
+    const currentAdmin = await User.findById(req.user.id).select('+password').lean();
 
-    // 1. Insert data baru dulu
+    // Simpan data admin agar tetap bisa login setelah restore
+    const adminDoc = { ...currentAdmin };
+    delete adminDoc._id;
+
+    // 1. Hapus SEMUA data lama terlebih dahulu
+    await Promise.all([
+      User.deleteMany({}),
+      Item.deleteMany({}),
+      ServiceTicket.deleteMany({}),
+      Transaction.deleteMany({}),
+      SpecialOrder.deleteMany({}),
+      SystemLog.deleteMany({})
+    ]);
+
+    // 2. Insert data dari backup (tanpa hook agar password tetap ter-hash)
     const insertOps = [];
-    if (data.users?.length > 0) insertOps.push(User.insertMany(data.users));
-    if (data.items?.length > 0) insertOps.push(Item.insertMany(data.items));
-    if (data.service_tickets?.length > 0) insertOps.push(ServiceTicket.insertMany(data.service_tickets));
-    if (data.transactions?.length > 0) insertOps.push(Transaction.insertMany(data.transactions));
-    if (data.special_orders?.length > 0) insertOps.push(SpecialOrder.insertMany(data.special_orders));
-    if (data.system_logs?.length > 0) insertOps.push(SystemLog.insertMany(data.system_logs));
+    if (data.users?.length > 0) {
+      // Filter admin yg sedang login agar tidak konflik — nanti di-insert manual
+      const filteredUsers = data.users.filter(u => u.username !== currentAdmin.username);
+      if (filteredUsers.length > 0) insertOps.push(User.collection.insertMany(filteredUsers));
+    }
+    if (data.items?.length > 0) insertOps.push(Item.collection.insertMany(data.items));
+    if (data.service_tickets?.length > 0) insertOps.push(ServiceTicket.collection.insertMany(data.service_tickets));
+    if (data.transactions?.length > 0) insertOps.push(Transaction.collection.insertMany(data.transactions));
+    if (data.special_orders?.length > 0) insertOps.push(SpecialOrder.collection.insertMany(data.special_orders));
+    if (data.system_logs?.length > 0) insertOps.push(SystemLog.collection.insertMany(data.system_logs));
 
     await Promise.all(insertOps);
 
-    // 2. Hapus collection lama (hanya jika insert berhasil)
-    await User.deleteMany({ _id: { $nin: (await User.find({ username: currentAdmin.username }).select('_id')).map(u => u._id) } });
-    await Item.deleteMany({});
-    await ServiceTicket.deleteMany({});
-    await Transaction.deleteMany({});
-    await SpecialOrder.deleteMany({});
-    await SystemLog.deleteMany({});
-
-    // 3. Pastikan admin pengimpor tetap bisa login (insertOne dengan password sudah di-hash, lewati pre-save hook)
-    const adminExists = await User.findOne({ username: currentAdmin.username });
+    // 3. Insert ulang admin yg sedang login (pakai collection.insertOne agar pre('save') hook tidak terpicu)
+    const adminExists = await User.collection.findOne({ username: currentAdmin.username });
     if (!adminExists) {
-      const adminDoc = currentAdmin.toObject();
-      delete adminDoc._id;
-      // Pakai insertOne agar pre('save') hook (hash password) tidak terpicu
-      await User.collection.insertOne(adminDoc);
+      await User.collection.insertOne({ ...adminDoc, _id: currentAdmin._id });
     }
 
     res.status(200).json({
