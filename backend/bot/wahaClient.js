@@ -11,8 +11,10 @@ async function sendReply(phone, text) {
       return;
     }
 
-    let cleanPhone = phone.toString().split('@')[0].replace(/\D/g, '');
-    const chatId = `${cleanPhone}@c.us`;
+    let chatId = phone.toString();
+    if (!chatId.includes('@')) {
+      chatId = `${chatId}@c.us`;
+    }
 
     const url = `${WAHA_BASE_URL}/api/sendText`;
     console.log(`[Bot] Mengirim balasan ke ${chatId}...`);
@@ -23,7 +25,7 @@ async function sendReply(phone, text) {
       session: WAHA_SESSION
     }, {
       headers: { 'X-Api-Key': WAHA_API_KEY },
-      timeout: 10000 
+      timeout: 30000 
     });
     
     console.log(`[Bot] Balasan terkirim ke ${chatId}.`);
