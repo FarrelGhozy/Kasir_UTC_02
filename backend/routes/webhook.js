@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { handleIncomingMessage } = require('../bot/botHandler');
+const { markChatUnread } = require('../bot/wahaClient');
 
 // Deduplikasi webhook — cache message ID yang sudah diproses (15 detik)
 const processedMessages = new Map();
@@ -100,6 +101,10 @@ router.post('/waha-webhook', async (req, res) => {
 
         if (normalized.from) {
           await handleIncomingMessage(normalized);
+          // Mark chat sbg belum dibaca — centang biru tidak muncul di pengirim
+          if (!normalized.fromMe) {
+            markChatUnread(normalized.from).catch(() => {});
+          }
         } else {
           console.log('[WAHA Webhook] from kosong, dilewati');
         }

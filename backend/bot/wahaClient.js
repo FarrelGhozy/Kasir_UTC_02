@@ -34,4 +34,25 @@ async function sendReply(phone, text) {
   }
 }
 
-module.exports = { sendReply };
+async function markChatUnread(phone) {
+  try {
+    if (!WAHA_BASE_URL || !WAHA_API_KEY) return;
+    let chatId = phone.toString();
+    if (!chatId.includes('@')) {
+      chatId = `${chatId}@c.us`;
+    }
+    const url = `${WAHA_BASE_URL}/api/${WAHA_SESSION}/chats/${encodeURIComponent(chatId)}/unread`;
+    await axios.post(url, {}, {
+      headers: { 'X-Api-Key': WAHA_API_KEY },
+      timeout: 5000
+    });
+    console.log(`[Bot] Chat ${chatId} ditandai belum dibaca.`);
+  } catch (error) {
+    // Gagal mark unread bukan masalah krusial
+    if (error.response?.status !== 404) {
+      console.error('[Bot] Gagal mark unread:', error.message);
+    }
+  }
+}
+
+module.exports = { sendReply, markChatUnread };
