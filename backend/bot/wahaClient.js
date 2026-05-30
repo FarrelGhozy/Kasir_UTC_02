@@ -11,8 +11,10 @@ async function sendReply(phone, text) {
       return;
     }
 
-    let cleanPhone = phone.toString().split('@')[0].replace(/\D/g, '');
-    const chatId = `${cleanPhone}@c.us`;
+    let chatId = phone.toString();
+    if (!chatId.includes('@')) {
+      chatId = `${chatId}@c.us`;
+    }
 
     const url = `${WAHA_BASE_URL}/api/sendText`;
     console.log(`[Bot] Mengirim balasan ke ${chatId}...`);
@@ -23,7 +25,7 @@ async function sendReply(phone, text) {
       session: WAHA_SESSION
     }, {
       headers: { 'X-Api-Key': WAHA_API_KEY },
-      timeout: 10000 
+      timeout: 30000 
     });
     
     console.log(`[Bot] Balasan terkirim ke ${chatId}.`);
@@ -32,4 +34,25 @@ async function sendReply(phone, text) {
   }
 }
 
-module.exports = { sendReply };
+async function markChatUnread(phone) {
+  try {
+    if (!WAHA_BASE_URL || !WAHA_API_KEY) return;
+    let chatId = phone.toString();
+    if (!chatId.includes('@')) {
+      chatId = `${chatId}@c.us`;
+    }
+    const url = `${WAHA_BASE_URL}/api/${WAHA_SESSION}/chats/${encodeURIComponent(chatId)}/unread`;
+    await axios.post(url, {}, {
+      headers: { 'X-Api-Key': WAHA_API_KEY },
+      timeout: 5000
+    });
+    console.log(`[Bot] Chat ${chatId} ditandai belum dibaca.`);
+  } catch (error) {
+    // Gagal mark unread bukan masalah krusial
+    if (error.response?.status !== 404) {
+      console.error('[Bot] Gagal mark unread:', error.message);
+    }
+  }
+}
+
+module.exports = { sendReply, markChatUnread };

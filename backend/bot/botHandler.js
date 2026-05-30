@@ -52,17 +52,17 @@ async function handleIncomingMessage(payload) {
         waitMsg = `${getClosedMessage(status.reason)}\n\n${waitMsg}`;
       }
 
-      await sendReply(from, waitMsg);
+      try {
+        await sendReply(from, waitMsg);
+      } catch (err) {
+        console.error(`[Bot] Gagal kirim waitMsg ke ${from}:`, err.message);
+      }
       waitMessageThrottling.set(from, now);
     }
     return;
   }
 
-  // 3. Update Session Timestamp & Reset Throttle
-  chatSessions.set(from, now);
-  waitMessageThrottling.set(from, now);
-
-  // 4. Susun Pesan Sambutan Lengkap
+  // 3. Susun Pesan Sambutan Lengkap
   let welcomeMsg = `Assalamualaikum Warahmatullahi Wabarakatuh / Halo Kak! 👋\n\nSelamat datang di *${config.BUSINESS_NAME}*.\n\nKami melayani:\n${config.SERVICES.map(s => `• ${s}`).join('\n')}\n\n`;
 
   if (!status.open) {
@@ -71,7 +71,14 @@ async function handleIncomingMessage(payload) {
 
   welcomeMsg += `*Jam Operasional UTC:*\n🗓️ Setiap Hari (Kecuali Jumat)\n🕗 08.00 - 15.00 WIB\n\nPesan Kakak sudah kami terima. Mohon ditunggu ya, Admin kami akan segera merespons pesan Kakak. Terima kasih atas kesabarannya. 😊🙏`;
 
-  await sendReply(from, welcomeMsg);
+  try {
+    await sendReply(from, welcomeMsg);
+    // 4. Update Session hanya jika kirim sukses
+    chatSessions.set(from, now);
+    waitMessageThrottling.set(from, now);
+  } catch (err) {
+    console.error(`[Bot] Gagal kirim sambutan ke ${from}:`, err.message);
+  }
 }
 
 module.exports = { handleIncomingMessage };
