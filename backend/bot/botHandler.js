@@ -5,6 +5,20 @@ const { sendReply } = require('./wahaClient');
 const chatSessions = new Map();
 const waitMessageThrottling = new Map(); // Untuk mencegah spam pesan "tunggu"
 
+const TECHNICIAN_PHONES = new Set([
+  '6282133713565', // Farrel
+  '6289654510812', // Kaukab
+  '6283899674625', // Rasya
+  '6285101429027', // Tamam
+  '6281252828633', // Noer Syamsi
+  '6285385500382', // Baso Akbar
+  '6285281762499', // Fahri
+  '6281515153321', // Albi
+  '6285716696578', // Lutfiansyah
+  '62895320648811', // Fayad
+  '6282325571742', // Raffael Akbar
+]);
+
 const WAIT_THROTTLE_TIME = 15 * 60 * 1000; // 15 Menit
 
 function sleep(ms) {
@@ -43,6 +57,13 @@ async function handleIncomingMessage(payload) {
   const { from, fromMe, isGroup, isStatus } = payload;
 
   if (fromMe || isGroup || isStatus || from.includes('@g.us')) return;
+
+  // Skip balasan otomatis jika pengirim adalah teknisi
+  const senderPhone = from.replace('@c.us', '').replace('@s.whatsapp.net', '');
+  if (TECHNICIAN_PHONES.has(senderPhone)) {
+    console.log(`[Bot] Teknisi ${senderPhone} — dilewati (tidak dikirimi welcome)`);
+    return;
+  }
 
   const now = Date.now();
   const lastChat = chatSessions.get(from);
