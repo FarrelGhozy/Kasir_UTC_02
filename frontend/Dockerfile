@@ -10,23 +10,26 @@ RUN echo 'server {\
   server_name _;\
   root /usr/share/nginx/html;\
   index index.html;\
+  client_max_body_size 10m;\
   add_header X-Frame-Options "SAMEORIGIN" always;\
   add_header X-Content-Type-Options "nosniff" always;\
   add_header X-XSS-Protection "1; mode=block" always;\
   location ^~ /api/ {\
     proxy_pass '"$API_PROXY_PASS"';\
     proxy_http_version 1.1;\
+    client_max_body_size 10m;\
     proxy_set_header Upgrade $http_upgrade;\
     proxy_set_header Connection "upgrade";\
     proxy_set_header Host $http_host;\
     proxy_set_header X-Real-IP $remote_addr;\
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\
     proxy_set_header X-Forwarded-Proto $scheme;\
-    proxy_read_timeout 60s;\
-    proxy_send_timeout 60s;\
+    proxy_read_timeout 120s;\
+    proxy_send_timeout 120s;\
   }\
   location /backend/uploads/services/ {\
     proxy_pass '"$API_PROXY_PASS"';\
+    client_max_body_size 10m;\
     proxy_set_header Host $http_host;\
     proxy_set_header X-Real-IP $remote_addr;\
   }\
