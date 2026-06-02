@@ -7,6 +7,14 @@ const waitMessageThrottling = new Map(); // Untuk mencegah spam pesan "tunggu"
 
 const WAIT_THROTTLE_TIME = 15 * 60 * 1000; // 15 Menit
 
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function randomDelay(min, max) {
+  return Math.floor(Math.random() * (max - min + 1) + min);
+}
+
 function isWorkingHours() {
   if (process.env.IS_CAMPUS_EVENT === 'true') return { open: false, reason: 'event' };
   
@@ -40,7 +48,7 @@ async function handleIncomingMessage(payload) {
   const lastChat = chatSessions.get(from);
   const status = isWorkingHours();
 
-  // 2. Logika Session (12 Jam)
+  // 2. Logika Session (1 Jam)
   if (lastChat && (now - lastChat < config.SESSION_LIMIT)) {
     const lastWaitSent = waitMessageThrottling.get(from);
 
@@ -52,6 +60,7 @@ async function handleIncomingMessage(payload) {
         waitMsg = `${getClosedMessage(status.reason)}\n\n${waitMsg}`;
       }
 
+      await sleep(randomDelay(2000, 4000));
       try {
         await sendReply(from, waitMsg);
       } catch (err) {
@@ -71,9 +80,10 @@ async function handleIncomingMessage(payload) {
 
   welcomeMsg += `*Jam Operasional UTC:*\n🗓️ Setiap Hari (Kecuali Jumat)\n🕗 08.00 - 15.00 WIB\n\nPesan Kakak sudah kami terima. Mohon ditunggu ya, Admin kami akan segera merespons pesan Kakak. Terima kasih atas kesabarannya. 😊🙏`;
 
+  await sleep(randomDelay(2000, 4000));
   try {
     await sendReply(from, welcomeMsg);
-    // 4. Update Session hanya jika kirim sukses
+    // 3. Update Session hanya jika kirim sukses
     chatSessions.set(from, now);
     waitMessageThrottling.set(from, now);
   } catch (err) {
