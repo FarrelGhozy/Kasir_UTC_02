@@ -87,13 +87,15 @@ app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
-  message: { success: false, message: 'Terlalu banyak percobaan login. Coba lagi 15 menit.' }
+  message: { success: false, message: 'Terlalu banyak percobaan login. Coba lagi 15 menit.' },
+  validate: { trustProxy: false }
 });
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 500,
-  message: { success: false, message: 'Terlalu banyak permintaan. Coba lagi nanti.' }
+  message: { success: false, message: 'Terlalu banyak permintaan. Coba lagi nanti.' },
+  validate: { trustProxy: false }
 });
 
 app.use('/api/auth/login', loginLimiter);
