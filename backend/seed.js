@@ -17,12 +17,17 @@ const connectDB = async () => {
 
 // --- DATA TEKNISI ---
 const TECHNICIANS = [
-  { name: 'Wildan', username: 'wildan_utc', password: 'password_wildan_123', phone: '6281234567890' },
-  { name: 'Kaukab', username: 'kaukab_utc', password: 'password_kaukab_456', phone: '6281234567891' },
-  { name: 'Rasya', username: 'rasya_utc', password: 'password_rasya_789', phone: '6281234567892' },
-  { name: 'Tamam', username: 'tamam_utc', password: 'password_tamam_012', phone: '6281234567893' },
-  { name: 'Noer Syamsi', username: 'syamsi_utc', password: 'password_syamsi_345', phone: '6281234567894' },
-  { name: 'Baso Akbar', username: 'akbar_utc', password: 'password_akbar_678', phone: '6281234567895' }
+  { name: 'Farrel', username: 'farrel_utc', password: 'Teknisiutc26', phone: '6282133713565' },
+  { name: 'Kaukab', username: 'kaukab_utc', password: 'Teknisiutc26', phone: '6289654510812' },
+  { name: 'Rasya', username: 'rasya_utc', password: 'Teknisiutc26', phone: '6283899674625' },
+  { name: 'Tamam', username: 'tamam_utc', password: 'Teknisiutc26', phone: '6285101429027' },
+  { name: 'Noer Syamsi', username: 'syamsi_utc', password: 'Teknisiutc26', phone: '6281252828633' },
+  { name: 'Baso Akbar', username: 'akbar_utc', password: 'Teknisiutc26', phone: '6285385500382' },
+  { name: 'Fahri', username: 'fahri_utc', password: 'Teknisiutc26', phone: '6285281762499' },
+  { name: 'Albi', username: 'albi_utc', password: 'Teknisiutc26', phone: '6281515153321' },
+  { name: 'Lutfiansyah', username: 'lutfiansyah_utc', password: 'Teknisiutc26', phone: '6285716696578' },
+  { name: 'Fayad', username: 'fayad_utc', password: 'Teknisiutc26', phone: '62895320648811' },
+  { name: 'Raffael Akbar', username: 'raffael_utc', password: 'Teknisiutc26', phone: '6282325571742' }
 ];
 
 const seedTechnicians = async () => {
@@ -86,7 +91,7 @@ const seedDefaultUsers = async () => {
       name: 'Admin UTC',
 
       username: 'admin-utc01',
-      password: 'adminutc28',
+      password: 'adminrahasia26',
 
       role: 'admin'
     },

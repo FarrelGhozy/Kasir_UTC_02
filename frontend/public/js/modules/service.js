@@ -210,6 +210,10 @@ class Service {
                 .photo-upload-box.has-image .remove-photo {
                     display: flex;
                 }
+                .photo-grid-input + .mb-3 .btn:hover {
+                    border-color: #0d6efd;
+                    background: #f0f7ff;
+                }
             `;
             document.head.appendChild(style);
         }
@@ -258,40 +262,47 @@ class Service {
                                     </select>
                                 </div>
 
-                                <h6 class="border-bottom pb-2 mb-3 mt-4 fw-bold text-secondary">Foto Perangkat (Opsional)</h6>
-                                <div class="photo-grid-input mb-3">
-                                    <div class="photo-upload-box" onclick="this.querySelector('input').click()">
-                                        <i class="bi bi-camera"></i>
-                                        <span>Depan</span>
-                                        <input type="file" class="d-none device-photo" data-side="front" accept="image/*" onchange="service.handlePhotoInput(this)">
-                                        <img class="d-none">
-                                        <button type="button" class="remove-photo" onclick="event.stopPropagation(); service.removePhoto(this)"><i class="bi bi-x"></i></button>
-                                    </div>
-                                    <div class="photo-upload-box" onclick="this.querySelector('input').click()">
-                                        <i class="bi bi-camera"></i>
-                                        <span>Belakang</span>
-                                        <input type="file" class="d-none device-photo" data-side="back" accept="image/*" onchange="service.handlePhotoInput(this)">
-                                        <img class="d-none">
-                                        <button type="button" class="remove-photo" onclick="event.stopPropagation(); service.removePhoto(this)"><i class="bi bi-x"></i></button>
-                                    </div>
-                                    <div class="photo-upload-box" onclick="this.querySelector('input').click()">
-                                        <i class="bi bi-camera"></i>
-                                        <span>Kiri</span>
-                                        <input type="file" class="d-none device-photo" data-side="left" accept="image/*" onchange="service.handlePhotoInput(this)">
-                                        <img class="d-none">
-                                        <button type="button" class="remove-photo" onclick="event.stopPropagation(); service.removePhoto(this)"><i class="bi bi-x"></i></button>
-                                    </div>
-                                    <div class="photo-upload-box" onclick="this.querySelector('input').click()">
-                                        <i class="bi bi-camera"></i>
-                                        <span>Kanan</span>
-                                        <input type="file" class="d-none device-photo" data-side="right" accept="image/*" onchange="service.handlePhotoInput(this)">
-                                        <img class="d-none">
-                                        <button type="button" class="remove-photo" onclick="event.stopPropagation(); service.removePhoto(this)"><i class="bi bi-x"></i></button>
-                                    </div>
-                                </div>
-                                <div id="photo-compression-msg" class="small text-muted mb-3 d-none">
-                                    <div class="spinner-border spinner-border-sm text-primary me-1"></div> Mengompres foto...
-                                </div>
+                                 <h6 class="border-bottom pb-2 mb-3 mt-4 fw-bold text-secondary">Foto Perangkat (Opsional)</h6>
+                                 <div class="photo-grid-input mb-3">
+                                     <div class="photo-upload-box" onclick="this.querySelector('input').click()">
+                                         <i class="bi bi-camera"></i>
+                                         <span>Depan</span>
+                                         <input type="file" class="d-none device-photo" data-side="front" accept="image/*" onchange="service.handlePhotoInput(this)">
+                                         <img class="d-none">
+                                         <button type="button" class="remove-photo" onclick="event.stopPropagation(); service.removePhoto(this)"><i class="bi bi-x"></i></button>
+                                     </div>
+                                     <div class="photo-upload-box" onclick="this.querySelector('input').click()">
+                                         <i class="bi bi-camera"></i>
+                                         <span>Belakang</span>
+                                         <input type="file" class="d-none device-photo" data-side="back" accept="image/*" onchange="service.handlePhotoInput(this)">
+                                         <img class="d-none">
+                                         <button type="button" class="remove-photo" onclick="event.stopPropagation(); service.removePhoto(this)"><i class="bi bi-x"></i></button>
+                                     </div>
+                                     <div class="photo-upload-box" onclick="this.querySelector('input').click()">
+                                         <i class="bi bi-camera"></i>
+                                         <span>Kiri</span>
+                                         <input type="file" class="d-none device-photo" data-side="left" accept="image/*" onchange="service.handlePhotoInput(this)">
+                                         <img class="d-none">
+                                         <button type="button" class="remove-photo" onclick="event.stopPropagation(); service.removePhoto(this)"><i class="bi bi-x"></i></button>
+                                     </div>
+                                     <div class="photo-upload-box" onclick="this.querySelector('input').click()">
+                                         <i class="bi bi-camera"></i>
+                                         <span>Kanan</span>
+                                         <input type="file" class="d-none device-photo" data-side="right" accept="image/*" onchange="service.handlePhotoInput(this)">
+                                         <img class="d-none">
+                                         <button type="button" class="remove-photo" onclick="event.stopPropagation(); service.removePhoto(this)"><i class="bi bi-x"></i></button>
+                                     </div>
+                                 </div>
+                                 <div class="mb-3">
+                                     <button type="button" class="btn btn-outline-secondary btn-sm w-100" onclick="document.getElementById('bulk-photo-upload').click()">
+                                         <i class="bi bi-images me-1"></i>Upload 4 Foto Sekaligus
+                                     </button>
+                                     <input type="file" id="bulk-photo-upload" class="d-none" multiple accept="image/*" onchange="service.handleBulkPhotoUpload(this)">
+                                     <div class="small text-muted mt-1">Pilih hingga 4 foto — otomatis terisi ke Depan/Belakang/Kiri/Kanan</div>
+                                 </div>
+                                 <div id="photo-compression-msg" class="small text-muted mb-3 d-none">
+                                     <div class="spinner-border spinner-border-sm text-primary me-1"></div> Mengompres foto...
+                                 </div>
 
                                 <h6 class="border-bottom pb-2 mb-3 mt-4 fw-bold text-secondary">Perangkat & Masalah</h6>
 
@@ -460,38 +471,45 @@ class Service {
                                 <div class="row g-2 mb-3" id="edit-photos-preview">
                                     <!-- Preview foto lama akan muncul di sini -->
                                 </div>
-                                <div class="photo-grid-input mb-3">
-                                    <div class="photo-upload-box" onclick="this.querySelector('input').click()">
-                                        <i class="bi bi-camera"></i>
-                                        <span>Ganti Depan</span>
-                                        <input type="file" class="d-none edit-device-photo" data-side="front" accept="image/*" onchange="service.handlePhotoInput(this)">
-                                        <img class="d-none">
-                                        <button type="button" class="remove-photo" onclick="event.stopPropagation(); service.removePhoto(this)"><i class="bi bi-x"></i></button>
-                                    </div>
-                                    <div class="photo-upload-box" onclick="this.querySelector('input').click()">
-                                        <i class="bi bi-camera"></i>
-                                        <span>Ganti Belakang</span>
-                                        <input type="file" class="d-none edit-device-photo" data-side="back" accept="image/*" onchange="service.handlePhotoInput(this)">
-                                        <img class="d-none">
-                                        <button type="button" class="remove-photo" onclick="event.stopPropagation(); service.removePhoto(this)"><i class="bi bi-x"></i></button>
-                                    </div>
-                                    <div class="photo-upload-box" onclick="this.querySelector('input').click()">
-                                        <i class="bi bi-camera"></i>
-                                        <span>Ganti Kiri</span>
-                                        <input type="file" class="d-none edit-device-photo" data-side="left" accept="image/*" onchange="service.handlePhotoInput(this)">
-                                        <img class="d-none">
-                                        <button type="button" class="remove-photo" onclick="event.stopPropagation(); service.removePhoto(this)"><i class="bi bi-x"></i></button>
-                                    </div>
-                                    <div class="photo-upload-box" onclick="this.querySelector('input').click()">
-                                        <i class="bi bi-camera"></i>
-                                        <span>Ganti Kanan</span>
-                                        <input type="file" class="d-none edit-device-photo" data-side="right" accept="image/*" onchange="service.handlePhotoInput(this)">
-                                        <img class="d-none">
-                                        <button type="button" class="remove-photo" onclick="event.stopPropagation(); service.removePhoto(this)"><i class="bi bi-x"></i></button>
-                                    </div>
-                                </div>
+                                 <div class="photo-grid-input mb-3">
+                                     <div class="photo-upload-box" onclick="this.querySelector('input').click()">
+                                         <i class="bi bi-camera"></i>
+                                         <span>Ganti Depan</span>
+                                         <input type="file" class="d-none edit-device-photo" data-side="front" accept="image/*" onchange="service.handlePhotoInput(this)">
+                                         <img class="d-none">
+                                         <button type="button" class="remove-photo" onclick="event.stopPropagation(); service.removePhoto(this)"><i class="bi bi-x"></i></button>
+                                     </div>
+                                     <div class="photo-upload-box" onclick="this.querySelector('input').click()">
+                                         <i class="bi bi-camera"></i>
+                                         <span>Ganti Belakang</span>
+                                         <input type="file" class="d-none edit-device-photo" data-side="back" accept="image/*" onchange="service.handlePhotoInput(this)">
+                                         <img class="d-none">
+                                         <button type="button" class="remove-photo" onclick="event.stopPropagation(); service.removePhoto(this)"><i class="bi bi-x"></i></button>
+                                     </div>
+                                     <div class="photo-upload-box" onclick="this.querySelector('input').click()">
+                                         <i class="bi bi-camera"></i>
+                                         <span>Ganti Kiri</span>
+                                         <input type="file" class="d-none edit-device-photo" data-side="left" accept="image/*" onchange="service.handlePhotoInput(this)">
+                                         <img class="d-none">
+                                         <button type="button" class="remove-photo" onclick="event.stopPropagation(); service.removePhoto(this)"><i class="bi bi-x"></i></button>
+                                     </div>
+                                     <div class="photo-upload-box" onclick="this.querySelector('input').click()">
+                                         <i class="bi bi-camera"></i>
+                                         <span>Ganti Kanan</span>
+                                         <input type="file" class="d-none edit-device-photo" data-side="right" accept="image/*" onchange="service.handlePhotoInput(this)">
+                                         <img class="d-none">
+                                         <button type="button" class="remove-photo" onclick="event.stopPropagation(); service.removePhoto(this)"><i class="bi bi-x"></i></button>
+                                     </div>
+                                 </div>
+                                 <div class="mb-3">
+                                     <button type="button" class="btn btn-outline-secondary btn-sm w-100" onclick="document.getElementById('edit-bulk-photo-upload').click()">
+                                         <i class="bi bi-images me-1"></i>Upload 4 Foto Sekaligus
+                                     </button>
+                                     <input type="file" id="edit-bulk-photo-upload" class="d-none" multiple accept="image/*" onchange="service.handleEditBulkPhotoUpload(this)">
+                                     <div class="small text-muted mt-1">Pilih hingga 4 foto — otomatis terisi ke slot yang kosong</div>
+                                 </div>
 
-                                <h6 class="border-bottom pb-2 mb-3 mt-4 fw-bold text-secondary">Perangkat & Masalah</h6>
+                                 <h6 class="border-bottom pb-2 mb-3 mt-4 fw-bold text-secondary">Perangkat & Masalah</h6>
                                 <div class="row g-3 mb-3">
                                     <div class="col-md-3">
                                         <label class="form-label small fw-bold">Tipe Perangkat</label>
@@ -1511,6 +1529,43 @@ class Service {
             };
             reader.readAsDataURL(file);
         }
+    }
+
+    handleBulkPhotoUpload(input) {
+        this._distributeBulkPhotos(input, '.device-photo');
+    }
+
+    handleEditBulkPhotoUpload(input) {
+        this._distributeBulkPhotos(input, '.edit-device-photo');
+    }
+
+    _distributeBulkPhotos(input, inputSelector) {
+        const files = Array.from(input.files).slice(0, 4);
+        const allInputs = document.querySelectorAll(inputSelector);
+        let slotIndex = 0;
+        for (const file of files) {
+            while (slotIndex < allInputs.length) {
+                const inp = allInputs[slotIndex];
+                if (!inp.files[0]) break;
+                slotIndex++;
+            }
+            if (slotIndex >= allInputs.length) break;
+            const inp = allInputs[slotIndex];
+            const box = inp.closest('.photo-upload-box');
+            const img = box.querySelector('img');
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            inp.files = dt.files;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                img.src = e.target.result;
+                img.classList.remove('d-none');
+                box.classList.add('has-image');
+            };
+            reader.readAsDataURL(file);
+            slotIndex++;
+        }
+        input.value = '';
     }
 
     removePhoto(btn) {

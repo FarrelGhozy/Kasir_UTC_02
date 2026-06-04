@@ -5,7 +5,29 @@ const { sendReply } = require('./wahaClient');
 const chatSessions = new Map();
 const waitMessageThrottling = new Map(); // Untuk mencegah spam pesan "tunggu"
 
+const TECHNICIAN_PHONES = new Set([
+  '6282133713565', // Farrel
+  '6289654510812', // Kaukab
+  '6283899674625', // Rasya
+  '6285101429027', // Tamam
+  '6281252828633', // Noer Syamsi
+  '6285385500382', // Baso Akbar
+  '6285281762499', // Fahri
+  '6281515153321', // Albi
+  '6285716696578', // Lutfiansyah
+  '62895320648811', // Fayad
+  '6282325571742', // Raffael Akbar
+]);
+
 const WAIT_THROTTLE_TIME = 15 * 60 * 1000; // 15 Menit
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function randomDelay(min, max) {
+  return Math.floor(Math.random() * (max - min + 1) + min);
+}
 
 function isWorkingHours() {
   if (process.env.IS_CAMPUS_EVENT === 'true') return { open: false, reason: 'event' };
@@ -36,11 +58,18 @@ async function handleIncomingMessage(payload) {
 
   if (fromMe || isGroup || isStatus || from.includes('@g.us')) return;
 
+  // Skip balasan otomatis jika pengirim adalah teknisi
+  const senderPhone = from.replace('@c.us', '').replace('@s.whatsapp.net', '');
+  if (TECHNICIAN_PHONES.has(senderPhone)) {
+    console.log(`[Bot] Teknisi ${senderPhone} — dilewati (tidak dikirimi welcome)`);
+    return;
+  }
+
   const now = Date.now();
   const lastChat = chatSessions.get(from);
   const status = isWorkingHours();
 
-  // 2. Logika Session (12 Jam)
+  // 2. Logika Session (1 Jam)
   if (lastChat && (now - lastChat < config.SESSION_LIMIT)) {
     const lastWaitSent = waitMessageThrottling.get(from);
 
@@ -52,6 +81,7 @@ async function handleIncomingMessage(payload) {
         waitMsg = `${getClosedMessage(status.reason)}\n\n${waitMsg}`;
       }
 
+      await sleep(randomDelay(2000, 4000));
       try {
         await sendReply(from, waitMsg);
       } catch (err) {
@@ -71,9 +101,10 @@ async function handleIncomingMessage(payload) {
 
   welcomeMsg += `*Jam Operasional UTC:*\n🗓️ Setiap Hari (Kecuali Jumat)\n🕗 08.00 - 15.00 WIB\n\nPesan Kakak sudah kami terima. Mohon ditunggu ya, Admin kami akan segera merespons pesan Kakak. Terima kasih atas kesabarannya. 😊🙏`;
 
+  await sleep(randomDelay(2000, 4000));
   try {
     await sendReply(from, welcomeMsg);
-    // 4. Update Session hanya jika kirim sukses
+    // 3. Update Session hanya jika kirim sukses
     chatSessions.set(from, now);
     waitMessageThrottling.set(from, now);
   } catch (err) {
