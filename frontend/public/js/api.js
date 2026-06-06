@@ -1,9 +1,6 @@
 // public/js/api.js - Global API Handler dengan Fetch Wrapper
 
-const isLocalHost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
-const API_BASE_URL = isLocalHost
-    ? `${window.location.protocol}//${window.location.hostname}:5200/api`
-    : `${window.location.protocol}//${window.location.hostname}/api`;
+const API_BASE_URL = window.location.origin + '/api';
 
 class API {
     constructor(baseURL) {
@@ -304,6 +301,10 @@ class API {
 
     async resendWA(id) {
         return this.post(`/services/${id}/resend-wa`, {});
+    }
+
+    async notifyTeknisi(id) {
+        return this.post(`/services/${id}/notify-teknisi`, {});
     }
 
     async claimWarranty(id) {

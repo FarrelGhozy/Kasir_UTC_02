@@ -167,9 +167,24 @@ exports.getAllTickets = async (req, res, next) => {
 
     const total = await ServiceTicket.countDocuments(filter);
 
+    const techIds = [...new Set(tickets.map(t => t.technician?.id).filter(Boolean))];
+    const techUsers = techIds.length
+      ? await User.find({ _id: { $in: techIds } }).select('phone')
+      : [];
+    const techPhoneMap = Object.fromEntries(techUsers.map(u => [u._id.toString(), u.phone || '']));
+
+    const data = tickets.map(t => {
+      const tObj = t.toObject();
+      tObj.technician = {
+        ...tObj.technician,
+        phone: techPhoneMap[t.technician?.id?.toString()] || ''
+      };
+      return tObj;
+    });
+
     res.status(200).json({
       success: true,
-      data: tickets,
+      data,
       pagination: {
         current_page: parseInt(page),
         total_pages: Math.ceil(total / parseInt(limit)),
@@ -189,7 +204,14 @@ exports.getTicketById = async (req, res, next) => {
   try {
     const ticket = await ServiceTicket.findById(req.params.id);
     if (!ticket) return res.status(404).json({ success: false, message: 'Tiket servis tidak ditemukan' });
-    res.status(200).json({ success: true, data: ticket });
+
+    const data = ticket.toObject();
+    if (ticket.technician?.id) {
+      const techUser = await User.findById(ticket.technician.id).select('phone');
+      data.technician.phone = techUser?.phone || '';
+    }
+
+    res.status(200).json({ success: true, data });
   } catch (error) {
     next(error);
   }
@@ -536,6 +558,41 @@ exports.resendWANotification = async (req, res, next) => {
       res.status(500).json({ 
         success: false, 
         message: `Gagal mengirim ulang notifikasi WA: ${errorMsg}`,
+        details: result
+      });
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Kirim notifikasi WA ke teknisi (manual)
+ */
+exports.notifyTeknisi = async (req, res, next) => {
+  try {
+    const ticket = await ServiceTicket.findById(req.params.id);
+    if (!ticket) return res.status(404).json({ success: false, message: 'Tiket tidak ditemukan' });
+
+    if (!ticket.technician?.id) {
+      return res.status(400).json({ success: false, message: 'Tiket tidak memiliki teknisi' });
+    }
+
+    const techUser = await User.findById(ticket.technician.id).select('phone name');
+    if (!techUser || !techUser.phone) {
+      return res.status(400).json({ success: false, message: 'Teknisi tidak memiliki nomor HP' });
+    }
+
+    ticket.technician.phone = techUser.phone;
+    const result = await whatsappService.notifyTechnicianReminder(ticket);
+
+    if (result && result.success) {
+      res.status(200).json({ success: true, message: 'Notifikasi WA berhasil dikirim ke teknisi' });
+    } else {
+      const errorMsg = result?.error || 'Gagal terhubung ke server WhatsApp';
+      res.status(500).json({
+        success: false,
+        message: `Gagal mengirim notifikasi ke teknisi: ${errorMsg}`,
         details: result
       });
     }

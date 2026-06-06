@@ -918,6 +918,11 @@ class Service {
                                             <i class="bi bi-whatsapp me-1"></i>Kirim WA
                                         </button>
                                     ` : ''}
+                                    ${t.technician.phone ? `
+                                        <button class="btn btn-primary btn-xs ms-1 px-1 py-0 shadow-sm" onclick="service.notifyTeknisi('${t._id}')" title="Notifikasi Teknisi" style="font-size: 0.65rem; border-radius: 4px;">
+                                            <i class="bi bi-whatsapp me-1"></i>Teknisi
+                                        </button>
+                                    ` : ''}
                                 </div>
                                 ${t.customer.email ? `
                                     <div class="small text-muted mt-1 text-truncate" style="font-size: 0.7rem;">
@@ -1610,6 +1615,16 @@ class Service {
             showToast('Mengirim ulang notifikasi...', 'info');
             await api.resendWA(id);
             showToast('Notifikasi WA berhasil dikirim ulang');
+        } catch (error) {
+            showToast(error.message, 'error');
+        }
+    }
+
+    async notifyTeknisi(id) {
+        try {
+            showToast('Mengirim notifikasi ke teknisi...', 'info');
+            await api.notifyTeknisi(id);
+            showToast('Notifikasi WA berhasil dikirim ke teknisi');
         } catch (error) {
             showToast(error.message, 'error');
         }

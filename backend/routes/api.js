@@ -63,6 +63,7 @@ router.get('/services/technician/:id/workload', protect, serviceController.getTe
 router.get('/services/logs', protect, authorize('admin'), serviceController.getSystemLogs);
 router.post('/services/validate-wa', protect, serviceController.validateWA);
 router.post('/services/:id/resend-wa', protect, serviceController.resendWANotification);
+router.post('/services/:id/notify-teknisi', protect, serviceController.notifyTeknisi);
 router.post('/services/:id/claim-warranty', protect, authorize('teknisi', 'kasir', 'admin'), serviceController.claimWarranty);
 router.get('/services/:id', protect, serviceController.getTicketById);
 

@@ -446,6 +446,17 @@ Bahwa benar Saya sebelumnya telah membaca dan menerima semua penjelasan dari UTC
   }
 
   /**
+   * Notifikasi Manual ke Teknisi (via tombol di card)
+   */
+  async notifyTechnicianReminder(ticket) {
+    if (!ticket.technician?.phone) return { success: false, error: 'Teknisi tidak memiliki nomor HP' };
+
+    const message = `🔔 *PENGINGAT DARI KASIR* 🔔\n\nHalo *${ticket.technician.name}*,\n\nAda pengingat untuk mengecek barang servis berikut:\n\n💻 Barang: *${ticket.device.type} ${ticket.device.brand || ''} ${ticket.device.model || ''}*\n🩹 Kerusakan: *${ticket.device.symptoms}*\n👤 Pelanggan: *${ticket.customer.name}*\n🎫 No. Tiket: #${ticket.ticket_number}\n\nMohon segera dicek dan ditindaklanjuti. Terima kasih! 🙏🛠️`;
+
+    return this.sendMessage(ticket.technician.phone, message);
+  }
+
+  /**
    * Cek apakah nomor WA terdaftar
    * @param {string} phone 
    */

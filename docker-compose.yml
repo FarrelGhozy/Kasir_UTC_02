@@ -37,6 +37,7 @@ services:
       - WAHA_URL=http://waha:8000
       - WAHA_API_KEY=adminutc28
       - IS_CAMPUS_EVENT=false
+      - CORS_ORIGIN=*
     depends_on:
       - mongo_db
     volumes:
