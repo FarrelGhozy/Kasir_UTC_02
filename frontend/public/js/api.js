@@ -1,6 +1,6 @@
 // public/js/api.js - Global API Handler dengan Fetch Wrapper
 
-const API_BASE_URL = window.location.origin + '/api';
+const API_BASE_URL = window.API_BASE_URL || window.location.origin + '/api';
 
 class API {
     constructor(baseURL) {
