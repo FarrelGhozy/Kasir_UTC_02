@@ -1,11 +1,13 @@
 // controllers/backupController.js
 const mongoose = require('mongoose');
+const path = require('path');
 const User = require('../models/User');
 const Item = require('../models/Item');
 const ServiceTicket = require('../models/ServiceTicket');
 const Transaction = require('../models/Transaction');
 const SpecialOrder = require('../models/SpecialOrder');
 const SystemLog = require('../models/SystemLog');
+const backupService = require('../services/backupService');
 
 /**
  * @desc    Export all system data
@@ -92,6 +94,59 @@ exports.importData = async (req, res, next) => {
       success: true,
       message: 'Data berhasil direstore'
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Daftar file backup di disk
+ * @route   GET /api/admin/backup/files
+ * @access  Private (Admin)
+ */
+exports.listBackupFiles = async (req, res, next) => {
+  try {
+    const files = backupService.listBackups();
+    res.status(200).json({ success: true, data: files });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Restore data dari file backup di disk
+ * @route   POST /api/admin/backup/restore/:filename
+ * @access  Private (Admin)
+ */
+exports.restoreBackup = async (req, res, next) => {
+  try {
+    const { filename } = req.params;
+    await backupService.restoreFromFile(filename, req.user.id);
+    res.status(200).json({ success: true, message: 'Data berhasil direstore' });
+  } catch (error) {
+    if (error.message === 'File backup tidak ditemukan') {
+      return res.status(404).json({ success: false, message: error.message });
+    }
+    if (error.message === 'Format file backup tidak valid') {
+      return res.status(400).json({ success: false, message: error.message });
+    }
+    next(error);
+  }
+};
+
+/**
+ * @desc    Download file backup
+ * @route   GET /api/admin/backup/files/:filename
+ * @access  Private (Admin)
+ */
+exports.downloadBackup = async (req, res, next) => {
+  try {
+    const { filename } = req.params;
+    const filePath = backupService.getBackupFilePath(filename);
+    if (!filePath) {
+      return res.status(404).json({ success: false, message: 'File tidak ditemukan' });
+    }
+    res.download(filePath, path.basename(filename));
   } catch (error) {
     next(error);
   }

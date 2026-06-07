@@ -9,6 +9,7 @@ const connectDB = require('./config/db');
 const apiRoutes = require('./routes/api');
 const webhookRoutes = require('./routes/webhook');
 const reminderService = require('./services/reminderService');
+const backupService = require('./services/backupService');
 const errorHandler = require('./middleware/errorHandler');
 
 // Validasi environment variables kritis saat startup
@@ -135,8 +136,9 @@ const startServer = async () => {
     // 1. Hubungkan Database
     await connectDB();
     
-    // 2. Jalankan Scheduler Pengingat
+    // 2. Jalankan Scheduler
     reminderService.init();
+    backupService.init();
     
     // 3. Jalankan Listen Port
     app.listen(PORT, '0.0.0.0', () => {
