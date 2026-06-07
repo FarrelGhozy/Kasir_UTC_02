@@ -91,7 +91,8 @@ exports.getAllItems = async (req, res, next) => {
     const items = await Item.find(filter)
       .sort(sort)
       .skip(skip)
-      .limit(parseInt(limit));
+      .limit(parseInt(limit))
+      .lean();
 
     const total = await Item.countDocuments(filter);
 
@@ -115,7 +116,7 @@ exports.getAllItems = async (req, res, next) => {
  */
 exports.getItemById = async (req, res, next) => {
   try {
-    const item = await Item.findById(req.params.id);
+    const item = await Item.findById(req.params.id).lean();
     if (!item) {
       return res.status(404).json({ success: false, message: 'Barang tidak ditemukan' });
     }

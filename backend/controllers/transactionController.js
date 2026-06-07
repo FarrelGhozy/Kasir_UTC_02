@@ -19,7 +19,7 @@ exports.createRetailTransaction = async (req, res, next) => {
       });
     }
 
-    const cashier = await User.findById(req.user.id);
+    const cashier = await User.findById(req.user.id).lean();
     if (!cashier) {
       return res.status(404).json({ success: false, message: 'Kasir tidak ditemukan' });
     }
@@ -30,7 +30,7 @@ exports.createRetailTransaction = async (req, res, next) => {
     // Batch lookup semua item sekali
     const itemIds = items.map(i => i.item_id);
     const itemMap = {};
-    (await Item.find({ _id: { $in: itemIds } })).forEach(item => {
+    (await Item.find({ _id: { $in: itemIds } }).lean()).forEach(item => {
       itemMap[item._id.toString()] = item;
     });
 
@@ -177,7 +177,8 @@ exports.getAllTransactions = async (req, res, next) => {
       .populate('cashier_id', 'name username role')
       .sort({ date: -1 })
       .skip(skip)
-      .limit(parseInt(limit));
+      .limit(parseInt(limit))
+      .lean();
 
     const total = await Transaction.countDocuments(filter);
 
@@ -202,7 +203,8 @@ exports.getAllTransactions = async (req, res, next) => {
 exports.getTransactionById = async (req, res, next) => {
   try {
     const transaction = await Transaction.findById(req.params.id)
-      .populate('cashier_id', 'name username role');
+      .populate('cashier_id', 'name username role')
+      .lean();
 
     if (!transaction) return res.status(404).json({ success: false, message: 'Transaksi tidak ditemukan' });
 
@@ -219,7 +221,7 @@ exports.getTransactionByInvoice = async (req, res, next) => {
   try {
     const transaction = await Transaction.findOne({ 
       invoice_no: req.params.invoice_no.toUpperCase() 
-    }).populate('cashier_id', 'name username role');
+    }).populate('cashier_id', 'name username role').lean();
 
     if (!transaction) return res.status(404).json({ success: false, message: 'Transaksi tidak ditemukan' });
 
@@ -276,7 +278,7 @@ exports.getTodaySummary = async (req, res, next) => {
  */
 exports.deleteTransaction = async (req, res, next) => {
   try {
-    const transaction = await Transaction.findById(req.params.id);
+    const transaction = await Transaction.findById(req.params.id).lean();
     if (!transaction) {
       return res.status(404).json({
         success: false,
@@ -292,7 +294,7 @@ exports.deleteTransaction = async (req, res, next) => {
     }
 
     // Hapus data transaksi permanen
-    await Transaction.findByIdAndDelete(req.params.id);
+    await Transaction.findByIdAndDelete(req.params.id).lean();
 
     res.status(200).json({
       success: true,
