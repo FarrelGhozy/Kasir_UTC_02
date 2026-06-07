@@ -1,6 +1,6 @@
 module.exports = {
   presets: [
-    ['@babel/preset-env', {
+    [require('../backend/node_modules/@babel/preset-env'), {
       targets: { node: 'current' },
       modules: 'commonjs'
     }]
