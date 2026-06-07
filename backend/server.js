@@ -2,6 +2,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const compression = require('compression');
 const path = require('path');
 const rateLimit = require('express-rate-limit');
 const connectDB = require('./config/db');
@@ -28,6 +29,7 @@ if (!process.env.WAHA_API_KEY) console.warn('[WARN] WAHA_API_KEY tidak di-set â€
 
 const app = express();
 app.set('trust proxy', true);
+app.use(compression());
 const PORT = process.env.PORT || 5000;
 
 // ==========================================
