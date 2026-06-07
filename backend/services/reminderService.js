@@ -199,7 +199,7 @@ class ReminderService {
 
           if (hoursSinceLastReminder >= 12) {
             const technicianId = ticket.technician.id || ticket.technician._id;
-            const techUser = await User.findById(technicianId);
+            const techUser = await User.findById(technicianId).lean();
 
             if (techUser && techUser.phone) {
               console.log(`[ReminderService] Mengirim pengingat teknisi (${techUser.name}) untuk tiket: ${ticket.ticket_number}`);
