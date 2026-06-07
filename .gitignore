@@ -15,6 +15,7 @@ backend/uploads/*
 !backend/uploads/.gitkeep
 
 # Testing
+coverage/
 /coverage
 
 # Production / Build
