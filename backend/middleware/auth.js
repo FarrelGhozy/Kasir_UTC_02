@@ -37,7 +37,7 @@ exports.protect = async (req, res, next) => {
 
       // Fallback: jika role tidak ada di JWT (token lama), ambil dari DB
       if (!req.user.role) {
-        const user = await User.findById(req.user.id).select('role isActive');
+        const user = await User.findById(req.user.id).select('role isActive').lean();
         if (!user) {
           return res.status(401).json({
             success: false,

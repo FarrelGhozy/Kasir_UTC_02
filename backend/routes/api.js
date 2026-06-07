@@ -135,6 +135,9 @@ router.delete('/admin/technicians/:id', protect, authorize('admin'), adminContro
 // --- Backup & Restore ---
 router.get('/admin/backup/export', protect, authorize('admin'), backupController.exportData);
 router.post('/admin/backup/import', protect, authorize('admin'), backupController.importData);
+router.get('/admin/backup/files', protect, authorize('admin'), backupController.listBackupFiles);
+router.post('/admin/backup/restore/:filename', protect, authorize('admin'), backupController.restoreBackup);
+router.get('/admin/backup/files/:filename', protect, authorize('admin'), backupController.downloadBackup);
 
 // --- Uploads (terproteksi auth) ---
 const path = require('path');

@@ -55,13 +55,13 @@ exports.getFullRecap = async (req, res, next) => {
     const svcMatch = buildReportPipeline(thirtyDaysAgo, null, { status: 'Picked_Up' });
 
     // 1. Ambil semua data inventaris (selalu semua data untuk stok saat ini)
-    const inventory = await Item.find({ isActive: true }).sort({ category: 1, name: 1 });
+    const inventory = await Item.find({ isActive: true }).sort({ category: 1, name: 1 }).lean();
 
     // 2. Ambil tiket servis sesuai filter
-    const services = await ServiceTicket.find(svcMatch).sort({ 'history.picked_up_at': -1 });
+    const services = await ServiceTicket.find(svcMatch).sort({ 'history.picked_up_at': -1 }).lean();
 
     // 3. Ambil transaksi ritel sesuai filter
-    const transactions = await Transaction.find(txnMatch).sort({ date: -1 });
+    const transactions = await Transaction.find(txnMatch).sort({ date: -1 }).lean();
 
     // 4. Hitung ringkasan statistik
     const totalInventoryValue = inventory.reduce((sum, item) => sum + (item.stock * item.purchase_price), 0);

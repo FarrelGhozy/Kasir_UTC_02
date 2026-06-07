@@ -42,6 +42,7 @@ services:
       - mongo_db
     volumes:
       - ./backend/uploads:/app/uploads
+      - ./backend/backups:/app/backups
     networks:
       - utc_network
     mem_limit: 300m

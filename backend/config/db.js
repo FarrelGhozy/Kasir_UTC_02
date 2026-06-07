@@ -4,8 +4,10 @@ const mongoose = require('mongoose');
 const connectDB = async () => {
   try {
     const conn = await mongoose.connect(process.env.MONGODB_URI, {
-      // Opsi usang (deprecated) telah dihapus karena tidak lagi diperlukan di Mongoose 6+
-      // useNewUrlParser dan useUnifiedTopology sudah menjadi default
+      maxPoolSize: 10,
+      minPoolSize: 2,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
     });
 
     console.log(`✅ MongoDB Terhubung: ${conn.connection.host}`);

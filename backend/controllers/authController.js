@@ -21,7 +21,7 @@ exports.register = async (req, res, next) => {
     const { name, username, password, role } = req.body;
 
     // Cek apakah user sudah ada
-    const existingUser = await User.findOne({ username });
+    const existingUser = await User.findOne({ username }).lean();
     if (existingUser) {
       return res.status(400).json({
         success: false,
@@ -119,7 +119,7 @@ exports.login = async (req, res, next) => {
  */
 exports.getMe = async (req, res, next) => {
   try {
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(req.user.id).lean();
 
     res.status(200).json({
       success: true,
@@ -143,7 +143,7 @@ exports.getAllUsers = async (req, res, next) => {
     if (role) filter.role = role;
     if (isActive !== undefined) filter.isActive = isActive === 'true';
 
-    const users = await User.find(filter).sort({ created_at: -1 });
+    const users = await User.find(filter).sort({ created_at: -1 }).lean();
 
     res.status(200).json({
       success: true,
@@ -165,7 +165,7 @@ exports.getTechnicians = async (req, res, next) => {
     const technicians = await User.find({ 
       role: 'teknisi',
       isActive: true 
-    }).select('name username');
+    }).select('name username').lean();
 
     res.status(200).json({
       success: true,

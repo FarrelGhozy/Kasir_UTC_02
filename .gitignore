@@ -15,6 +15,7 @@ backend/uploads/*
 !backend/uploads/.gitkeep
 
 # Testing
+coverage/
 /coverage
 
 # Production / Build
@@ -41,6 +42,9 @@ Thumbs.db
 *.sublime-project
 *.sublime-workspace
 
+
+# Backup files
+backend/backups/
 
 #pembantu 
 CLAUDE.md

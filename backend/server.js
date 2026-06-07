@@ -2,12 +2,14 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const compression = require('compression');
 const path = require('path');
 const rateLimit = require('express-rate-limit');
 const connectDB = require('./config/db');
 const apiRoutes = require('./routes/api');
 const webhookRoutes = require('./routes/webhook');
 const reminderService = require('./services/reminderService');
+const backupService = require('./services/backupService');
 const errorHandler = require('./middleware/errorHandler');
 
 // Validasi environment variables kritis saat startup
@@ -28,6 +30,7 @@ if (!process.env.WAHA_API_KEY) console.warn('[WARN] WAHA_API_KEY tidak di-set â€
 
 const app = express();
 app.set('trust proxy', true);
+app.use(compression());
 const PORT = process.env.PORT || 5000;
 
 // ==========================================
@@ -133,8 +136,9 @@ const startServer = async () => {
     // 1. Hubungkan Database
     await connectDB();
     
-    // 2. Jalankan Scheduler Pengingat
+    // 2. Jalankan Scheduler
     reminderService.init();
+    backupService.init();
     
     // 3. Jalankan Listen Port
     app.listen(PORT, '0.0.0.0', () => {

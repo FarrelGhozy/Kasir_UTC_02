@@ -91,7 +91,8 @@ exports.getAllItems = async (req, res, next) => {
     const items = await Item.find(filter)
       .sort(sort)
       .skip(skip)
-      .limit(parseInt(limit));
+      .limit(parseInt(limit))
+      .lean();
 
     const total = await Item.countDocuments(filter);
 
@@ -115,7 +116,7 @@ exports.getAllItems = async (req, res, next) => {
  */
 exports.getItemById = async (req, res, next) => {
   try {
-    const item = await Item.findById(req.params.id);
+    const item = await Item.findById(req.params.id).lean();
     if (!item) {
       return res.status(404).json({ success: false, message: 'Barang tidak ditemukan' });
     }
@@ -293,65 +294,44 @@ exports.importItems = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Data barang tidak valid' });
     }
 
-    // Batch lookup existing SKUs
-    const skus = items.map(i => i.sku).filter(Boolean);
-    const existingItems = {};
-    (await Item.find({ sku: { $in: skus } })).forEach(item => {
-      existingItems[item.sku] = item;
-    });
-
-    let addedCount = 0;
-    let updatedCount = 0;
-    let failedCount = 0;
-
-    for (const itemData of items) {
-      try {
-        const { sku, name, category, purchase_price, selling_price, stock, min_stock_alert } = itemData;
-
-        if (!sku || !name) {
-          failedCount++;
-          continue;
+    // Build bulkWrite operations — 1 round-trip ke MongoDB
+    const operations = items
+      .filter(item => item.sku && item.name)
+      .map(item => ({
+        updateOne: {
+          filter: { sku: item.sku },
+          update: {
+            $set: {
+              name: item.name,
+              category: item.category || 'Other',
+              purchase_price: Number(item.purchase_price) || 0,
+              selling_price: Number(item.selling_price) || 0,
+              stock: item.stock !== undefined && item.stock !== '' && !isNaN(Number(item.stock)) ? Number(item.stock) : 0,
+              min_stock_alert: Number(item.min_stock_alert) || 5,
+              isActive: true
+            }
+          },
+          upsert: true
         }
+      }));
 
-        const existingItem = existingItems[sku];
+    const failedCount = items.length - operations.length;
 
-        if (existingItem) {
-          // Update
-          existingItem.name = name;
-          existingItem.category = category || existingItem.category;
-          existingItem.purchase_price = Number(purchase_price) || existingItem.purchase_price;
-          existingItem.selling_price = Number(selling_price) || existingItem.selling_price;
-          existingItem.stock = stock !== undefined && stock !== '' && !isNaN(Number(stock)) ? Number(stock) : existingItem.stock;
-          existingItem.min_stock_alert = Number(min_stock_alert) || existingItem.min_stock_alert;
-          existingItem.isActive = true;
-
-          await existingItem.save();
-          updatedCount++;
-        } else {
-          // Insert
-          await Item.create({
-            sku,
-            name,
-            category: category || 'Other',
-            purchase_price: Number(purchase_price) || 0,
-            selling_price: Number(selling_price) || 0,
-            stock: Number(stock) || 0,
-            min_stock_alert: Number(min_stock_alert) || 5
-          });
-          addedCount++;
-        }
-      } catch (err) {
-        console.error(`Import error for SKU ${itemData.sku}:`, err);
-        failedCount++;
-      }
+    if (operations.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Tidak ada data valid untuk diimport'
+      });
     }
+
+    const result = await Item.bulkWrite(operations);
 
     res.status(200).json({
       success: true,
       message: 'Proses import selesai',
       summary: {
-        added: addedCount,
-        updated: updatedCount,
+        added: result.upsertedCount || 0,
+        updated: result.matchedCount || 0,
         failed: failedCount
       }
     });
