@@ -14,7 +14,7 @@
     "test:controllers": "jest tests/controllers/",
     "test:middleware": "jest tests/middleware/",
     "test:services": "jest tests/services/",
-    "pretest": "node -e \"require('fs').existsSync('./node_modules/.cache/jest') || console.log('Jest cache siap')\""
+    "test:frontend": "jest --config ../frontend/jest.config.js"
   },
   "keywords": [],
   "author": "",
