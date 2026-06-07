@@ -6,7 +6,7 @@ const User = require('../models/User');
  */
 exports.getAllTechnicians = async (req, res, next) => {
   try {
-    const technicians = await User.find({ role: 'teknisi' }).sort({ created_at: -1 });
+    const technicians = await User.find({ role: 'teknisi' }).sort({ created_at: -1 }).lean();
     res.status(200).json({ success: true, data: technicians });
   } catch (error) {
     next(error);
@@ -21,7 +21,7 @@ exports.createTechnician = async (req, res, next) => {
   try {
     const { name, username, password, phone, status } = req.body;
 
-    const existingUser = await User.findOne({ username });
+    const existingUser = await User.findOne({ username }).lean();
     if (existingUser) {
       return res.status(400).json({ success: false, message: 'Username sudah digunakan' });
     }
@@ -79,12 +79,12 @@ exports.updateTechnician = async (req, res, next) => {
  */
 exports.deleteTechnician = async (req, res, next) => {
   try {
-    const user = await User.findById(req.params.id);
+    const user = await User.findById(req.params.id).lean();
     if (!user || user.role !== 'teknisi') {
       return res.status(404).json({ success: false, message: 'Teknisi tidak ditemukan' });
     }
 
-    await User.findByIdAndDelete(req.params.id);
+    await User.findByIdAndDelete(req.params.id).lean();
     res.status(200).json({ success: true, message: 'Teknisi berhasil dihapus' });
   } catch (error) {
     next(error);
