@@ -8,7 +8,6 @@ const connectDB = async () => {
       minPoolSize: 2,
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,
-      compressors: ['snappy'],
     });
 
     console.log(`✅ MongoDB Terhubung: ${conn.connection.host}`);
