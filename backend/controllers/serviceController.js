@@ -59,7 +59,7 @@ exports.createTicket = async (req, res, next) => {
         });
     }
 
-    const technician = await User.findById(technician_id);
+      const technician = await User.findById(technician_id).lean();
     if (!technician || technician.role !== 'teknisi') {
       return res.status(400).json({ success: false, message: 'ID Teknisi tidak valid' });
     }
@@ -163,24 +163,24 @@ exports.getAllTickets = async (req, res, next) => {
     const tickets = await ServiceTicket.find(filter)
       .sort({ 'history.created_at': -1 })
       .skip(skip)
-      .limit(parseInt(limit));
+      .limit(parseInt(limit))
+      .lean();
 
     const total = await ServiceTicket.countDocuments(filter);
 
     const techIds = [...new Set(tickets.map(t => t.technician?.id).filter(Boolean))];
     const techUsers = techIds.length
-      ? await User.find({ _id: { $in: techIds } }).select('phone')
+      ? await User.find({ _id: { $in: techIds } }).select('phone').lean()
       : [];
     const techPhoneMap = Object.fromEntries(techUsers.map(u => [u._id.toString(), u.phone || '']));
 
-    const data = tickets.map(t => {
-      const tObj = t.toObject();
-      tObj.technician = {
-        ...tObj.technician,
+    const data = tickets.map(t => ({
+      ...t,
+      technician: {
+        ...t.technician,
         phone: techPhoneMap[t.technician?.id?.toString()] || ''
-      };
-      return tObj;
-    });
+      }
+    }));
 
     res.status(200).json({
       success: true,
@@ -202,16 +202,15 @@ exports.getAllTickets = async (req, res, next) => {
  */
 exports.getTicketById = async (req, res, next) => {
   try {
-    const ticket = await ServiceTicket.findById(req.params.id);
+    const ticket = await ServiceTicket.findById(req.params.id).lean();
     if (!ticket) return res.status(404).json({ success: false, message: 'Tiket servis tidak ditemukan' });
 
-    const data = ticket.toObject();
     if (ticket.technician?.id) {
-      const techUser = await User.findById(ticket.technician.id).select('phone');
-      data.technician.phone = techUser?.phone || '';
+      const techUser = await User.findById(ticket.technician.id).select('phone').lean();
+      ticket.technician.phone = techUser?.phone || '';
     }
 
-    res.status(200).json({ success: true, data });
+    res.status(200).json({ success: true, data: ticket });
   } catch (error) {
     next(error);
   }
@@ -293,7 +292,7 @@ exports.addPartToService = async (req, res, next) => {
     }
 
     // 3. Cek Barang
-    const item = await Item.findById(item_id);
+    const item = await Item.findById(item_id).lean();
     if (!item) {
       return res.status(404).json({ success: false, message: 'Barang tidak ditemukan' });
     }
@@ -394,7 +393,7 @@ exports.deleteTicket = async (req, res, next) => {
 
     // JIKA USER ADALAH ADMIN: Bisa hapus permanen (Overpower)
     if (req.user && req.user.role === 'admin') {
-      await ServiceTicket.findByIdAndDelete(req.params.id);
+      await ServiceTicket.findByIdAndDelete(req.params.id).lean();
       return res.status(200).json({ success: true, message: 'Tiket servis berhasil dihapus permanen oleh Admin' });
     }
 
@@ -496,7 +495,7 @@ exports.updateTicketDetails = async (req, res, next) => {
       const oldTechId = ticket.technician && ticket.technician.id ? ticket.technician.id.toString() : null;
       const isReassigned = oldTechId !== technician_id;
       
-      const technician = await User.findById(technician_id);
+    const technician = await User.findById(technician_id).lean();
       if (technician && technician.role === 'teknisi') {
         ticket.technician = { id: technician._id, name: technician.name };
         
@@ -542,7 +541,7 @@ exports.validateWA = async (req, res, next) => {
  */
 exports.resendWANotification = async (req, res, next) => {
   try {
-    const ticket = await ServiceTicket.findById(req.params.id);
+    const ticket = await ServiceTicket.findById(req.params.id).lean();
     if (!ticket) return res.status(404).json({ success: false, message: 'Tiket tidak ditemukan' });
 
     if (!ticket.customer.phone) {
@@ -571,14 +570,14 @@ exports.resendWANotification = async (req, res, next) => {
  */
 exports.notifyTeknisi = async (req, res, next) => {
   try {
-    const ticket = await ServiceTicket.findById(req.params.id);
+    const ticket = await ServiceTicket.findById(req.params.id).lean();
     if (!ticket) return res.status(404).json({ success: false, message: 'Tiket tidak ditemukan' });
 
     if (!ticket.technician?.id) {
       return res.status(400).json({ success: false, message: 'Tiket tidak memiliki teknisi' });
     }
 
-    const techUser = await User.findById(ticket.technician.id).select('phone name');
+    const techUser = await User.findById(ticket.technician.id).select('phone name').lean();
     if (!techUser || !techUser.phone) {
       return res.status(400).json({ success: false, message: 'Teknisi tidak memiliki nomor HP' });
     }
@@ -606,7 +605,7 @@ exports.notifyTeknisi = async (req, res, next) => {
  */
 exports.claimWarranty = async (req, res, next) => {
   try {
-    const oldTicket = await ServiceTicket.findById(req.params.id);
+    const oldTicket = await ServiceTicket.findById(req.params.id).lean();
     if (!oldTicket) return res.status(404).json({ success: false, message: 'Tiket asal tidak ditemukan' });
 
     // Cek apakah masih dalam masa garansi
@@ -640,7 +639,7 @@ exports.claimWarranty = async (req, res, next) => {
  */
 exports.getSystemLogs = async (req, res, next) => {
   try {
-    const logs = await SystemLog.find().sort({ timestamp: -1 }).limit(100);
+    const logs = await SystemLog.find().sort({ timestamp: -1 }).limit(100).lean();
     res.status(200).json({ success: true, data: logs });
   } catch (error) {
     next(error);

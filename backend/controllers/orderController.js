@@ -10,7 +10,7 @@ exports.createOrder = async (req, res, next) => {
 
     let handled_by = undefined;
     if (handled_by_id) {
-      const user = await User.findById(handled_by_id);
+      const user = await User.findById(handled_by_id).lean();
       if (user) {
         handled_by = { id: user._id, name: user.name };
       }
@@ -62,7 +62,8 @@ exports.getAllOrders = async (req, res, next) => {
     const orders = await SpecialOrder.find(filter)
       .sort({ 'history.created_at': -1 })
       .skip(skip)
-      .limit(parseInt(limit));
+      .limit(parseInt(limit))
+      .lean();
 
     const total = await SpecialOrder.countDocuments(filter);
 
@@ -82,7 +83,7 @@ exports.getAllOrders = async (req, res, next) => {
 
 exports.getOrderById = async (req, res, next) => {
   try {
-    const order = await SpecialOrder.findById(req.params.id);
+    const order = await SpecialOrder.findById(req.params.id).lean();
     if (!order) return res.status(404).json({ success: false, message: 'Pesanan tidak ditemukan' });
     res.status(200).json({ success: true, data: order });
   } catch (error) {
@@ -134,7 +135,7 @@ exports.updateOrderDetails = async (req, res, next) => {
       // Cek apakah ada perubahan penanggung jawab
       const isReassigned = order.handled_by && order.handled_by.id && order.handled_by.id.toString() !== handled_by_id;
       
-      const user = await User.findById(handled_by_id);
+      const user = await User.findById(handled_by_id).lean();
       if (user) {
         order.handled_by = { id: user._id, name: user.name };
         
@@ -159,7 +160,7 @@ exports.deleteOrder = async (req, res, next) => {
     
     // JIKA USER ADALAH ADMIN: Bisa hapus permanen (Overpower)
     if (req.user && req.user.role === 'admin') {
-      await SpecialOrder.findByIdAndDelete(req.params.id);
+      await SpecialOrder.findByIdAndDelete(req.params.id).lean();
       return res.status(200).json({ success: true, message: 'Pesanan barang berhasil dihapus permanen oleh Admin' });
     }
 
