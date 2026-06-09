@@ -62,9 +62,9 @@ async function sendDutyReminder(type) {
       let message = '';
 
       if (type === 'pre') {
-        message = `⏰ *PENGINGAT PIKET*\n\nHalo Kak ${user.name}! 👋\n\nHari ini kamu memiliki jadwal piket kebersihan bengkel:\n📅 Hari: ${dayLabel}\n🕕 Waktu: 21:30 WIB\n\nJangan lupa ya Kak, nanti malam kita bersih-bersih kantor sebelum pulang! 💪🧹`;
+        message = `⚠️ *PERINGATAN KERAS!*\n\nBuat ${user.name},\n\nLo punya jadwal piket hari ini:\n📅 Hari: ${dayLabel}\n🕕 Waktu: 21:30 WIB\n\nDengerin baik-baik:\n🗣 Kalo lo ngga piket → lo traktir nasi ayam buat YANG PIKET!\n🗣 Kalo ngga ada yang piket SAMA SEKALI → lo semua bayar denda pajak makan 1 kantor!\n\nJangan bikin dosa. Piket aja, males amat. 💀`;
       } else if (type === 'now') {
-        message = `🧹 *WAKTUNYA PIKET!*\n\nHalo Kak ${user.name}! 👋\n\nSekarang sudah waktunya piket kebersihan bengkel.\n\nAyo segera dikerjakan! Kerja tim, hasil memuaskan! 💪✨`;
+        message = `💀 *WAKTUNYA PIKET, MALES!*\n\n${user.name}!!!\n\nSekarang jam 21:30. Lo punya jadwal piket.\n\nKalo lo ngga turun gunung sekarang:\n❌ Traktir nasi ayam buat yang piket\n❌ Kalo kosong semua, siap-siap bayar pajak makan!!\n\nJangan jadi beban tim. Cepet beresin terus pulang! 🔫`;
       }
 
       if (message) {
