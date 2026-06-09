@@ -78,6 +78,12 @@ exports.createSchedule = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'User, day, dan duty_role wajib diisi' });
     }
 
+    // Validasi user ID adalah ObjectId yang valid
+    const mongoose = require('mongoose');
+    if (!mongoose.Types.ObjectId.isValid(user)) {
+      return res.status(400).json({ success: false, message: 'ID user tidak valid' });
+    }
+
     const validDays = ['senin', 'selasa', 'rabu', 'kamis', 'jumat'];
     const validRoles = ['Equipment', 'Admin', 'Chief', 'Secretary', 'PDD'];
 
@@ -87,6 +93,11 @@ exports.createSchedule = async (req, res, next) => {
 
     if (!validRoles.includes(duty_role)) {
       return res.status(400).json({ success: false, message: 'Tugas piket tidak valid. Gunakan: Equipment, Admin, Chief, Secretary, PDD' });
+    }
+
+    // Validasi format waktu jika disediakan
+    if (time && !/^([01]\d|2[0-3]):([0-5]\d)$/.test(time)) {
+      return res.status(400).json({ success: false, message: 'Format waktu tidak valid. Gunakan format HH:MM (contoh: 21:30)' });
     }
 
     // Cek duplikat
@@ -132,7 +143,17 @@ exports.updateSchedule = async (req, res, next) => {
       if (!validDays.includes(day.toLowerCase())) {
         return res.status(400).json({ success: false, message: 'Hari tidak valid' });
       }
-      schedule.day = day.toLowerCase();
+      const newDay = day.toLowerCase();
+
+      // Cek duplikat jika hari berubah
+      if (newDay !== schedule.day) {
+        const duplicate = await DutySchedule.findOne({ user: schedule.user, day: newDay });
+        if (duplicate) {
+          return res.status(400).json({ success: false, message: 'User ini sudah memiliki jadwal piket di hari tersebut' });
+        }
+      }
+
+      schedule.day = newDay;
     }
 
     if (duty_role) {
@@ -144,6 +165,10 @@ exports.updateSchedule = async (req, res, next) => {
     }
 
     if (time) {
+      // Validasi format waktu HH:MM
+      if (!/^([01]\d|2[0-3]):([0-5]\d)$/.test(time)) {
+        return res.status(400).json({ success: false, message: 'Format waktu tidak valid. Gunakan format HH:MM (contoh: 21:30)' });
+      }
       schedule.time = time;
     }
 
