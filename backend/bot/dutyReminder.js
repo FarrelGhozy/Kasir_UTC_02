@@ -10,9 +10,6 @@ const DAY_LABELS = {
   jumat: 'Jumat'
 };
 
-/**
- * Dapatkan nama hari dalam bahasa Indonesia berdasarkan day index
- */
 function getDayName(dayIndex) {
   const dayMap = {
     1: 'senin',
@@ -34,7 +31,6 @@ async function sendDutyReminder(type) {
     const wibTime = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Jakarta" }));
     const dayIndex = wibTime.getDay();
 
-    // Hanya Senin-Jumat (1-5)
     if (dayIndex < 1 || dayIndex > 5) {
       console.log(`[DutyReminder] Hari ini akhir pekan, tidak ada piket.`);
       return;
@@ -43,7 +39,6 @@ async function sendDutyReminder(type) {
     const todayDay = getDayName(dayIndex);
     if (!todayDay) return;
 
-    // Ambil jadwal piket hari ini
     const schedules = await DutySchedule.find({ day: todayDay })
       .populate('user', 'name username phone')
       .lean();
@@ -67,11 +62,9 @@ async function sendDutyReminder(type) {
       let message = '';
 
       if (type === 'pre') {
-        // Pre-reminder jam 16:00
-        message = `⏰ *PENGINGAT PIKET*\n\nHalo Kak ${user.name}! 👋\n\nHari ini kamu memiliki jadwal piket *kebersihan bengkel*:\n📅 Hari: ${dayLabel}\n🛠️ Tugas: ${schedule.duty_role}\n🕕 Waktu: ${schedule.time || '21:30'} WIB\n\nJangan lupa ya Kak, nanti malam kita bersih-bersih kantor sebelum pulang! 💪🧹`;
+        message = `⏰ *PENGINGAT PIKET*\n\nHalo Kak ${user.name}! 👋\n\nHari ini kamu memiliki jadwal piket kebersihan bengkel:\n📅 Hari: ${dayLabel}\n🕕 Waktu: 21:30 WIB\n\nJangan lupa ya Kak, nanti malam kita bersih-bersih kantor sebelum pulang! 💪🧹`;
       } else if (type === 'now') {
-        // On-duty reminder jam 21:30
-        message = `🧹 *WAKTUNYA PIKET!*\n\nHalo Kak ${user.name}! 👋\n\nSekarang sudah waktunya piket kebersihan bengkel.\n🛠️ Tugas kamu: ${schedule.duty_role}\n\nAyo segera dikerjakan! Kerja tim, hasil memuaskan! 💪✨`;
+        message = `🧹 *WAKTUNYA PIKET!*\n\nHalo Kak ${user.name}! 👋\n\nSekarang sudah waktunya piket kebersihan bengkel.\n\nAyo segera dikerjakan! Kerja tim, hasil memuaskan! 💪✨`;
       }
 
       if (message) {

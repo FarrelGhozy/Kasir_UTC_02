@@ -1,9 +1,6 @@
 // controllers/dutyScheduleController.js - Controller Jadwal Piket Kebersihan
 const DutySchedule = require('../models/DutySchedule');
 
-/**
- * Mapping hari Indonesia untuk tampilan
- */
 const DAY_LABELS = {
   senin: 'Senin',
   selasa: 'Selasa',
@@ -20,11 +17,10 @@ const DAY_LABELS = {
 exports.getAllSchedules = async (req, res, next) => {
   try {
     const schedules = await DutySchedule.find({})
-      .populate('user', 'name username phone duty_role')
+      .populate('user', 'name username phone jabatan')
       .sort({ day: 1, created_at: 1 })
       .lean();
 
-    // Format: tambahkan day_label
     const formatted = schedules.map(s => ({
       ...s,
       day_label: DAY_LABELS[s.day] || s.day
@@ -51,7 +47,7 @@ exports.getScheduleByDay = async (req, res, next) => {
     }
 
     const schedules = await DutySchedule.find({ day: day.toLowerCase() })
-      .populate('user', 'name username phone duty_role')
+      .populate('user', 'name username phone jabatan')
       .sort({ created_at: 1 })
       .lean();
 
@@ -72,35 +68,22 @@ exports.getScheduleByDay = async (req, res, next) => {
  */
 exports.createSchedule = async (req, res, next) => {
   try {
-    const { user, day, duty_role, time } = req.body;
+    const { user, day } = req.body;
 
-    if (!user || !day || !duty_role) {
-      return res.status(400).json({ success: false, message: 'User, day, dan duty_role wajib diisi' });
+    if (!user || !day) {
+      return res.status(400).json({ success: false, message: 'User dan day wajib diisi' });
     }
 
-    // Validasi user ID adalah ObjectId yang valid
     const mongoose = require('mongoose');
     if (!mongoose.Types.ObjectId.isValid(user)) {
       return res.status(400).json({ success: false, message: 'ID user tidak valid' });
     }
 
     const validDays = ['senin', 'selasa', 'rabu', 'kamis', 'jumat'];
-    const validRoles = ['Equipment', 'Admin', 'Chief', 'Secretary', 'PDD'];
-
     if (!validDays.includes(day.toLowerCase())) {
       return res.status(400).json({ success: false, message: 'Hari tidak valid' });
     }
 
-    if (!validRoles.includes(duty_role)) {
-      return res.status(400).json({ success: false, message: 'Tugas piket tidak valid. Gunakan: Equipment, Admin, Chief, Secretary, PDD' });
-    }
-
-    // Validasi format waktu jika disediakan
-    if (time && !/^([01]\d|2[0-3]):([0-5]\d)$/.test(time)) {
-      return res.status(400).json({ success: false, message: 'Format waktu tidak valid. Gunakan format HH:MM (contoh: 21:30)' });
-    }
-
-    // Cek duplikat
     const existing = await DutySchedule.findOne({ user, day: day.toLowerCase() });
     if (existing) {
       return res.status(400).json({ success: false, message: 'User ini sudah memiliki jadwal piket di hari tersebut' });
@@ -108,13 +91,11 @@ exports.createSchedule = async (req, res, next) => {
 
     const schedule = await DutySchedule.create({
       user,
-      day: day.toLowerCase(),
-      duty_role,
-      time: time || '21:30'
+      day: day.toLowerCase()
     });
 
     const populated = await DutySchedule.findById(schedule._id)
-      .populate('user', 'name username phone duty_role')
+      .populate('user', 'name username phone jabatan')
       .lean();
 
     res.status(201).json({ success: true, message: 'Jadwal piket berhasil dibuat', data: populated });
@@ -124,14 +105,14 @@ exports.createSchedule = async (req, res, next) => {
 };
 
 /**
- * @desc    Update jadwal piket
+ * @desc    Update jadwal piket (ganti hari)
  * @route   PUT /api/duty-schedules/:id
  * @access  Private (Admin)
  */
 exports.updateSchedule = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { day, duty_role, time } = req.body;
+    const { day } = req.body;
 
     const schedule = await DutySchedule.findById(id);
     if (!schedule) {
@@ -145,7 +126,6 @@ exports.updateSchedule = async (req, res, next) => {
       }
       const newDay = day.toLowerCase();
 
-      // Cek duplikat jika hari berubah
       if (newDay !== schedule.day) {
         const duplicate = await DutySchedule.findOne({ user: schedule.user, day: newDay });
         if (duplicate) {
@@ -156,26 +136,10 @@ exports.updateSchedule = async (req, res, next) => {
       schedule.day = newDay;
     }
 
-    if (duty_role) {
-      const validRoles = ['Equipment', 'Admin', 'Chief', 'Secretary', 'PDD'];
-      if (!validRoles.includes(duty_role)) {
-        return res.status(400).json({ success: false, message: 'Tugas piket tidak valid' });
-      }
-      schedule.duty_role = duty_role;
-    }
-
-    if (time) {
-      // Validasi format waktu HH:MM
-      if (!/^([01]\d|2[0-3]):([0-5]\d)$/.test(time)) {
-        return res.status(400).json({ success: false, message: 'Format waktu tidak valid. Gunakan format HH:MM (contoh: 21:30)' });
-      }
-      schedule.time = time;
-    }
-
     await schedule.save();
 
     const populated = await DutySchedule.findById(schedule._id)
-      .populate('user', 'name username phone duty_role')
+      .populate('user', 'name username phone jabatan')
       .lean();
 
     res.status(200).json({ success: true, message: 'Jadwal piket berhasil diperbarui', data: populated });
@@ -215,7 +179,7 @@ exports.getMySchedule = async (req, res, next) => {
     const userId = req.user.id;
 
     const schedules = await DutySchedule.find({ user: userId })
-      .populate('user', 'name username phone duty_role')
+      .populate('user', 'name username phone jabatan')
       .sort({ day: 1 })
       .lean();
 
@@ -230,7 +194,7 @@ exports.getMySchedule = async (req, res, next) => {
 };
 
 /**
- * @desc    Ambil jadwal piket hari ini (internal use)
+ * @desc    Ambil jadwal piket hari ini
  * @route   GET /api/duty-schedules/today
  * @access  Private
  */
@@ -259,7 +223,7 @@ exports.getTodaySchedule = async (req, res, next) => {
     }
 
     const schedules = await DutySchedule.find({ day: todayDay })
-      .populate('user', 'name username phone duty_role')
+      .populate('user', 'name username phone jabatan')
       .sort({ created_at: 1 })
       .lean();
 

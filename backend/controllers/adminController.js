@@ -19,7 +19,7 @@ exports.getAllTechnicians = async (req, res, next) => {
  */
 exports.createTechnician = async (req, res, next) => {
   try {
-    const { name, username, password, phone, status, duty_role } = req.body;
+    const { name, username, password, phone, status, jabatan } = req.body;
 
     const existingUser = await User.findOne({ username }).lean();
     if (existingUser) {
@@ -32,7 +32,7 @@ exports.createTechnician = async (req, res, next) => {
       password,
       phone,
       status,
-      duty_role: duty_role || null,
+      jabatan: jabatan || null,
       role: 'teknisi'
     });
 
@@ -48,17 +48,15 @@ exports.createTechnician = async (req, res, next) => {
  */
 exports.updateTechnician = async (req, res, next) => {
   try {
-    const { name, username, password, phone, status, duty_role } = req.body;
+    const { name, username, password, phone, status, jabatan } = req.body;
     
     const user = await User.findById(req.params.id);
     if (!user) {
       return res.status(404).json({ success: false, message: 'Teknisi tidak ditemukan' });
     }
 
-    // Update fields
     if (name) user.name = name;
     if (username) {
-      // Cek apakah username sudah digunakan user lain
       if (username !== user.username) {
         const existingUser = await User.findOne({ username }).lean();
         if (existingUser) {
@@ -69,7 +67,7 @@ exports.updateTechnician = async (req, res, next) => {
     }
     if (phone) user.phone = phone;
     if (status) user.status = status;
-    if (duty_role !== undefined) user.duty_role = duty_role || null;
+    if (jabatan !== undefined) user.jabatan = jabatan || null;
     
     // Hanya update password jika diisi
     if (password && password.trim() !== '') {

@@ -29,10 +29,8 @@ class Admin {
                 </div>
                 <div class="card-body p-3 p-md-4">
                     <div id="admin-panels">
-                        <!-- PANEL 1: LAPORAN & ANALITIK -->
                         <div id="reports-panel"></div>
 
-                        <!-- PANEL 2: MANAJEMEN PENGGUNA -->
                         <div id="users-panel" class="d-none">
                             <div class="row g-4">
                                 <div class="col-lg-4">
@@ -56,19 +54,19 @@ class Admin {
                                                     <label class="form-label small fw-bold">Password</label>
                                                     <input type="password" class="form-control form-control-sm" id="tech-password" required placeholder="Min. 6 Karakter">
                                                 </div>
-                                                <div class="mt-4 pt-3 border-top">
+                                                <div class="mb-3">
+                                                    <label class="form-label small fw-bold">Jabatan</label>
+                                                    <select class="form-select form-select-sm" id="tech-jabatan">
+                                                        <option value="">-- Pilih Jabatan --</option>
+                                                        <option value="Equipment">Equipment</option>
+                                                        <option value="Admin">Admin</option>
+                                                        <option value="Chief">Chief</option>
+                                                        <option value="Secretary">Secretary</option>
+                                                        <option value="PDD">PDD</option>
+                                                    </select>
+                                                </div>
+                                                <div class="mt-3 pt-3 border-top">
                                                     <h6 class="fw-bold mb-3 text-success small"><i class="bi bi-calendar-check me-2"></i>Jadwal Piket (Opsional)</h6>
-                                                    <div class="mb-3">
-                                                        <label class="form-label small fw-bold">Tugas Piket</label>
-                                                        <select class="form-select form-select-sm" id="tech-duty-role">
-                                                            <option value="">-- Tidak ada piket --</option>
-                                                            <option value="Equipment">Equipment</option>
-                                                            <option value="Admin">Admin</option>
-                                                            <option value="Chief">Chief</option>
-                                                            <option value="Secretary">Secretary</option>
-                                                            <option value="PDD">PDD</option>
-                                                        </select>
-                                                    </div>
                                                     <div class="mb-2">
                                                         <label class="form-label small fw-bold">Hari Piket</label>
                                                         <div class="d-flex flex-wrap gap-2">
@@ -119,12 +117,13 @@ class Admin {
                                                     <th class="ps-3">Nama</th>
                                                     <th>Username</th>
                                                     <th>WhatsApp</th>
+                                                    <th>Jabatan</th>
                                                     <th>Jadwal Piket</th>
                                                     <th class="text-end pe-3">Aksi</th>
                                                 </tr>
                                             </thead>
                                             <tbody id="tech-list-content">
-                                                <tr><td colspan="5" class="text-center py-4">Memuat data...</td></tr>
+                                                <tr><td colspan="6" class="text-center py-4">Memuat data...</td></tr>
                                             </tbody>
                                         </table>
                                     </div>
@@ -132,7 +131,6 @@ class Admin {
                             </div>
                         </div>
 
-                        <!-- PANEL 3: BACKUP & RESTORE -->
                         <div id="backup-panel" class="d-none">
                             <div class="row justify-content-center py-2 py-md-4">
                                 <div class="col-md-8">
@@ -176,7 +174,6 @@ class Admin {
                 </div>
             </div>
 
-            <!-- Edit Tech Modal -->
             <div class="modal fade" id="editTechModal" tabindex="-1">
                 <div class="modal-dialog">
                     <div class="modal-content">
@@ -195,22 +192,22 @@ class Admin {
                                     <label class="form-label fw-bold small">No. WhatsApp</label>
                                     <input type="tel" class="form-control" id="edit-tech-phone" required>
                                 </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold small">Jabatan</label>
+                                    <select class="form-select form-select-sm" id="edit-tech-jabatan">
+                                        <option value="">-- Pilih Jabatan --</option>
+                                        <option value="Equipment">Equipment</option>
+                                        <option value="Admin">Admin</option>
+                                        <option value="Chief">Chief</option>
+                                        <option value="Secretary">Secretary</option>
+                                        <option value="PDD">PDD</option>
+                                    </select>
+                                </div>
                                 <div class="alert alert-info py-2 small mb-0">
                                     <i class="bi bi-info-circle me-1"></i> Username dan Password tidak dapat diubah demi keamanan.
                                 </div>
                                 <div class="mt-4 pt-3 border-top">
                                     <h6 class="fw-bold mb-3 text-success small"><i class="bi bi-calendar-check me-2"></i>Jadwal Piket</h6>
-                                    <div class="mb-3">
-                                        <label class="form-label small fw-bold">Tugas Piket</label>
-                                        <select class="form-select form-select-sm" id="edit-tech-duty-role">
-                                            <option value="">-- Tidak ada piket --</option>
-                                            <option value="Equipment">Equipment</option>
-                                            <option value="Admin">Admin</option>
-                                            <option value="Chief">Chief</option>
-                                            <option value="Secretary">Secretary</option>
-                                            <option value="PDD">PDD</option>
-                                        </select>
-                                    </div>
                                     <div class="mb-2">
                                         <label class="form-label small fw-bold">Hari Piket</label>
                                         <div class="d-flex flex-wrap gap-2">
@@ -266,7 +263,7 @@ class Admin {
             this.technicians = usersRes.data;
 
             if (this.technicians.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4">Belum ada akun terdaftar.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4">Belum ada akun terdaftar.</td></tr>';
                 return;
             }
 
@@ -279,6 +276,7 @@ class Admin {
                             <i class="bi bi-whatsapp me-1"></i>${escapeHTML(t.phone)}
                         </a>
                     </td>
+                    <td>${t.jabatan ? `<span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25">${escapeHTML(t.jabatan)}</span>` : '<span class="text-muted">—</span>'}</td>
                     <td>${this._getPiketDisplay(t._id)}</td>
                     <td class="text-end pe-3">
                         <button class="btn btn-sm btn-outline-warning border-0" onclick="adminModule.openEdit('${t._id}')" title="Edit"><i class="bi bi-pencil"></i></button>
@@ -287,7 +285,7 @@ class Admin {
                 </tr>
             `).join('');
         } catch (e) {
-            tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-danger">${escapeHTML(e.message)}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-danger">${escapeHTML(e.message)}</td></tr>`;
         }
     }
 
@@ -312,10 +310,9 @@ class Admin {
         if (!entries || entries.length === 0) {
             return '<span class="text-muted">—</span>';
         }
-        const role = entries[0].duty_role;
         const dayLabels = { senin: 'Senin', selasa: 'Selasa', rabu: 'Rabu', kamis: 'Kamis', jumat: 'Jumat' };
         const days = entries.map(e => dayLabels[e.day] || e.day).join(', ');
-        return `<span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25">${escapeHTML(role)}</span><br><small class="text-muted">${escapeHTML(days)}</small>`;
+        return `<small class="text-muted">${escapeHTML(days)}</small>`;
     }
 
     _getCheckedDays(prefix) {
@@ -333,16 +330,10 @@ class Admin {
         });
     }
 
-    async _saveDutySchedules(userId, days, role) {
-        if (!role || days.length === 0) return;
+    async _saveDutySchedules(userId, days) {
         for (const day of days) {
             try {
-                await api.post('/duty-schedules', {
-                    user: userId,
-                    day,
-                    duty_role: role,
-                    time: '21:30'
-                });
+                await api.post('/duty-schedules', { user: userId, day });
             } catch (e) {
                 console.error(`Gagal simpan jadwal ${day} untuk ${userId}:`, e);
             }
@@ -376,12 +367,10 @@ class Admin {
         document.getElementById('edit-tech-id').value = t._id;
         document.getElementById('edit-tech-name').value = t.name;
         document.getElementById('edit-tech-phone').value = t.phone;
+        document.getElementById('edit-tech-jabatan').value = t.jabatan || '';
 
         const entries = this.scheduleMap[id] || [];
-        const role = entries.length > 0 ? entries[0].duty_role : '';
         const days = entries.map(e => e.day);
-
-        document.getElementById('edit-tech-duty-role').value = role;
         this._setCheckedDays('edit-duty', days);
         new bootstrap.Modal(document.getElementById('editTechModal')).show();
     }
@@ -451,14 +440,14 @@ class Admin {
                 const username = document.getElementById('tech-username').value;
                 const phone = document.getElementById('tech-phone').value;
                 const password = document.getElementById('tech-password').value;
-                const dutyRole = document.getElementById('tech-duty-role').value;
+                const jabatan = document.getElementById('tech-jabatan').value;
                 const days = this._getCheckedDays('duty');
 
                 try {
-                    const res = await api.post('/admin/technicians', { name, username, phone, password });
+                    const res = await api.post('/admin/technicians', { name, username, phone, password, jabatan: jabatan || undefined });
                     const newUserId = res.data?._id || res.data?.user?._id;
-                    if (newUserId && dutyRole && days.length > 0) {
-                        await this._saveDutySchedules(newUserId, days, dutyRole);
+                    if (newUserId && days.length > 0) {
+                        await this._saveDutySchedules(newUserId, days);
                     }
                     showToast('Akun Baru Berhasil Terdaftar');
                     e.target.reset();
@@ -473,16 +462,16 @@ class Admin {
                 const id = document.getElementById('edit-tech-id').value;
                 const data = {
                     name: document.getElementById('edit-tech-name').value,
-                    phone: document.getElementById('edit-tech-phone').value
+                    phone: document.getElementById('edit-tech-phone').value,
+                    jabatan: document.getElementById('edit-tech-jabatan').value || undefined
                 };
-                const dutyRole = document.getElementById('edit-tech-duty-role').value;
                 const days = this._getCheckedDays('edit-duty');
 
                 try {
                     await api.put(`/admin/technicians/${id}`, data);
                     await this._removeUserDutySchedules(id);
-                    if (dutyRole && days.length > 0) {
-                        await this._saveDutySchedules(id, days, dutyRole);
+                    if (days.length > 0) {
+                        await this._saveDutySchedules(id, days);
                     }
                     showToast('Data diperbarui');
                     bootstrap.Modal.getInstance(document.getElementById('editTechModal')).hide();

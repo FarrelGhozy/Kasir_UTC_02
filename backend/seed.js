@@ -17,17 +17,17 @@ const connectDB = async () => {
 
 // --- DATA TEKNISI ---
 const TECHNICIANS = [
-  { name: 'Farrel', username: 'farrel_utc', password: 'Teknisiutc26', phone: '6282133713565' },
-  { name: 'Kaukab', username: 'kaukab_utc', password: 'Teknisiutc26', phone: '6289654510812' },
-  { name: 'Rasya', username: 'rasya_utc', password: 'Teknisiutc26', phone: '6283899674625' },
-  { name: 'Tamam', username: 'tamam_utc', password: 'Teknisiutc26', phone: '6285101429027' },
-  { name: 'Noer Syamsi', username: 'syamsi_utc', password: 'Teknisiutc26', phone: '6281252828633' },
-  { name: 'Baso Akbar', username: 'akbar_utc', password: 'Teknisiutc26', phone: '6285385500382' },
-  { name: 'Fahri', username: 'fahri_utc', password: 'Teknisiutc26', phone: '6285281762499' },
-  { name: 'Albi', username: 'albi_utc', password: 'Teknisiutc26', phone: '6281515153321' },
-  { name: 'Lutfiansyah', username: 'lutfiansyah_utc', password: 'Teknisiutc26', phone: '6285716696578' },
-  { name: 'Fayad', username: 'fayad_utc', password: 'Teknisiutc26', phone: '62895320648811' },
-  { name: 'Raffael Akbar', username: 'raffael_utc', password: 'Teknisiutc26', phone: '6282325571742' }
+  { name: 'Farrel', username: 'farrel_utc', password: 'Teknisiutc26', phone: '6282133713565', jabatan: 'Chief' },
+  { name: 'Kaukab', username: 'kaukab_utc', password: 'Teknisiutc26', phone: '6289654510812', jabatan: 'PDD' },
+  { name: 'Rasya', username: 'rasya_utc', password: 'Teknisiutc26', phone: '6283899674625', jabatan: 'Secretary' },
+  { name: 'Tamam', username: 'tamam_utc', password: 'Teknisiutc26', phone: '6285101429027', jabatan: 'Admin' },
+  { name: 'Noer Syamsi', username: 'syamsi_utc', password: 'Teknisiutc26', phone: '6281252828633', jabatan: 'Equipment' },
+  { name: 'Baso Akbar', username: 'akbar_utc', password: 'Teknisiutc26', phone: '6285385500382', jabatan: 'Equipment' },
+  { name: 'Fahri', username: 'fahri_utc', password: 'Teknisiutc26', phone: '6285281762499', jabatan: 'PDD' },
+  { name: 'Albi', username: 'albi_utc', password: 'Teknisiutc26', phone: '6281515153321', jabatan: 'Equipment' },
+  { name: 'Lutfiansyah', username: 'lutfiansyah_utc', password: 'Teknisiutc26', phone: '6285716696578', jabatan: 'Secretary' },
+  { name: 'Fayad', username: 'fayad_utc', password: 'Teknisiutc26', phone: '62895320648811', jabatan: 'Admin' },
+  { name: 'Raffael Akbar', username: 'raffael_utc', password: 'Teknisiutc26', phone: '6282325571742', jabatan: 'Admin' }
 ];
 
 const seedTechnicians = async () => {
@@ -44,13 +44,11 @@ const seedTechnicians = async () => {
     const existingTech = await User.findOne({ username: tech.username });
     
     if (existingTech) {
-      // Update data teknisi yang sudah ada
       existingTech.name = tech.name;
       existingTech.phone = tech.phone;
       existingTech.role = 'teknisi';
       existingTech.isActive = true;
-      // Jangan paksa ganti password jika sudah ada agar user tidak ter-logout paksa
-      // kecuali jika ingin mereset password melalui seed
+      if (tech.jabatan) existingTech.jabatan = tech.jabatan;
       await existingTech.save();
       console.log(`   ⏭️  Diperbarui: ${tech.name} (username: ${tech.username})`);
       updatedCount++;
@@ -227,24 +225,18 @@ const seedDutySchedules = async () => {
 
   const DutySchedule = require('./models/DutySchedule');
 
-  // Mapping jadwal piket: [username, day, duty_role]
   const dutySchedules = [
-    // SENIN
-    { username: 'albi_utc', day: 'senin', duty_role: 'Equipment', name: 'Sulthan Albi' },
-    { username: 'raffael_utc', day: 'senin', duty_role: 'Admin', name: 'Rafael' },
-    // SELASA
-    { username: 'tamam_utc', day: 'selasa', duty_role: 'Admin', name: "Tammam Na'am" },
-    { username: 'fayad_utc', day: 'selasa', duty_role: 'Admin', name: 'Fayyadh' },
-    // RABU
-    { username: 'farrel_utc', day: 'rabu', duty_role: 'Chief', name: 'Farrel Ghozy' },
-    { username: 'lutfiansyah_utc', day: 'rabu', duty_role: 'Secretary', name: 'Luthfi' },
-    // KAMIS
-    { username: 'syamsi_utc', day: 'kamis', duty_role: 'Equipment', name: 'Noer Syamsi' },
-    { username: 'fahri_utc', day: 'kamis', duty_role: 'PDD', name: 'Fahri' },
-    // JUMAT
-    { username: 'kaukab_utc', day: 'jumat', duty_role: 'PDD', name: 'Dhiyau Kaukab' },
-    { username: 'rasya_utc', day: 'jumat', duty_role: 'Secretary', name: 'M. Rasya Naufal' },
-    { username: 'akbar_utc', day: 'jumat', duty_role: 'Equipment', name: 'Baso Akbar' },
+    { username: 'albi_utc', day: 'senin', name: 'Sulthan Albi' },
+    { username: 'raffael_utc', day: 'senin', name: 'Rafael' },
+    { username: 'tamam_utc', day: 'selasa', name: "Tammam Na'am" },
+    { username: 'fayad_utc', day: 'selasa', name: 'Fayyadh' },
+    { username: 'farrel_utc', day: 'rabu', name: 'Farrel Ghozy' },
+    { username: 'lutfiansyah_utc', day: 'rabu', name: 'Luthfi' },
+    { username: 'syamsi_utc', day: 'kamis', name: 'Noer Syamsi' },
+    { username: 'fahri_utc', day: 'kamis', name: 'Fahri' },
+    { username: 'kaukab_utc', day: 'jumat', name: 'Dhiyau Kaukab' },
+    { username: 'rasya_utc', day: 'jumat', name: 'M. Rasya Naufal' },
+    { username: 'akbar_utc', day: 'jumat', name: 'Baso Akbar' },
   ];
 
   let createdCount = 0;
@@ -258,22 +250,19 @@ const seedDutySchedules = async () => {
       continue;
     }
 
-    // Cek apakah sudah ada jadwal untuk user di hari tersebut
     const existing = await DutySchedule.findOne({ user: user._id, day: schedule.day });
     if (existing) {
-      console.log(`   ⏭️  Dilewati: ${schedule.name} - ${schedule.day} (${schedule.duty_role}) sudah ada`);
+      console.log(`   ⏭️  Dilewati: ${schedule.name} - ${schedule.day} sudah ada`);
       skippedCount++;
       continue;
     }
 
     await DutySchedule.create({
       user: user._id,
-      day: schedule.day,
-      duty_role: schedule.duty_role,
-      time: '21:30'
+      day: schedule.day
     });
 
-    console.log(`   ✅ Dibuat: ${schedule.name} - ${schedule.day} (${schedule.duty_role})`);
+    console.log(`   ✅ Dibuat: ${schedule.name} - ${schedule.day}`);
     createdCount++;
   }
 

@@ -47,7 +47,7 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
-  duty_role: {
+  jabatan: {
     type: String,
     trim: true,
     default: null
