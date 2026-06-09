@@ -5,12 +5,13 @@ class Admin {
     constructor() {
         this.technicians = [];
         this.reportsModule = new Reports();
+        this.scheduleMap = {};
     }
 
     async render() {
         window.adminModule = this;
         const content = document.getElementById('app-content');
-        
+
         content.innerHTML = `
             <div class="card shadow-sm border-0">
                 <div class="card-header bg-white border-0 pt-3 pb-0 px-3 px-md-4">
@@ -28,10 +29,8 @@ class Admin {
                 </div>
                 <div class="card-body p-3 p-md-4">
                     <div id="admin-panels">
-                        <!-- PANEL 1: LAPORAN & ANALITIK -->
                         <div id="reports-panel"></div>
 
-                        <!-- PANEL 2: MANAJEMEN PENGGUNA -->
                         <div id="users-panel" class="d-none">
                             <div class="row g-4">
                                 <div class="col-lg-4">
@@ -55,7 +54,47 @@ class Admin {
                                                     <label class="form-label small fw-bold">Password</label>
                                                     <input type="password" class="form-control form-control-sm" id="tech-password" required placeholder="Min. 6 Karakter">
                                                 </div>
-                                                <div class="d-grid">
+                                                <div class="mb-3">
+                                                    <label class="form-label small fw-bold">Jabatan</label>
+                                                    <select class="form-select form-select-sm" id="tech-jabatan">
+                                                        <option value="">-- Pilih Jabatan --</option>
+                                                        <option value="Equipment">Equipment</option>
+                                                        <option value="Admin">Admin</option>
+                                                        <option value="Chief">Chief</option>
+                                                        <option value="Secretary">Secretary</option>
+                                                        <option value="PDD">PDD</option>
+                                                    </select>
+                                                </div>
+                                                <div class="mt-3 pt-3 border-top">
+                                                    <h6 class="fw-bold mb-3 text-success small"><i class="bi bi-calendar-check me-2"></i>Jadwal Piket (Opsional)</h6>
+                                                    <div class="mb-2">
+                                                        <label class="form-label small fw-bold">Hari Piket</label>
+                                                        <div class="d-flex flex-wrap gap-2">
+                                                            <div class="form-check form-check-inline">
+                                                                <input class="form-check-input" type="checkbox" value="senin" id="duty-senin">
+                                                                <label class="form-check-label small" for="duty-senin">Senin</label>
+                                                            </div>
+                                                            <div class="form-check form-check-inline">
+                                                                <input class="form-check-input" type="checkbox" value="selasa" id="duty-selasa">
+                                                                <label class="form-check-label small" for="duty-selasa">Selasa</label>
+                                                            </div>
+                                                            <div class="form-check form-check-inline">
+                                                                <input class="form-check-input" type="checkbox" value="rabu" id="duty-rabu">
+                                                                <label class="form-check-label small" for="duty-rabu">Rabu</label>
+                                                            </div>
+                                                            <div class="form-check form-check-inline">
+                                                                <input class="form-check-input" type="checkbox" value="kamis" id="duty-kamis">
+                                                                <label class="form-check-label small" for="duty-kamis">Kamis</label>
+                                                            </div>
+                                                            <div class="form-check form-check-inline">
+                                                                <input class="form-check-input" type="checkbox" value="jumat" id="duty-jumat">
+                                                                <label class="form-check-label small" for="duty-jumat">Jumat</label>
+                                                            </div>
+                                                        </div>
+                                                        <small class="text-muted">Pilih hari untuk jadwal piket (21:30 WIB)</small>
+                                                    </div>
+                                                </div>
+                                                <div class="d-grid mt-3">
                                                     <button type="submit" class="btn btn-primary btn-sm fw-bold">
                                                         <i class="bi bi-person-check me-2"></i>Daftarkan Akun
                                                     </button>
@@ -78,11 +117,13 @@ class Admin {
                                                     <th class="ps-3">Nama</th>
                                                     <th>Username</th>
                                                     <th>WhatsApp</th>
+                                                    <th>Jabatan</th>
+                                                    <th>Jadwal Piket</th>
                                                     <th class="text-end pe-3">Aksi</th>
                                                 </tr>
                                             </thead>
                                             <tbody id="tech-list-content">
-                                                <tr><td colspan="4" class="text-center py-4">Memuat data...</td></tr>
+                                                <tr><td colspan="6" class="text-center py-4">Memuat data...</td></tr>
                                             </tbody>
                                         </table>
                                     </div>
@@ -90,7 +131,6 @@ class Admin {
                             </div>
                         </div>
 
-                        <!-- PANEL 3: BACKUP & RESTORE -->
                         <div id="backup-panel" class="d-none">
                             <div class="row justify-content-center py-2 py-md-4">
                                 <div class="col-md-8">
@@ -134,7 +174,6 @@ class Admin {
                 </div>
             </div>
 
-            <!-- Edit Tech Modal -->
             <div class="modal fade" id="editTechModal" tabindex="-1">
                 <div class="modal-dialog">
                     <div class="modal-content">
@@ -153,8 +192,48 @@ class Admin {
                                     <label class="form-label fw-bold small">No. WhatsApp</label>
                                     <input type="tel" class="form-control" id="edit-tech-phone" required>
                                 </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold small">Jabatan</label>
+                                    <select class="form-select form-select-sm" id="edit-tech-jabatan">
+                                        <option value="">-- Pilih Jabatan --</option>
+                                        <option value="Equipment">Equipment</option>
+                                        <option value="Admin">Admin</option>
+                                        <option value="Chief">Chief</option>
+                                        <option value="Secretary">Secretary</option>
+                                        <option value="PDD">PDD</option>
+                                    </select>
+                                </div>
                                 <div class="alert alert-info py-2 small mb-0">
                                     <i class="bi bi-info-circle me-1"></i> Username dan Password tidak dapat diubah demi keamanan.
+                                </div>
+                                <div class="mt-4 pt-3 border-top">
+                                    <h6 class="fw-bold mb-3 text-success small"><i class="bi bi-calendar-check me-2"></i>Jadwal Piket</h6>
+                                    <div class="mb-2">
+                                        <label class="form-label small fw-bold">Hari Piket</label>
+                                        <div class="d-flex flex-wrap gap-2">
+                                            <div class="form-check form-check-inline">
+                                                <input class="form-check-input" type="checkbox" value="senin" id="edit-duty-senin">
+                                                <label class="form-check-label small" for="edit-duty-senin">Senin</label>
+                                            </div>
+                                            <div class="form-check form-check-inline">
+                                                <input class="form-check-input" type="checkbox" value="selasa" id="edit-duty-selasa">
+                                                <label class="form-check-label small" for="edit-duty-selasa">Selasa</label>
+                                            </div>
+                                            <div class="form-check form-check-inline">
+                                                <input class="form-check-input" type="checkbox" value="rabu" id="edit-duty-rabu">
+                                                <label class="form-check-label small" for="edit-duty-rabu">Rabu</label>
+                                            </div>
+                                            <div class="form-check form-check-inline">
+                                                <input class="form-check-input" type="checkbox" value="kamis" id="edit-duty-kamis">
+                                                <label class="form-check-label small" for="edit-duty-kamis">Kamis</label>
+                                            </div>
+                                            <div class="form-check form-check-inline">
+                                                <input class="form-check-input" type="checkbox" value="jumat" id="edit-duty-jumat">
+                                                <label class="form-check-label small" for="edit-duty-jumat">Jumat</label>
+                                            </div>
+                                        </div>
+                                        <small class="text-muted">Piket dilaksanakan jam 21:30 WIB</small>
+                                    </div>
                                 </div>
                             </form>
                         </div>
@@ -177,11 +256,14 @@ class Admin {
         if (!tbody) return;
 
         try {
-            const res = await api.get('/admin/technicians');
-            this.technicians = res.data;
-            
+            const [usersRes] = await Promise.all([
+                api.get('/admin/technicians'),
+                this._loadSchedules()
+            ]);
+            this.technicians = usersRes.data;
+
             if (this.technicians.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4">Belum ada akun terdaftar.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4">Belum ada akun terdaftar.</td></tr>';
                 return;
             }
 
@@ -194,6 +276,8 @@ class Admin {
                             <i class="bi bi-whatsapp me-1"></i>${escapeHTML(t.phone)}
                         </a>
                     </td>
+                    <td>${t.jabatan ? `<span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25">${escapeHTML(t.jabatan)}</span>` : '<span class="text-muted">—</span>'}</td>
+                    <td>${this._getPiketDisplay(t._id)}</td>
                     <td class="text-end pe-3">
                         <button class="btn btn-sm btn-outline-warning border-0" onclick="adminModule.openEdit('${t._id}')" title="Edit"><i class="bi bi-pencil"></i></button>
                         <button class="btn btn-sm btn-outline-danger border-0" onclick="adminModule.deleteTech('${t._id}')" title="Hapus"><i class="bi bi-trash"></i></button>
@@ -201,13 +285,76 @@ class Admin {
                 </tr>
             `).join('');
         } catch (e) {
-            tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-danger">${escapeHTML(e.message)}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-danger">${escapeHTML(e.message)}</td></tr>`;
+        }
+    }
+
+    async _loadSchedules() {
+        try {
+            const res = await api.get('/duty-schedules');
+            const schedules = res.data || [];
+            this.scheduleMap = {};
+            for (const s of schedules) {
+                const uid = s.user?._id || s.user;
+                if (!uid) continue;
+                if (!this.scheduleMap[uid]) this.scheduleMap[uid] = [];
+                this.scheduleMap[uid].push(s);
+            }
+        } catch (e) {
+            this.scheduleMap = {};
+        }
+    }
+
+    _getPiketDisplay(userId) {
+        const entries = this.scheduleMap[userId];
+        if (!entries || entries.length === 0) {
+            return '<span class="text-muted">—</span>';
+        }
+        const dayLabels = { senin: 'Senin', selasa: 'Selasa', rabu: 'Rabu', kamis: 'Kamis', jumat: 'Jumat' };
+        const days = entries.map(e => dayLabels[e.day] || e.day).join(', ');
+        return `<small class="text-muted">${escapeHTML(days)}</small>`;
+    }
+
+    _getCheckedDays(prefix) {
+        const days = ['senin', 'selasa', 'rabu', 'kamis', 'jumat'];
+        return days.filter(day => {
+            const el = document.getElementById(`${prefix}-${day}`);
+            return el && el.checked;
+        });
+    }
+
+    _setCheckedDays(prefix, days) {
+        ['senin', 'selasa', 'rabu', 'kamis', 'jumat'].forEach(day => {
+            const el = document.getElementById(`${prefix}-${day}`);
+            if (el) el.checked = days.includes(day);
+        });
+    }
+
+    async _saveDutySchedules(userId, days) {
+        for (const day of days) {
+            try {
+                await api.post('/duty-schedules', { user: userId, day });
+            } catch (e) {
+                console.error(`Gagal simpan jadwal ${day} untuk ${userId}:`, e);
+            }
+        }
+    }
+
+    async _removeUserDutySchedules(userId) {
+        const entries = this.scheduleMap[userId] || [];
+        for (const s of entries) {
+            try {
+                await api.delete(`/duty-schedules/${s._id}`);
+            } catch (e) {
+                console.error(`Gagal hapus jadwal ${s._id}:`, e);
+            }
         }
     }
 
     async deleteTech(id) {
         if (!confirm('Hapus akun ini permanen?')) return;
         try {
+            await this._removeUserDutySchedules(id);
             await api.delete(`/admin/technicians/${id}`);
             showToast('Akun berhasil dihapus');
             this.loadTechnicians();
@@ -220,6 +367,11 @@ class Admin {
         document.getElementById('edit-tech-id').value = t._id;
         document.getElementById('edit-tech-name').value = t.name;
         document.getElementById('edit-tech-phone').value = t.phone;
+        document.getElementById('edit-tech-jabatan').value = t.jabatan || '';
+
+        const entries = this.scheduleMap[id] || [];
+        const days = entries.map(e => e.day);
+        this._setCheckedDays('edit-duty', days);
         new bootstrap.Modal(document.getElementById('editTechModal')).show();
     }
 
@@ -227,19 +379,19 @@ class Admin {
         try {
             showToast('Menyiapkan backup data...', 'info');
             const res = await api.get('/admin/backup/export');
-            
+
             const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const downloadAnchorNode = document.createElement('a');
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-            
+
             downloadAnchorNode.setAttribute("href", url);
             downloadAnchorNode.setAttribute("download", `backup_utc_${timestamp}.json`);
             document.body.appendChild(downloadAnchorNode);
             downloadAnchorNode.click();
             downloadAnchorNode.remove();
             setTimeout(() => URL.revokeObjectURL(url), 10000);
-            
+
             showToast('Backup berhasil diunduh', 'success');
         } catch (e) { showToast('Gagal melakukan backup: ' + e.message, 'error'); }
     }
@@ -247,15 +399,13 @@ class Admin {
     async handleImport() {
         const fileInput = document.getElementById('import-file');
         const file = fileInput.files[0];
-        
+
         if (!file) {
             showToast('Silakan pilih file backup (.json) terlebih dahulu', 'warning');
             return;
         }
 
-        // Peringatan Keamanan
         const confirmed = confirm("⚠️ PERINGATAN KERAS!\n\nMelakukan import akan MENGHAPUS SEMUA DATA saat ini dan menimpanya dengan data dari file backup.\n\nApakah Anda yakin ingin melanjutkan?");
-        
         if (!confirmed) return;
 
         const finalConfirm = confirm("Konfirmasi Terakhir: Anda benar-benar yakin? Proses ini tidak dapat dibatalkan.");
@@ -263,13 +413,12 @@ class Admin {
 
         try {
             showToast('Sedang memproses import...', 'info');
-            
+
             const reader = new FileReader();
             reader.onload = async (e) => {
                 try {
                     const jsonData = JSON.parse(e.target.result);
                     const res = await api.post('/admin/backup/import', { data: jsonData });
-                    
                     if (res.success) {
                         alert('Data berhasil dipulihkan! Aplikasi akan dimuat ulang.');
                         window.location.reload();
@@ -283,19 +432,23 @@ class Admin {
     }
 
     setupEventListeners() {
-        // User form listener
         const techForm = document.getElementById('tech-form');
         if (techForm) {
             techForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
-                const data = {
-                    name: document.getElementById('tech-name').value,
-                    username: document.getElementById('tech-username').value,
-                    phone: document.getElementById('tech-phone').value,
-                    password: document.getElementById('tech-password').value
-                };
+                const name = document.getElementById('tech-name').value;
+                const username = document.getElementById('tech-username').value;
+                const phone = document.getElementById('tech-phone').value;
+                const password = document.getElementById('tech-password').value;
+                const jabatan = document.getElementById('tech-jabatan').value;
+                const days = this._getCheckedDays('duty');
+
                 try {
-                    await api.post('/admin/technicians', data);
+                    const res = await api.post('/admin/technicians', { name, username, phone, password, jabatan: jabatan || undefined });
+                    const newUserId = res.data?._id || res.data?.user?._id;
+                    if (newUserId && days.length > 0) {
+                        await this._saveDutySchedules(newUserId, days);
+                    }
                     showToast('Akun Baru Berhasil Terdaftar');
                     e.target.reset();
                     this.loadTechnicians();
@@ -303,17 +456,23 @@ class Admin {
             });
         }
 
-        // Edit user button
         const saveEditBtn = document.getElementById('save-edit-tech-btn');
         if (saveEditBtn) {
             saveEditBtn.addEventListener('click', async () => {
                 const id = document.getElementById('edit-tech-id').value;
                 const data = {
                     name: document.getElementById('edit-tech-name').value,
-                    phone: document.getElementById('edit-tech-phone').value
+                    phone: document.getElementById('edit-tech-phone').value,
+                    jabatan: document.getElementById('edit-tech-jabatan').value || undefined
                 };
+                const days = this._getCheckedDays('edit-duty');
+
                 try {
                     await api.put(`/admin/technicians/${id}`, data);
+                    await this._removeUserDutySchedules(id);
+                    if (days.length > 0) {
+                        await this._saveDutySchedules(id, days);
+                    }
                     showToast('Data diperbarui');
                     bootstrap.Modal.getInstance(document.getElementById('editTechModal')).hide();
                     this.loadTechnicians();
@@ -324,14 +483,12 @@ class Admin {
         const refreshBtn = document.getElementById('refresh-tech-btn');
         if (refreshBtn) refreshBtn.addEventListener('click', () => this.loadTechnicians());
 
-        // Backup & Export listeners
         const exportBtn = document.getElementById('export-btn');
         if (exportBtn) exportBtn.addEventListener('click', () => this.handleExport());
 
         const importBtn = document.getElementById('import-btn');
         if (importBtn) importBtn.addEventListener('click', () => this.handleImport());
 
-        // Toggle panel (Manajemen Pengguna / Backup / Laporan)
         const toggleBtns = document.querySelectorAll('#users-tab, #backup-tab, #reports-tab');
         toggleBtns.forEach(btn => {
             btn.addEventListener('click', () => {

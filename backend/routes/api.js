@@ -12,6 +12,7 @@ const orderController = require('../controllers/orderController');
 const adminController = require('../controllers/adminController');
 const backupController = require('../controllers/backupController');
 const waController = require('../controllers/waController');
+const dutyScheduleController = require('../controllers/dutyScheduleController');
 
 // Impor middleware
 const { protect, authorize } = require('../middleware/auth');
@@ -150,6 +151,17 @@ router.get('/uploads/:filename', (req, res) => {
   }
   res.sendFile(filePath);
 });
+
+// ============================================
+// RUTE JADWAL PIKET KEBERSIHAN
+// ============================================
+router.get('/duty-schedules', protect, authorize('admin'), dutyScheduleController.getAllSchedules);
+router.get('/duty-schedules/today', protect, dutyScheduleController.getTodaySchedule);
+router.get('/duty-schedules/my', protect, dutyScheduleController.getMySchedule);
+router.get('/duty-schedules/day/:day', protect, authorize('admin'), dutyScheduleController.getScheduleByDay);
+router.post('/duty-schedules', protect, authorize('admin'), dutyScheduleController.createSchedule);
+router.put('/duty-schedules/:id', protect, authorize('admin'), dutyScheduleController.updateSchedule);
+router.delete('/duty-schedules/:id', protect, authorize('admin'), dutyScheduleController.deleteSchedule);
 
 // --- WhatsApp Helper ---
 router.get('/check-wa', protect, waController.checkWANumber);

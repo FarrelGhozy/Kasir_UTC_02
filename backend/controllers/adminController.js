@@ -19,7 +19,7 @@ exports.getAllTechnicians = async (req, res, next) => {
  */
 exports.createTechnician = async (req, res, next) => {
   try {
-    const { name, username, password, phone, status } = req.body;
+    const { name, username, password, phone, status, jabatan } = req.body;
 
     const existingUser = await User.findOne({ username }).lean();
     if (existingUser) {
@@ -32,6 +32,7 @@ exports.createTechnician = async (req, res, next) => {
       password,
       phone,
       status,
+      jabatan: jabatan || null,
       role: 'teknisi'
     });
 
@@ -47,18 +48,26 @@ exports.createTechnician = async (req, res, next) => {
  */
 exports.updateTechnician = async (req, res, next) => {
   try {
-    const { name, username, password, phone, status } = req.body;
+    const { name, username, password, phone, status, jabatan } = req.body;
     
     const user = await User.findById(req.params.id);
     if (!user) {
       return res.status(404).json({ success: false, message: 'Teknisi tidak ditemukan' });
     }
 
-    // Update fields
     if (name) user.name = name;
-    if (username) user.username = username;
+    if (username) {
+      if (username !== user.username) {
+        const existingUser = await User.findOne({ username }).lean();
+        if (existingUser) {
+          return res.status(400).json({ success: false, message: 'Username sudah digunakan' });
+        }
+      }
+      user.username = username;
+    }
     if (phone) user.phone = phone;
     if (status) user.status = status;
+    if (jabatan !== undefined) user.jabatan = jabatan || null;
     
     // Hanya update password jika diisi
     if (password && password.trim() !== '') {

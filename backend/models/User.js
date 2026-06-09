@@ -46,6 +46,11 @@ const userSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
+  },
+  jabatan: {
+    type: String,
+    trim: true,
+    default: null
   }
 }, {
   // Use snake_case field names to match the existing API responses and database schema.
