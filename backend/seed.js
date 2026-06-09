@@ -299,7 +299,7 @@ const runSeeder = async () => {
     console.log('✅ Pengisian database berhasil selesai!');
     console.log('='.repeat(60));
     console.log('\n📝 Kredensial Bawaan (Default):');
-    console.log('   Admin    - Username: admin-utc01  | Pass: adminutc28');
+    console.log('   Admin    - Username: admin-utc01  | Pass: adminrahasia26');
     console.log('   Kasir    - Username: kasir1       | Pass: kasirutc0326');
     console.log('   Teknisi  - Username: [nama_user]  | Pass: password_[nama]_123');
     console.log('\n⚠️  Penting: Jangan lupa ubah password demi keamanan!');
