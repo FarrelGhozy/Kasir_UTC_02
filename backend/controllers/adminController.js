@@ -19,7 +19,7 @@ exports.getAllTechnicians = async (req, res, next) => {
  */
 exports.createTechnician = async (req, res, next) => {
   try {
-    const { name, username, password, phone, status } = req.body;
+    const { name, username, password, phone, status, duty_role } = req.body;
 
     const existingUser = await User.findOne({ username }).lean();
     if (existingUser) {
@@ -32,6 +32,7 @@ exports.createTechnician = async (req, res, next) => {
       password,
       phone,
       status,
+      duty_role: duty_role || null,
       role: 'teknisi'
     });
 
@@ -47,7 +48,7 @@ exports.createTechnician = async (req, res, next) => {
  */
 exports.updateTechnician = async (req, res, next) => {
   try {
-    const { name, username, password, phone, status } = req.body;
+    const { name, username, password, phone, status, duty_role } = req.body;
     
     const user = await User.findById(req.params.id);
     if (!user) {
@@ -59,6 +60,7 @@ exports.updateTechnician = async (req, res, next) => {
     if (username) user.username = username;
     if (phone) user.phone = phone;
     if (status) user.status = status;
+    if (duty_role !== undefined) user.duty_role = duty_role || null;
     
     // Hanya update password jika diisi
     if (password && password.trim() !== '') {
