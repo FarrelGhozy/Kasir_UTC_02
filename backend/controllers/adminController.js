@@ -57,7 +57,16 @@ exports.updateTechnician = async (req, res, next) => {
 
     // Update fields
     if (name) user.name = name;
-    if (username) user.username = username;
+    if (username) {
+      // Cek apakah username sudah digunakan user lain
+      if (username !== user.username) {
+        const existingUser = await User.findOne({ username }).lean();
+        if (existingUser) {
+          return res.status(400).json({ success: false, message: 'Username sudah digunakan' });
+        }
+      }
+      user.username = username;
+    }
     if (phone) user.phone = phone;
     if (status) user.status = status;
     if (duty_role !== undefined) user.duty_role = duty_role || null;
