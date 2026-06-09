@@ -68,7 +68,7 @@ async function sendDutyReminder(type) {
 
       if (type === 'pre') {
         // Pre-reminder jam 16:00
-        message = `⏰ *PENGINGAT PIKET*\n\nHalo Kak ${user.name}! 👋\n\nHari ini kamu memiliki jadwal piket *kebersihan bengkel*:\n📅 Hari: ${dayLabel}\n🛠️ Tugas: ${schedule.duty_role}\n🕕 Waktu: 21.30 WIB\n\nJangan lupa ya Kak, nanti malam kita bersih-bersih kantor sebelum pulang! 💪🧹`;
+        message = `⏰ *PENGINGAT PIKET*\n\nHalo Kak ${user.name}! 👋\n\nHari ini kamu memiliki jadwal piket *kebersihan bengkel*:\n📅 Hari: ${dayLabel}\n🛠️ Tugas: ${schedule.duty_role}\n🕕 Waktu: ${schedule.time || '21:30'} WIB\n\nJangan lupa ya Kak, nanti malam kita bersih-bersih kantor sebelum pulang! 💪🧹`;
       } else if (type === 'now') {
         // On-duty reminder jam 21:30
         message = `🧹 *WAKTUNYA PIKET!*\n\nHalo Kak ${user.name}! 👋\n\nSekarang sudah waktunya piket kebersihan bengkel.\n🛠️ Tugas kamu: ${schedule.duty_role}\n\nAyo segera dikerjakan! Kerja tim, hasil memuaskan! 💪✨`;
