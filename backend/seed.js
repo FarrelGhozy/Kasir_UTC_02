@@ -222,6 +222,64 @@ const seedInventory = async () => {
   console.log(`   Total Item dalam Kode: ${inventoryItems.length}`);
 };
 
+const seedDutySchedules = async () => {
+  console.log('\n📋 Menambahkan Jadwal Piket Kebersihan...');
+
+  const DutySchedule = require('./models/DutySchedule');
+
+  // Mapping jadwal piket: [username, day, duty_role]
+  const dutySchedules = [
+    // SENIN
+    { username: 'albi_utc', day: 'senin', duty_role: 'Equipment', name: 'Sulthan Albi' },
+    { username: 'raffael_utc', day: 'senin', duty_role: 'Admin', name: 'Rafael' },
+    // SELASA
+    { username: 'tamam_utc', day: 'selasa', duty_role: 'Admin', name: "Tammam Na'am" },
+    { username: 'fayad_utc', day: 'selasa', duty_role: 'Admin', name: 'Fayyadh' },
+    // RABU
+    { username: 'farrel_utc', day: 'rabu', duty_role: 'Chief', name: 'Farrel Ghozy' },
+    { username: 'lutfiansyah_utc', day: 'rabu', duty_role: 'Secretary', name: 'Luthfi' },
+    // KAMIS
+    { username: 'syamsi_utc', day: 'kamis', duty_role: 'Equipment', name: 'Noer Syamsi' },
+    { username: 'fahri_utc', day: 'kamis', duty_role: 'PDD', name: 'Fahri' },
+    // JUMAT
+    { username: 'kaukab_utc', day: 'jumat', duty_role: 'PDD', name: 'Dhiyau Kaukab' },
+    { username: 'rasya_utc', day: 'jumat', duty_role: 'Secretary', name: 'M. Rasya Naufal' },
+    { username: 'akbar_utc', day: 'jumat', duty_role: 'Equipment', name: 'Baso Akbar' },
+  ];
+
+  let createdCount = 0;
+  let skippedCount = 0;
+
+  for (const schedule of dutySchedules) {
+    const user = await User.findOne({ username: schedule.username }).lean();
+
+    if (!user) {
+      console.log(`   ⚠️  User ${schedule.username} tidak ditemukan, skip.`);
+      continue;
+    }
+
+    // Cek apakah sudah ada jadwal untuk user di hari tersebut
+    const existing = await DutySchedule.findOne({ user: user._id, day: schedule.day });
+    if (existing) {
+      console.log(`   ⏭️  Dilewati: ${schedule.name} - ${schedule.day} (${schedule.duty_role}) sudah ada`);
+      skippedCount++;
+      continue;
+    }
+
+    await DutySchedule.create({
+      user: user._id,
+      day: schedule.day,
+      duty_role: schedule.duty_role,
+      time: '21:30'
+    });
+
+    console.log(`   ✅ Dibuat: ${schedule.name} - ${schedule.day} (${schedule.duty_role})`);
+    createdCount++;
+  }
+
+  console.log(`\n📊 Ringkasan Piket: +${createdCount} Baru, ${skippedCount} Dilewati`);
+};
+
 // --- FUNGSI EKSEKUSI UTAMA ---
 const runSeeder = async () => {
   try {
@@ -235,6 +293,7 @@ const runSeeder = async () => {
     await seedTechnicians();      // 1. Teknisi
     await seedDefaultUsers();     // 2. Admin & Kasir
     await seedInventory();        // 3. Barang & Jasa Lengkap
+    await seedDutySchedules();    // 4. Jadwal Piket Kebersihan
 
     console.log('\n' + '='.repeat(60));
     console.log('✅ Pengisian database berhasil selesai!');
