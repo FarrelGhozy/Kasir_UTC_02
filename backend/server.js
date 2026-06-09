@@ -10,6 +10,7 @@ const apiRoutes = require('./routes/api');
 const webhookRoutes = require('./routes/webhook');
 const reminderService = require('./services/reminderService');
 const backupService = require('./services/backupService');
+const { startDutyReminderCron } = require('./bot/dutyScheduler');
 const errorHandler = require('./middleware/errorHandler');
 
 // Validasi environment variables kritis saat startup
@@ -139,6 +140,7 @@ const startServer = async () => {
     // 2. Jalankan Scheduler
     reminderService.init();
     backupService.init();
+    startDutyReminderCron();
     
     // 3. Jalankan Listen Port
     app.listen(PORT, '0.0.0.0', () => {
