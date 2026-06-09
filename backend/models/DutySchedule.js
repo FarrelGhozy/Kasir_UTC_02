@@ -25,7 +25,8 @@ const dutyScheduleSchema = new mongoose.Schema({
   },
   time: {
     type: String,
-    default: '21:30'
+    default: '21:30',
+    match: [/^([01]\d|2[0-3]):([0-5]\d)$/, 'Format waktu tidak valid. Gunakan format HH:MM']
   }
 }, {
   timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
