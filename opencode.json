@@ -1,0 +1,196 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": [
+    "ecc-universal"
+  ],
+  "instructions": [
+    ".opencode/instructions/INSTRUCTIONS.md",
+    ".opencode/skills/tdd-workflow/SKILL.md",
+    ".opencode/skills/security-review/SKILL.md",
+    ".opencode/skills/coding-standards/SKILL.md",
+    ".opencode/skills/backend-patterns/SKILL.md",
+    ".opencode/skills/e2e-testing/SKILL.md",
+    ".opencode/skills/verification-loop/SKILL.md",
+    ".opencode/skills/api-design/SKILL.md",
+    ".opencode/skills/strategic-compact/SKILL.md"
+  ],
+  "agent": {
+    "planner": {
+      "description": "Expert planning specialist for complex features and refactoring. Use for implementation planning, architectural changes, or complex refactoring.",
+      "mode": "subagent",
+      "prompt": "{file:.opencode/prompts/agents/planner.txt}",
+      "tools": {
+        "read": true,
+        "bash": true,
+        "write": false,
+        "edit": false
+      }
+    },
+    "architect": {
+      "description": "Software architecture specialist for system design, scalability, and technical decision-making.",
+      "mode": "subagent",
+      "prompt": "{file:.opencode/prompts/agents/architect.txt}",
+      "tools": {
+        "read": true,
+        "bash": true,
+        "write": false,
+        "edit": false
+      }
+    },
+    "code-reviewer": {
+      "description": "Expert code review specialist. Reviews code for quality, security, and maintainability. Use immediately after writing or modifying code.",
+      "mode": "subagent",
+      "prompt": "{file:.opencode/prompts/agents/code-reviewer.txt}",
+      "tools": {
+        "read": true,
+        "bash": true,
+        "write": false,
+        "edit": false
+      }
+    },
+    "security-reviewer": {
+      "description": "Security vulnerability detection and remediation specialist. Use after writing code that handles user input, authentication, API endpoints, or sensitive data.",
+      "mode": "subagent",
+      "prompt": "{file:.opencode/prompts/agents/security-reviewer.txt}",
+      "tools": {
+        "read": true,
+        "bash": true,
+        "write": true,
+        "edit": true
+      }
+    },
+    "tdd-guide": {
+      "description": "Test-Driven Development specialist enforcing write-tests-first methodology. Use when writing new features, fixing bugs, or refactoring code.",
+      "mode": "subagent",
+      "prompt": "{file:.opencode/prompts/agents/tdd-guide.txt}",
+      "tools": {
+        "read": true,
+        "write": true,
+        "edit": true,
+        "bash": true
+      }
+    },
+    "build-error-resolver": {
+      "description": "Build and TypeScript error resolution specialist. Use when build fails or type errors occur.",
+      "mode": "subagent",
+      "prompt": "{file:.opencode/prompts/agents/build-error-resolver.txt}",
+      "tools": {
+        "read": true,
+        "write": true,
+        "edit": true,
+        "bash": true
+      }
+    },
+    "doc-updater": {
+      "description": "Documentation and codemap specialist. Use for updating codemaps and documentation.",
+      "mode": "subagent",
+      "prompt": "{file:.opencode/prompts/agents/doc-updater.txt}",
+      "tools": {
+        "read": true,
+        "write": true,
+        "edit": true,
+        "bash": true
+      }
+    },
+    "refactor-cleaner": {
+      "description": "Dead code cleanup and consolidation specialist. Use for removing unused code, duplicates, and refactoring.",
+      "mode": "subagent",
+      "prompt": "{file:.opencode/prompts/agents/refactor-cleaner.txt}",
+      "tools": {
+        "read": true,
+        "write": true,
+        "edit": true,
+        "bash": true
+      }
+    },
+    "database-reviewer": {
+      "description": "PostgreSQL database specialist for query optimization, schema design, security, and performance.",
+      "mode": "subagent",
+      "prompt": "{file:.opencode/prompts/agents/database-reviewer.txt}",
+      "tools": {
+        "read": true,
+        "write": true,
+        "edit": true,
+        "bash": true
+      }
+    }
+  },
+  "command": {
+    "plan": {
+      "description": "Create a detailed implementation plan for complex features",
+      "template": "{file:.opencode/commands/plan.md}\n\n$ARGUMENTS",
+      "agent": "planner",
+      "subtask": true
+    },
+    "tdd": {
+      "description": "Enforce TDD workflow with 80%+ test coverage",
+      "template": "{file:.opencode/commands/tdd.md}\n\n$ARGUMENTS",
+      "agent": "tdd-guide",
+      "subtask": true
+    },
+    "code-review": {
+      "description": "Review code for quality, security, and maintainability",
+      "template": "{file:.opencode/commands/code-review.md}\n\n$ARGUMENTS",
+      "agent": "code-reviewer",
+      "subtask": true
+    },
+    "security": {
+      "description": "Run comprehensive security review",
+      "template": "{file:.opencode/commands/security.md}\n\n$ARGUMENTS",
+      "agent": "security-reviewer",
+      "subtask": true
+    },
+    "build-fix": {
+      "description": "Fix build and TypeScript errors with minimal changes",
+      "template": "{file:.opencode/commands/build-fix.md}\n\n$ARGUMENTS",
+      "agent": "build-error-resolver",
+      "subtask": true
+    },
+    "e2e": {
+      "description": "Generate and run E2E tests with Playwright",
+      "template": "{file:.opencode/commands/e2e.md}\n\n$ARGUMENTS",
+      "agent": "e2e-runner",
+      "subtask": true
+    },
+    "refactor-clean": {
+      "description": "Remove dead code and consolidate duplicates",
+      "template": "{file:.opencode/commands/refactor-clean.md}\n\n$ARGUMENTS",
+      "agent": "refactor-cleaner",
+      "subtask": true
+    },
+    "orchestrate": {
+      "description": "Orchestrate multiple agents for complex tasks",
+      "template": "{file:.opencode/commands/orchestrate.md}\n\n$ARGUMENTS",
+      "agent": "planner",
+      "subtask": true
+    },
+    "learn": {
+      "description": "Extract patterns and learnings from session",
+      "template": "{file:.opencode/commands/learn.md}\n\n$ARGUMENTS"
+    },
+    "checkpoint": {
+      "description": "Save verification state and progress",
+      "template": "{file:.opencode/commands/checkpoint.md}\n\n$ARGUMENTS"
+    },
+    "verify": {
+      "description": "Run verification loop",
+      "template": "{file:.opencode/commands/verify.md}\n\n$ARGUMENTS"
+    },
+    "update-docs": {
+      "description": "Update documentation",
+      "template": "{file:.opencode/commands/update-docs.md}\n\n$ARGUMENTS",
+      "agent": "doc-updater",
+      "subtask": true
+    },
+    "test-coverage": {
+      "description": "Analyze test coverage",
+      "template": "{file:.opencode/commands/test-coverage.md}\n\n$ARGUMENTS",
+      "agent": "tdd-guide",
+      "subtask": true
+    },
+    "skill-create": {
+      "description": "Generate skills from git history",
+      "template": "{file:.opencode/commands/skill-create.md}\n\n$ARGUMENTS"
+    }
+  }
+}
