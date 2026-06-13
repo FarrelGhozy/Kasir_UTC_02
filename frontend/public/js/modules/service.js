@@ -823,6 +823,23 @@ class Service {
             return name.includes(searchTerm) || phone.includes(searchTerm);
         });
 
+        const statusPriority = {
+            'Diagnosing': 0,
+            'In_Progress': 0,
+            'Queue': 1,
+            'Waiting_Part': 2,
+            'Completed': 3,
+            'Picked_Up': 4,
+            'Cancelled': 5
+        };
+
+        filteredTickets.sort((a, b) => {
+            const pa = statusPriority[a.status] ?? 99;
+            const pb = statusPriority[b.status] ?? 99;
+            if (pa !== pb) return pa - pb;
+            return new Date(b.history.created_at) - new Date(a.history.created_at);
+        });
+
         if (filteredTickets.length === 0) {
             container.innerHTML = `<div class="col-12 text-center text-muted py-5"><i class="bi bi-clipboard-x display-4"></i><p class="mt-2">${this.tickets.length === 0 ? 'Tidak ada data tiket aktif.' : 'Tidak ada hasil pencarian.'}</p></div>`;
             return;

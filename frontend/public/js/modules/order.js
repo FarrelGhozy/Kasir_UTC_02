@@ -190,6 +190,22 @@ class Order {
             return name.includes(searchTerm) || phone.includes(searchTerm) || item.includes(searchTerm);
         });
 
+        const statusPriority = {
+            'Searching': 0,
+            'Ordered': 0,
+            'Pending': 1,
+            'Arrived': 2,
+            'Picked_Up': 3,
+            'Cancelled': 4
+        };
+
+        filteredOrders.sort((a, b) => {
+            const pa = statusPriority[a.status] ?? 99;
+            const pb = statusPriority[b.status] ?? 99;
+            if (pa !== pb) return pa - pb;
+            return new Date(b.history.created_at) - new Date(a.history.created_at);
+        });
+
         if (filteredOrders.length === 0) {
             container.innerHTML = `<div class="col-12 text-center text-muted py-5"><p>${this.orders.length === 0 ? 'Tidak ada data pesanan.' : 'Tidak ada hasil pencarian.'}</p></div>`;
             return;
