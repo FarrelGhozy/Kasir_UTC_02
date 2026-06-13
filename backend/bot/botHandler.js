@@ -1,25 +1,28 @@
 const config = require('./botConfig');
 const { sendReply } = require('./wahaClient');
+const User = require('../models/User');
 
 // In-memory storage untuk session
 const chatSessions = new Map();
 const waitMessageThrottling = new Map(); // Untuk mencegah spam pesan "tunggu"
 
-const TECHNICIAN_PHONES = new Set([
-  '6282133713565', // Farrel
-  '6289654510812', // Kaukab
-  '6283899674625', // Rasya
-  '6285101429027', // Tamam
-  '6281252828633', // Noer Syamsi
-  '6285385500382', // Baso Akbar
-  '6285281762499', // Fahri
-  '6281515153321', // Albi
-  '6285716696578', // Lutfiansyah
-  '62895320648811', // Fayad
-  '6282325571742', // Raffael Akbar
-]);
-
 const WAIT_THROTTLE_TIME = 15 * 60 * 1000; // 15 Menit
+
+// Cache daftar nomor teknisi dari database (refresh setiap 5 menit)
+let cachedTechnicianPhones = null;
+let lastFetch = 0;
+const CACHE_TTL = 5 * 60 * 1000;
+
+async function getTechnicianPhones() {
+  const now = Date.now();
+  if (cachedTechnicianPhones && (now - lastFetch) < CACHE_TTL) {
+    return cachedTechnicianPhones;
+  }
+  const teknisi = await User.find({ role: 'teknisi', isActive: true }).select('phone');
+  cachedTechnicianPhones = new Set(teknisi.map(u => u.phone).filter(Boolean));
+  lastFetch = now;
+  return cachedTechnicianPhones;
+}
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -60,7 +63,8 @@ async function handleIncomingMessage(payload) {
 
   // Skip balasan otomatis jika pengirim adalah teknisi
   const senderPhone = from.replace('@c.us', '').replace('@s.whatsapp.net', '');
-  if (TECHNICIAN_PHONES.has(senderPhone)) {
+  const techPhones = await getTechnicianPhones();
+  if (techPhones.has(senderPhone)) {
     console.log(`[Bot] Teknisi ${senderPhone} — dilewati (tidak dikirimi welcome)`);
     return;
   }
