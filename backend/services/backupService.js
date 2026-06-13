@@ -29,9 +29,11 @@ class BackupService {
 
     this.runBackup();
 
-    console.log('[BackupService] Backup terjadwal setiap hari pukul 00:00');
+    console.log('[BackupService] Backup terjadwal setiap hari pukul 00:00 WIB');
     cron.schedule(this.schedule, () => {
       this.runBackup();
+    }, {
+      timezone: 'Asia/Jakarta'
     });
   }
 

@@ -6,36 +6,35 @@ const whatsappService = require('./whatsappService');
 const SystemLog = require('../models/SystemLog');
 
 class ReminderService {
-  constructor() {
-    this.schedule = '0 8-15 * * *';
-  }
-
   init() {
-    console.log('[ReminderService] Menjalankan scheduler pengingat...');
-    cron.schedule(this.schedule, async () => {
-      await this.runReminders();
-    });
-  }
+    // Cron untuk pengingat pelanggan (setiap jam 08:00-15:00 WIB, skip Jumat)
+    cron.schedule('0 8-15 * * *', async () => {
+      const day = new Date().getDay();
+      if (day === 5) return;
 
-  async runReminders() {
-    const now = new Date();
-    const day = now.getDay();
+      console.log('[ReminderService] Cron pelanggan: memulai pengecekan...');
+      try {
+        await this.remindCustomersForService();
+        await this.remindCustomersForOrders();
+        console.log('[ReminderService] Cron pelanggan selesai.');
+      } catch (error) {
+        console.error('[ReminderService] Error cron pelanggan:', error);
+      }
+    }, { timezone: 'Asia/Jakarta' });
 
-    if (day === 5) {
-      console.log('[ReminderService] Hari Jumat, libur. Melewati pengingat.');
-      return;
-    }
+    // Cron untuk pengingat teknisi (jam 08:00 & 13:00 WIB, skip Jumat)
+    cron.schedule('0 8,13 * * *', async () => {
+      const day = new Date().getDay();
+      if (day === 5) return;
 
-    console.log('[ReminderService] Memulai pengecekan pengingat...');
-
-    try {
-      await this.remindCustomersForService();
-      await this.remindCustomersForOrders();
-      await this.remindTechnicians();
-      console.log('[ReminderService] Pengecekan pengingat selesai.');
-    } catch (error) {
-      console.error('[ReminderService] Error saat menjalankan pengingat:', error);
-    }
+      console.log('[ReminderService] Cron teknisi (WIB): memulai pengecekan...');
+      try {
+        await this.remindTechnicians();
+        console.log('[ReminderService] Cron teknisi selesai.');
+      } catch (error) {
+        console.error('[ReminderService] Error cron teknisi:', error);
+      }
+    }, { timezone: 'Asia/Jakarta' });
   }
 
   async remindCustomersForService() {
@@ -187,42 +186,29 @@ class ReminderService {
 
       for (const ticket of tickets) {
         const now = new Date();
-        const createdAt = new Date(ticket.history.created_at);
-        const lastReminder = ticket.history.last_technician_reminder_at
-          ? new Date(ticket.history.last_technician_reminder_at)
-          : null;
+        const technicianId = ticket.technician.id || ticket.technician._id;
+        const techUser = await User.findById(technicianId).lean();
 
-        const hoursSinceCreated = (now - createdAt) / (1000 * 60 * 60);
+        if (techUser && techUser.phone) {
+          console.log(`[ReminderService] Mengirim pengingat teknisi (${techUser.name}) untuk tiket: ${ticket.ticket_number}`);
+          const result = await whatsappService.sendTechnicianTaskReminder(techUser, ticket);
 
-        if (hoursSinceCreated >= 12) {
-          const hoursSinceLastReminder = lastReminder ? (now - lastReminder) / (1000 * 60 * 60) : 999;
-
-          if (hoursSinceLastReminder >= 12) {
-            const technicianId = ticket.technician.id || ticket.technician._id;
-            const techUser = await User.findById(technicianId).lean();
-
-            if (techUser && techUser.phone) {
-              console.log(`[ReminderService] Mengirim pengingat teknisi (${techUser.name}) untuk tiket: ${ticket.ticket_number}`);
-              const result = await whatsappService.sendTechnicianTaskReminder(techUser, ticket);
-
-              if (result && result.success) {
-                await ServiceTicket.updateOne(
-                  { _id: ticket._id },
-                  { $set: { 'history.last_technician_reminder_at': now } }
-                );
-              } else {
-                console.warn(`[ReminderService] Gagal mengirim pengingat teknisi untuk tiket ${ticket.ticket_number}`);
-                await SystemLog.create({
-                  level: 'WARN',
-                  source: 'ReminderService',
-                  message: `Gagal kirim pengingat teknisi untuk tiket ${ticket.ticket_number}`,
-                  details: { ticket_number: ticket.ticket_number, technician: techUser.name, error: result?.error || 'Unknown error' }
-                });
-              }
-            } else {
-              console.warn(`[ReminderService] Tidak bisa mengirim pengingat: Teknisi ${ticket.technician.name} tidak ditemukan atau tidak punya nomor HP. ID: ${technicianId}`);
-            }
+          if (result && result.success) {
+            await ServiceTicket.updateOne(
+              { _id: ticket._id },
+              { $set: { 'history.last_technician_reminder_at': now } }
+            );
+          } else {
+            console.warn(`[ReminderService] Gagal mengirim pengingat teknisi untuk tiket ${ticket.ticket_number}`);
+            await SystemLog.create({
+              level: 'WARN',
+              source: 'ReminderService',
+              message: `Gagal kirim pengingat teknisi untuk tiket ${ticket.ticket_number}`,
+              details: { ticket_number: ticket.ticket_number, technician: techUser.name, error: result?.error || 'Unknown error' }
+            });
           }
+        } else {
+          console.warn(`[ReminderService] Tidak bisa mengirim pengingat: Teknisi ${ticket.technician.name} tidak ditemukan atau tidak punya nomor HP. ID: ${technicianId}`);
         }
       }
 
