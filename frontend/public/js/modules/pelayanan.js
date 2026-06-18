@@ -47,6 +47,7 @@ class Pelayanan {
                 btn.classList.add('active');
                 document.getElementById('panel-service').classList.toggle('d-none', panel !== 'service');
                 document.getElementById('panel-order').classList.toggle('d-none', panel !== 'order');
+                if (panel === 'order') this.order.loadOrders();
             });
         });
     }

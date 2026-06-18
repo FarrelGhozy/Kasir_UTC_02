@@ -275,7 +275,10 @@ class Order {
                             </div>
                             <div class="col-md-4">
                                 <small class="text-secondary fw-bold">SISA BAYAR</small>
-                                <div class="h6 fw-bold text-danger mb-0">${formatCurrency(o.remaining_payment)}</div>
+                                ${o.remaining_payment <= 0
+                                  ? '<div class="h6 fw-bold text-success mb-0"><i class="bi bi-check-circle-fill me-1"></i>LUNAS</div>'
+                                  : `<div class="h6 fw-bold text-danger mb-0">${formatCurrency(o.remaining_payment)}</div>
+                                     <span class="badge bg-warning text-dark mt-1">BELUM LUNAS</span>`}
                                 <div class="small text-muted">Ditangani: ${o.handled_by?.name || '-'}</div>
                             </div>
                         </div>

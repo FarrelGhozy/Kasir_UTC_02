@@ -6,7 +6,11 @@ const { sendInvoiceEmail } = require('../services/emailService');
 
 exports.createOrder = async (req, res, next) => {
   try {
-    const { customer, item_name, item_description, estimated_price, down_payment, handled_by_id, notes } = req.body;
+    let { customer, item_name, item_description, estimated_price, down_payment, handled_by_id, notes } = req.body;
+
+    if (typeof customer === 'string') {
+      try { customer = JSON.parse(customer); } catch (e) { console.log('Customer is not a JSON string'); }
+    }
 
     let handled_by = undefined;
     if (handled_by_id) {
@@ -67,11 +71,16 @@ exports.getAllOrders = async (req, res, next) => {
     if (customer_phone) filter['customer.phone'] = customer_phone;
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
-    const orders = await SpecialOrder.find(filter)
+    let orders = await SpecialOrder.find(filter)
       .sort({ 'history.created_at': -1 })
       .skip(skip)
       .limit(parseInt(limit))
       .lean();
+
+    orders = orders.map(o => ({
+      ...o,
+      remaining_payment: Math.max(0, (o.estimated_price || 0) - (o.down_payment || 0))
+    }));
 
     const total = await SpecialOrder.countDocuments(filter);
 
@@ -93,6 +102,7 @@ exports.getOrderById = async (req, res, next) => {
   try {
     const order = await SpecialOrder.findById(req.params.id).lean();
     if (!order) return res.status(404).json({ success: false, message: 'Pesanan tidak ditemukan' });
+    order.remaining_payment = Math.max(0, (order.estimated_price || 0) - (order.down_payment || 0));
     res.status(200).json({ success: true, data: order });
   } catch (error) {
     next(error);
@@ -127,7 +137,11 @@ exports.updateOrderStatus = async (req, res, next) => {
 
 exports.updateOrderDetails = async (req, res, next) => {
   try {
-    const { customer, item_name, item_description, estimated_price, down_payment, handled_by_id, notes } = req.body;
+    let { customer, item_name, item_description, estimated_price, down_payment, handled_by_id, notes } = req.body;
+
+    if (typeof customer === 'string') {
+      try { customer = JSON.parse(customer); } catch (e) { console.log('Customer is not a JSON string'); }
+    }
     
     const order = await SpecialOrder.findById(req.params.id);
     if (!order) return res.status(404).json({ success: false, message: 'Pesanan tidak ditemukan' });
