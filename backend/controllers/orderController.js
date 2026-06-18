@@ -18,6 +18,13 @@ exports.createOrder = async (req, res, next) => {
 
     const order_number = await SpecialOrder.generateOrderNumber();
 
+    let photo = undefined;
+    if (req.file) {
+      const protocol = req.protocol;
+      const host = req.get('host');
+      photo = `${protocol}://${host}/api/uploads/${req.file.filename}`;
+    }
+
     const order = await SpecialOrder.create({
       order_number,
       customer,
@@ -26,6 +33,7 @@ exports.createOrder = async (req, res, next) => {
       estimated_price,
       down_payment,
       handled_by,
+      photo,
       notes
     });
     
@@ -130,6 +138,12 @@ exports.updateOrderDetails = async (req, res, next) => {
     if (estimated_price !== undefined) order.estimated_price = estimated_price;
     if (down_payment !== undefined) order.down_payment = down_payment;
     if (notes !== undefined) order.notes = notes;
+
+    if (req.file) {
+      const protocol = req.protocol;
+      const host = req.get('host');
+      order.photo = `${protocol}://${host}/api/uploads/${req.file.filename}`;
+    }
 
     if (handled_by_id) {
       // Cek apakah ada perubahan penanggung jawab
