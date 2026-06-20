@@ -1084,14 +1084,8 @@ class Service {
                             ` : ''}
                             
                             ${!['Completed', 'Picked_Up', 'Cancelled'].includes(t.status) ? `
-                            <button class="btn btn-sm ${t.status === 'Waiting_Part' ? 'btn-warning fw-bold' : 'btn-outline-primary'}" onclick="service.openAddPart('${t._id}')" title="Sparepart">
+                            <button class="btn btn-sm ${t.status === 'Waiting_Part' ? 'btn-warning fw-bold' : 'btn-outline-primary'}" onclick="service.openAddPart('${t._id}', ${t.status === 'Waiting_Part'})" title="Sparepart">
                                 <i class="bi ${t.status === 'Waiting_Part' ? 'bi-box-seam' : 'bi-tools'}"></i>
-                            </button>
-                            ` : ''}
-
-                            ${t.status === 'Waiting_Part' ? `
-                            <button class="btn btn-sm btn-warning fw-bold" onclick="service.openAddPart('${t._id}', true)" title="Pesan Barang">
-                                <i class="bi bi-bag-plus me-1"></i>Pesan Barang
                             </button>
                             ` : ''}
 
