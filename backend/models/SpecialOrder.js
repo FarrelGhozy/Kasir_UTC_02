@@ -54,12 +54,21 @@ const specialOrderSchema = new mongoose.Schema({
     enum: ['Pending', 'Searching', 'Ordered', 'Arrived', 'Picked_Up', 'Cancelled'],
     default: 'Pending'
   },
+  payment_status: {
+    type: String,
+    enum: ['Belum Lunas', 'Lunas'],
+    default: 'Belum Lunas'
+  },
   handled_by: {
     id: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     name: String
   },
   photo: {
     type: String
+  },
+  service_ticket: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'ServiceTicket'
   },
   notes: {
     type: String,
@@ -76,9 +85,9 @@ const specialOrderSchema = new mongoose.Schema({
 
 // Valid state transitions map
 specialOrderSchema.statics.validTransitions = {
-  'Pending': ['Searching', 'Cancelled'],
-  'Searching': ['Ordered', 'Cancelled'],
-  'Ordered': ['Arrived', 'Cancelled'],
+  'Pending': ['Searching', 'Picked_Up', 'Cancelled'],
+  'Searching': ['Ordered', 'Picked_Up', 'Cancelled'],
+  'Ordered': ['Arrived', 'Picked_Up', 'Cancelled'],
   'Arrived': ['Picked_Up', 'Cancelled'],
   'Picked_Up': ['Cancelled'],
   'Cancelled': ['Pending']

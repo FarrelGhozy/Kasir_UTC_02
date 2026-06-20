@@ -348,6 +348,10 @@ class API {
         return this.delete(`/orders/${id}`);
     }
 
+    async updatePaymentStatus(id, payment_status) {
+        return this.patch(`/orders/${id}/payment`, { payment_status });
+    }
+
     // ==================== ENDPOINT LAPORAN ====================
 
     async getDailyRevenue(date) {

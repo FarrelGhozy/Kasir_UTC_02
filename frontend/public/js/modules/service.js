@@ -1964,6 +1964,7 @@ class Service {
                         estimated_price: parseCurrencyValue(document.getElementById('part-order-est-price').value),
                         down_payment: parseCurrencyValue(document.getElementById('part-order-dp').value),
                         handled_by_id: document.getElementById('part-order-handled-by-id').value || undefined,
+                        service_ticket: tId,
                         notes: 'Dari tiket servis #' + (ticket?.ticket_number || '') + ' | ' + (document.getElementById('part-order-notes').value.trim() || '')
                     };
                     await api.createSpecialOrder(orderData);

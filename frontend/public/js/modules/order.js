@@ -275,7 +275,7 @@ class Order {
                             </div>
                             <div class="col-md-4">
                                 <small class="text-secondary fw-bold">SISA BAYAR</small>
-                                ${o.remaining_payment <= 0
+                                ${o.payment_status === 'Lunas'
                                   ? '<div class="h6 fw-bold text-success mb-0"><i class="bi bi-check-circle-fill me-1"></i>LUNAS</div>'
                                   : `<div class="h6 fw-bold text-danger mb-0">${formatCurrency(o.remaining_payment)}</div>
                                      <span class="badge bg-warning text-dark mt-1">BELUM LUNAS</span>`}
@@ -289,6 +289,10 @@ class Order {
                                 <option value="Ordered" ${o.status === 'Ordered' ? 'selected' : ''}>Dipesan</option>
                                 <option value="Arrived" ${o.status === 'Arrived' ? 'selected' : ''}>Sampai</option>
                                 <option value="Picked_Up" ${o.status === 'Picked_Up' ? 'selected' : ''}>Diambil</option>
+                            </select>
+                            <select class="form-select form-select-sm" style="width: 130px" onchange="orderModule.togglePayment('${o._id}', this)">
+                                <option value="Belum Lunas" ${o.payment_status === 'Belum Lunas' ? 'selected' : ''}>Belum Lunas</option>
+                                <option value="Lunas" ${o.payment_status === 'Lunas' ? 'selected' : ''}>Lunas</option>
                             </select>
                             <button class="btn btn-sm btn-outline-primary" onclick="orderModule.openEdit('${o._id}')" title="Edit"><i class="bi bi-pencil"></i></button>
                             <button class="btn btn-sm btn-outline-danger" onclick="orderModule.deleteOrder('${o._id}')" title="Batal"><i class="bi bi-trash"></i></button>
@@ -345,6 +349,15 @@ class Order {
         iframe.contentWindow.focus();
         iframe.contentWindow.print();
         setTimeout(() => document.body.removeChild(iframe), 5000);
+    }
+
+    async togglePayment(id, select) {
+        try {
+            await api.updatePaymentStatus(id, select.value);
+            showToast('Status pembayaran diperbarui');
+            this.loadOrders();
+            window.service?.loadTickets();
+        } catch (e) { showToast(e.message, 'error'); }
     }
 
     async updateStatus(id, newStatus) {
