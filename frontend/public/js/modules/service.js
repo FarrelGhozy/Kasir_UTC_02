@@ -612,7 +612,7 @@ class Service {
                             <input type="hidden" id="part-ticket-id">
 
                             <div class="row">
-                                <div class="col-md-6">
+                                <div class="col-md-6" id="add-part-sparepart-col">
                                     <h6 class="border-bottom pb-2 mb-3 fw-bold text-secondary">Sparepart</h6>
                                     <div class="mb-3">
                                         <label class="form-label small fw-bold">Cari Barang</label>
@@ -1089,6 +1089,12 @@ class Service {
                             </button>
                             ` : ''}
 
+                            ${t.status === 'Waiting_Part' ? `
+                            <button class="btn btn-sm btn-warning fw-bold" onclick="service.openAddPart('${t._id}', true)" title="Pesan Barang">
+                                <i class="bi bi-bag-plus me-1"></i>Pesan Barang
+                            </button>
+                            ` : ''}
+
                             ${!['Completed', 'Picked_Up', 'Cancelled'].includes(t.status) ? `
                             <button class="btn btn-sm btn-success fw-bold px-3" onclick="service.openFinalize('${t._id}')">
                                 <i class="bi bi-check-lg"></i>
@@ -1392,7 +1398,7 @@ class Service {
     }
 
 
-    openAddPart(id) {
+    openAddPart(id, hideParts = false) {
         console.log('Opening Add Part for ticket:', id);
         this.getOrCreateModal('detailModal').hide();
         
@@ -1418,6 +1424,32 @@ class Service {
         
         // Re-init currency inputs
         document.querySelectorAll('#addPartModal .currency-input').forEach(input => setupCurrencyInput(input));
+        
+        // Sembunyikan/tampilkan kolom sparepart
+        const sparepartCol = document.getElementById('add-part-sparepart-col');
+        const orderCol = sparepartCol?.nextElementSibling;
+        const modalTitle = document.querySelector('#addPartModal .modal-title');
+        const saveBtn = document.getElementById('save-part-btn');
+        
+        if (hideParts) {
+            if (sparepartCol) {
+                sparepartCol.classList.add('d-none');
+                if (orderCol) orderCol.className = 'col-md-12';
+            }
+            if (modalTitle) modalTitle.innerHTML = '<i class="bi bi-bag-plus me-2"></i>Pesan Barang';
+            if (saveBtn) {
+                saveBtn.innerHTML = '<i class="bi bi-save me-2"></i>Simpan Pesanan';
+            }
+        } else {
+            if (sparepartCol) {
+                sparepartCol.classList.remove('d-none');
+                if (orderCol) orderCol.className = 'col-md-6';
+            }
+            if (modalTitle) modalTitle.innerHTML = '<i class="bi bi-box-seam me-2"></i>Tambah Part & Pesan Barang';
+            if (saveBtn) {
+                saveBtn.innerHTML = '<i class="bi bi-save me-2"></i>Simpan Part & Pesan';
+            }
+        }
         
         this.getOrCreateModal('addPartModal').show();
     }
