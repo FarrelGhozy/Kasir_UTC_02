@@ -5,30 +5,6 @@ const API_BASE_URL = window.API_BASE_URL || window.location.origin + '/api';
 class API {
     constructor(baseURL) {
         this.baseURL = baseURL;
-        this._cache = new Map();
-        this._CACHE_TTL = 30000; // 30 detik
-    }
-
-    _getCacheKey(endpoint, options) {
-        return `${options.method || 'GET'}:${endpoint}`;
-    }
-
-    _getCached(key) {
-        const entry = this._cache.get(key);
-        if (!entry) return null;
-        if (Date.now() - entry.ts > this._CACHE_TTL) {
-            this._cache.delete(key);
-            return null;
-        }
-        return entry.data;
-    }
-
-    _setCache(key, data) {
-        this._cache.set(key, { data, ts: Date.now() });
-    }
-
-    _clearCache() {
-        this._cache.clear();
     }
 
     /**
@@ -96,17 +72,6 @@ class API {
      */
     async request(endpoint, options = {}) {
         const method = options.method || 'GET';
-        const isGet = method === 'GET';
-        const cacheKey = this._getCacheKey(endpoint, options);
-
-        // Clear cache on mutations
-        if (!isGet) this._clearCache();
-
-        // Return cached response for GET
-        if (isGet) {
-            const cached = this._getCached(cacheKey);
-            if (cached) return cached;
-        }
 
         const url = `${this.baseURL}${endpoint}`;
         const authenticated = options.authenticated !== false;
@@ -127,8 +92,6 @@ class API {
         try {
             const response = await fetch(url, config);
             const data = await this.handleResponse(response);
-            // Cache GET responses
-            if (isGet) this._setCache(cacheKey, data);
             return data;
         } catch (error) {
             console.error('Kesalahan Permintaan API:', error);

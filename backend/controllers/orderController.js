@@ -66,10 +66,11 @@ exports.createOrder = async (req, res, next) => {
 
 exports.getAllOrders = async (req, res, next) => {
   try {
-    const { status, customer_phone, page = 1, limit = 20 } = req.query;
+    const { status, customer_phone, service_ticket, page = 1, limit = 20 } = req.query;
     const filter = {};
     if (status) filter.status = status;
     if (customer_phone) filter['customer.phone'] = customer_phone;
+    if (service_ticket) filter.service_ticket = service_ticket;
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
     let orders = await SpecialOrder.find(filter)

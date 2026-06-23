@@ -682,11 +682,15 @@ class Service {
                             <h5 class="modal-title"><i class="bi bi-check-circle-fill me-2"></i>Selesaikan Servis</h5>
                             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                         </div>
-                        <div class="modal-body">
+                            <div class="modal-body">
                             <input type="hidden" id="final-ticket-id">
                             <div class="d-flex justify-content-between mb-2">
                                 <span>Total Sparepart:</span>
                                 <strong id="final-part-cost">Rp 0</strong>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2" id="final-order-row">
+                                <span>Pesanan Barang:</span>
+                                <strong id="final-order-cost">Rp 0</strong>
                             </div>
                             <div class="mb-4">
                                 <label class="form-label fw-bold">Biaya Jasa Final</label>
@@ -720,10 +724,25 @@ class Service {
                         <div class="modal-body">
                             <input type="hidden" id="payment-ticket-id">
                             
-                            <div class="alert alert-info mb-4">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <span>Total yang harus dibayar:</span>
-                                    <h4 class="mb-0 fw-bold" id="payment-grand-total">Rp 0</h4>
+                            <div class="card bg-light mb-3">
+                                <div class="card-body py-2">
+                                    <div class="d-flex justify-content-between small mb-1">
+                                        <span>Total Sparepart:</span>
+                                        <strong id="payment-part-cost">Rp 0</strong>
+                                    </div>
+                                    <div class="d-flex justify-content-between small mb-1">
+                                        <span>Pesanan Barang:</span>
+                                        <strong id="payment-order-cost">Rp 0</strong>
+                                    </div>
+                                    <div class="d-flex justify-content-between small mb-1">
+                                        <span>Biaya Jasa:</span>
+                                        <strong id="payment-service-fee">Rp 0</strong>
+                                    </div>
+                                    <hr class="my-1">
+                                    <div class="d-flex justify-content-between">
+                                        <span class="fw-bold">Total yang harus dibayar:</span>
+                                        <h4 class="mb-0 fw-bold text-primary" id="payment-grand-total">Rp 0</h4>
+                                    </div>
                                 </div>
                             </div>
 
@@ -1163,12 +1182,30 @@ class Service {
         }
     }
 
-    openPayment(id) {
+    async openPayment(id) {
         const t = this.tickets.find(x => x._id === id);
         if (!t) return;
 
         document.getElementById('payment-ticket-id').value = id;
-        document.getElementById('payment-grand-total').textContent = formatCurrency(t.total_cost);
+        const partsTotal = t.parts_used.reduce((sum, p) => sum + (p.subtotal || 0), 0);
+        document.getElementById('payment-part-cost').textContent = formatCurrency(partsTotal);
+        document.getElementById('payment-service-fee').textContent = formatCurrency(t.service_fee || 0);
+
+        // Ambil pesanan barang yang terhubung
+        let orderTotal = 0;
+        try {
+            const res = await api.getSpecialOrders({ service_ticket: id, limit: 50 });
+            if (res.data && res.data.length > 0) {
+                const orderCostEl = document.getElementById('payment-order-cost');
+                if (orderCostEl) {
+                    orderTotal = res.data.reduce((sum, o) => sum + (o.estimated_price || 0), 0);
+                    orderCostEl.textContent = formatCurrency(orderTotal);
+                }
+            }
+        } catch {}
+
+        const grandTotal = partsTotal + orderTotal + (t.service_fee || 0);
+        document.getElementById('payment-grand-total').textContent = formatCurrency(grandTotal);
         
         // Reset form
         document.getElementById('pay-cash').checked = true;
@@ -1468,28 +1505,42 @@ class Service {
         }
     }
 
-    openFinalize(id) {
+    async openFinalize(id) {
         console.log('Opening Finalize for ticket:', id);
         const t = this.tickets.find(x => x._id === id);
         if(!t) return;
         document.getElementById('final-ticket-id').value = id;
-        const partTotal = t.parts_used.reduce((sum, p) => sum + p.subtotal, 0);
+        const partTotal = t.parts_used.reduce((sum, p) => sum + (p.subtotal || 0), 0);
         document.getElementById('final-part-cost').textContent = formatCurrency(partTotal);
-        
+
+        // Ambil pesanan barang yang terhubung ke tiket ini
+        let orderTotal = 0;
+        try {
+            const res = await api.getSpecialOrders({ service_ticket: id, limit: 50 });
+            if (res.data && res.data.length > 0) {
+                orderTotal = res.data.reduce((sum, o) => sum + (o.estimated_price || 0), 0);
+                document.getElementById('final-order-cost').textContent = formatCurrency(orderTotal);
+                document.getElementById('final-order-row').classList.remove('d-none');
+            } else {
+                document.getElementById('final-order-row').classList.add('d-none');
+            }
+        } catch {
+            document.getElementById('final-order-row').classList.add('d-none');
+        }
+
         const feeInput = document.getElementById('final-service-fee');
         feeInput.value = t.service_fee;
         setupCurrencyInput(feeInput);
 
         const updateGrandTotal = () => {
             const fee = parseCurrencyValue(feeInput.value);
-            document.getElementById('final-grand-total').textContent = formatCurrency(partTotal + fee);
+            const total = partTotal + orderTotal + fee;
+            document.getElementById('final-grand-total').textContent = formatCurrency(total);
         };
-        feeInput.oninput = (e) => {
-            updateGrandTotal();
-        };
+        feeInput.oninput = () => updateGrandTotal();
         updateGrandTotal();
         this.getOrCreateModal('finalizeModal').show();
-        }
+    }
 
         async confirmFinish() {
         const id = document.getElementById('final-ticket-id').value;
@@ -1970,8 +2021,10 @@ class Service {
             btn.disabled = true;
             btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Menyimpan...';
             try { 
-                // 1. Tambah sparepart ke tiket servis
-                await api.addPartToService(tId, iId, qty); 
+                // 1. Tambah sparepart ke tiket servis (hanya jika ada item dipilih)
+                if (iId) {
+                    await api.addPartToService(tId, iId, qty); 
+                }
 
                 // 2. Buat pesanan barang jika field nama barang diisi
                 const itemName = document.getElementById('part-order-item-name').value.trim();
@@ -1995,9 +2048,9 @@ class Service {
                     };
                     await api.createSpecialOrder(orderData);
                     window.orderModule?.loadOrders();
-                    showToast('Part ditambahkan & Pesanan Barang dibuat');
+                    showToast(iId ? 'Part ditambahkan & Pesanan Barang dibuat' : 'Pesanan Barang dibuat');
                 } else {
-                    showToast('Part ditambahkan');
+                    showToast(iId ? 'Part ditambahkan' : 'Tidak ada perubahan');
                 }
 
                 this.getOrCreateModal('addPartModal').hide(); 
