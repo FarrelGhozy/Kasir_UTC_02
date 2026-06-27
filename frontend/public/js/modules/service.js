@@ -400,7 +400,7 @@ class Service {
                                         <i class="bi bi-arrow-clockwise"></i>
                                     </button>
                                     <button class="btn btn-sm btn-outline-danger admin-only" id="view-logs-btn" style="display:none;" title="System Logs">
-                                        <i class="bi bi-bug"></i>
+                                        <i class="bi bi-journal-code"></i>
                                     </button>
                                 </div>
                             </div>
@@ -814,7 +814,7 @@ class Service {
                 <div class="modal-dialog modal-xl">
                     <div class="modal-content">
                         <div class="modal-header bg-dark text-white">
-                            <h5 class="modal-title"><i class="bi bi-bug me-2"></i>System Logs (Error Tracking)</h5>
+                            <h5 class="modal-title"><i class="bi bi-journal-code me-2"></i>System Logs (Error Tracking)</h5>
                             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                         </div>
                         <div class="modal-body p-0">
@@ -1115,13 +1115,13 @@ class Service {
                             
                             ${!['Completed', 'Picked_Up', 'Cancelled'].includes(t.status) ? `
                             <button class="btn btn-sm ${t.status === 'Waiting_Part' ? 'btn-warning fw-bold' : 'btn-outline-primary'}" onclick="service.openAddPart('${t._id}', ${t.status === 'Waiting_Part'})" title="Sparepart">
-                                <i class="bi ${t.status === 'Waiting_Part' ? 'bi-box-seam' : 'bi-tools'}"></i>
+                                <i class="bi ${t.status === 'Waiting_Part' ? 'bi-box-seam' : 'bi-wrench'}"></i>
                             </button>
                             ` : ''}
 
                             ${!['Completed', 'Picked_Up', 'Cancelled'].includes(t.status) ? `
                             <button class="btn btn-sm btn-success fw-bold px-3" onclick="service.openFinalize('${t._id}')">
-                                <i class="bi bi-check-lg"></i>
+                                <i class="bi bi-check-circle"></i>
                             </button>
                             ` : ''}
 
