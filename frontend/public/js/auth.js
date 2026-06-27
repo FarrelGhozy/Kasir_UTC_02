@@ -37,12 +37,23 @@ class Auth {
         const loginForm = document.getElementById('login-form');
         const loginBtn = document.getElementById('login-btn');
         const loginError = document.getElementById('login-error');
+        const loginCard = document.querySelector('#login-screen .card');
+
+        // Toggle lihat sandi
+        const passwordInput = document.getElementById('login-password');
+        const toggleBtn = document.getElementById('password-toggle');
+        const toggleIcon = document.getElementById('password-toggle-icon');
+        toggleBtn.addEventListener('click', () => {
+            const isPassword = passwordInput.type === 'password';
+            passwordInput.type = isPassword ? 'text' : 'password';
+            toggleIcon.className = isPassword ? 'bi bi-eye-slash' : 'bi bi-eye';
+        });
 
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
 
             const username = document.getElementById('login-username').value.trim();
-            const password = document.getElementById('login-password').value;
+            const password = passwordInput.value;
 
             // Nonaktifkan tombol dan tampilkan loading
             loginBtn.disabled = true;
@@ -67,6 +78,12 @@ class Auth {
             } catch (error) {
                 loginError.textContent = error.message || 'Login gagal. Silakan periksa kredensial Anda.';
                 loginError.classList.remove('d-none');
+
+                // Trigger animasi shake
+                loginCard.classList.remove('shake');
+                void loginCard.offsetWidth;
+                loginCard.classList.add('shake');
+                setTimeout(() => loginCard.classList.remove('shake'), 500);
             } finally {
                 loginBtn.disabled = false;
                 loginBtn.innerHTML = '<i class="bi bi-box-arrow-in-right me-2"></i>Masuk';
