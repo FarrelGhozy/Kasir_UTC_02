@@ -330,7 +330,7 @@ class Inventory {
                                     data-name="${safeName}" 
                                     data-stock="${item.stock}" 
                                     title="Sesuaikan Stok">
-                                <i class="bi bi-arrow-left-right"></i>
+                                <i class="bi bi-plus-minus"></i>
                             </button>
                             <button class="btn btn-outline-secondary btn-action-edit" 
                                     data-id="${item._id}" 
