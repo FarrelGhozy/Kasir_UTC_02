@@ -89,6 +89,7 @@ router.post('/services/:id/parts', protect, authorize('teknisi', 'kasir', 'admin
 router.delete('/services/:id/parts/:part_id', protect, authorize('teknisi', 'kasir', 'admin'), serviceController.removePartFromService);
 router.patch('/services/:id/service-fee', protect, authorize('teknisi', 'kasir', 'admin'), serviceController.updateServiceFee);
 router.delete('/services/:id', protect, authorize('admin'), serviceController.deleteTicket);
+router.get('/services/:id/nota', protect, notaController.downloadServiceNota);
 
 // ============================================
 // RUTE PEMESANAN BARANG (SPECIAL ORDER)
@@ -100,6 +101,7 @@ router.put('/orders/:id', protect, authorize('kasir', 'teknisi', 'admin'), uploa
 router.patch('/orders/:id/status', protect, authorize('kasir', 'teknisi', 'admin'), orderController.updateOrderStatus);
 router.patch('/orders/:id/payment', protect, authorize('kasir', 'teknisi', 'admin'), orderController.updatePaymentStatus);
 router.delete('/orders/:id', protect, authorize('admin', 'kasir'), orderController.deleteOrder);
+router.get('/orders/:id/nota', protect, notaController.downloadOrderNota);
 
 // ============================================
 // RUTE TRANSAKSI / KASIR (POS)
