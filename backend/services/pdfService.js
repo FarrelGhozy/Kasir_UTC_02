@@ -381,4 +381,152 @@ function formatCurrency(amount) {
   }).format(amount || 0);
 }
 
-module.exports = { generateServiceNota, generateOrderNota };
+async function generateServiceEntryNota(ticket) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const doc = new PDFDocument({
+        size: [PAGE.width, PAGE.height],
+        layout: 'portrait',
+        margins: { top: 0, bottom: 0, left: 0, right: 0 },
+        info: {
+          Title: `Nota Masuk Servis - ${ticket.ticket_number}`,
+          Author: 'UNIDA Technology Centre',
+        },
+      });
+
+      const buffers = [];
+      doc.on('data', (chunk) => buffers.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(buffers)));
+      doc.on('error', reject);
+
+      const qrContent = `UTC-VERIFY:ServiceTicket:${ticket._id}:${ticket.ticket_number}`;
+      const qrBuffer = await QRCode.toBuffer(qrContent, {
+        type: 'png', width: 200, margin: 1,
+        color: { dark: '#293e85', light: '#ffffff00' },
+      });
+
+      addWatermark(doc);
+      addBorder(doc);
+      addHeader(doc, 'NOTA TANDA TERIMA');
+      addCustomerSection(doc, ticket.customer);
+      addServiceDetails(doc, ticket);
+      addEntryDisclaimer(doc, ticket);
+      addTCSection(doc);
+      addQRCodeEntry(doc, qrBuffer);
+      addFooter(doc);
+
+      doc.end();
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
+async function generateOrderEntryNota(order) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const doc = new PDFDocument({
+        size: [PAGE.width, PAGE.height],
+        layout: 'portrait',
+        margins: { top: 0, bottom: 0, left: 0, right: 0 },
+        info: {
+          Title: `Nota Masuk Pesanan - ${order.order_number}`,
+          Author: 'UNIDA Technology Centre',
+        },
+      });
+
+      const buffers = [];
+      doc.on('data', (chunk) => buffers.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(buffers)));
+      doc.on('error', reject);
+
+      const qrContent = `UTC-VERIFY:SpecialOrder:${order._id}:${order.order_number}`;
+      const qrBuffer = await QRCode.toBuffer(qrContent, {
+        type: 'png', width: 200, margin: 1,
+        color: { dark: '#293e85', light: '#ffffff00' },
+      });
+
+      addWatermark(doc);
+      addBorder(doc);
+      addHeader(doc, 'NOTA TANDA TERIMA');
+      addCustomerSection(doc, order.customer);
+      addOrderDetails(doc, order);
+      addOrderPricing(doc, order);
+      addQRCode(doc, qrBuffer);
+      addFooter(doc);
+
+      doc.end();
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
+function addEntryDisclaimer(doc, ticket) {
+  const y = doc.y + 3 * MM;
+
+  if (ticket.service_fee && ticket.service_fee > 0) {
+    doc.fontSize(7).fillColor(hexCode(...COLORS.muted));
+    doc.text(`Estimasi Biaya Jasa : ${formatCurrency(ticket.service_fee)}`, PAGE.margin, y);
+    doc.fontSize(5.5).fillColor(hexCode(...COLORS.danger));
+    doc.text('* Estimasi dapat berubah sesuai kondisi perangkat yang ditemukan saat diagnosa.', PAGE.margin, doc.y + 1.5 * MM);
+  } else {
+    doc.fontSize(6.5).fillColor(hexCode(...COLORS.muted));
+    doc.text('Biaya akan diinformasikan setelah proses diagnosa selesai.', PAGE.margin, y);
+    doc.fontSize(5.5).fillColor(hexCode(...COLORS.danger));
+    doc.text('* Biaya dapat berubah sesuai kondisi perangkat yang ditemukan.', PAGE.margin, doc.y + 1.5 * MM);
+  }
+}
+
+function addTCSection(doc) {
+  const y = doc.y + 2.5 * MM;
+  const lineY = y - 1 * MM;
+  doc.moveTo(PAGE.margin, lineY)
+    .lineTo(PAGE.width - PAGE.margin, lineY)
+    .lineWidth(0.5)
+    .strokeColor(hexCode(...COLORS.border))
+    .stroke();
+
+  doc.fontSize(6.5).fillColor(hexCode(...COLORS.accent));
+  doc.text('SYARAT DAN KETENTUAN', PAGE.margin, y + 0.5 * MM);
+
+  const terms = [
+    'Nota ini wajib dibawa saat pengambilan Unit Perangkat Elektronik yang diperbaiki/diservis. Pengambilan tanpa nota dengan alasan apapun tidak akan dilayani oleh pihak UTC.',
+    'Perangkat Elektronik yang diperbaiki/diservis, bila ternyata bertambah jenis kerusakan di luar kesepakatan awal, akan dikenakan biaya tambahan dengan melakukan konfirmasi terlebih dahulu kepada Konsumen.',
+    'Apabila setelah pengecekan kerusakan ditemukan dan konsumen memutuskan untuk membatalkan perbaikan, maka akan dikenakan Biaya Pengecekan/Diagnosa sebesar Rp20.000 untuk semua perangkat Elektronik.',
+    'Pihak UTC tidak bertanggung jawab atas hilangnya data Konsumen untuk semua jenis kerusakan software dan mesin atau kerusakan fisik lainnya yang berdampak pada media penyimpanan.',
+    'UTC tidak bertanggung jawab atas legalitas software/sistem operasi yang terinstall di perangkat konsumen.',
+    'Untuk kabar perbaikan customer akan dikabarkan setelah 3 hari.',
+    'Pengambilan barang servis hanya dapat dilakukan di hari kerja, Sabtu-Kamis pada pukul 08.00 - 15.00.',
+    'Masa garansi berlaku mulai dari tanggal pengambilan Perangkat Elektronik dengan ketentuan: Garansi berlaku untuk jenis kerusakan yang sama, Masa garansi Servis 7 Hari, Garansi Suku Cadang/Hardware berlaku sesuai ketentuan distributor (14-30 hari) dengan syarat fisik tidak cacat.',
+    'Garansi tidak berlaku apabila: Mengubah isi nota, Segel garansi hilang atau rusak, Kesalahan pengguna yang tidak semestinya.',
+    'Konsumen setuju bahwa proses pembongkaran pada perangkat tertentu memiliki risiko lecet, retak rambut pada casing, atau hilangnya fitur ketahanan air (waterproof).',
+    'Apabila perangkat tidak diambil dalam waktu 30 hari setelah pemberitahuan, akan dikenakan Biaya Penyimpanan Rp2.000/hari setelah 15 hari keterlambatan.',
+    'Pihak UTC berhak melakukan Lelang/Penjualan Perangkat jika tidak diambil dalam waktu 90 hari sejak batas waktu pemberitahuan.',
+  ];
+
+  let rowY = doc.y + 1.5 * MM;
+  doc.fontSize(5.5).fillColor(hexCode(...COLORS.text));
+  terms.forEach((t, i) => {
+    doc.text(`${i + 1}. ${t}`, PAGE.margin, rowY, { width: CONTENT_WIDTH });
+    rowY = doc.y + 1 * MM;
+    doc.y = rowY;
+  });
+}
+
+function addQRCodeEntry(doc, qrBuffer) {
+  const y = Math.min(doc.y + 2 * MM, PAGE.height - 40 * MM);
+  const qrSize = 14 * MM;
+
+  doc.image(qrBuffer, PAGE.margin + CONTENT_WIDTH / 2 - qrSize / 2, y, {
+    width: qrSize, height: qrSize,
+  });
+
+  doc.fontSize(5).fillColor(hexCode(...COLORS.muted));
+  doc.text('Scan untuk verifikasi nota', PAGE.margin, y + qrSize + 1 * MM, {
+    width: CONTENT_WIDTH, align: 'center',
+  });
+  doc.y = y + qrSize + 3 * MM;
+}
+
+module.exports = { generateServiceNota, generateOrderNota, generateServiceEntryNota, generateOrderEntryNota };
