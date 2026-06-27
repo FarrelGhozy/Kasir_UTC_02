@@ -1,4 +1,4 @@
-import api, { showToast, escapeHTML } from '../api.js';
+import api, { showToast, escapeHTML, confirmDialog } from '../api.js';
 import Reports from './reports.js';
 
 class Admin {
@@ -133,8 +133,8 @@ class Admin {
 
                         <div id="backup-panel" class="d-none">
                             <div class="row justify-content-center py-2 py-md-4">
-                                <div class="col-md-8">
-                                    <div class="row g-3">
+                                <div class="col-md-10">
+                                    <div class="row g-3 mb-4">
                                         <div class="col-sm-6">
                                             <div class="card border-0 shadow-sm bg-light h-100">
                                                 <div class="card-body p-3 p-md-4 text-center">
@@ -166,6 +166,35 @@ class Admin {
                                                 </div>
                                             </div>
                                         </div>
+                                    </div>
+
+                                    <hr class="my-4">
+
+                                    <h6 class="fw-bold mb-2">
+                                        <i class="bi bi-archive me-2"></i>Backup Tersimpan di Server
+                                        <small class="text-muted fw-normal">(otomatis setiap tengah malam)</small>
+                                    </h6>
+                                    <p class="text-muted small mb-3">
+                                        <i class="bi bi-info-circle me-1"></i>
+                                        File backup disimpan di server selama 30 hari.
+                                        Klik <i class="bi bi-download"></i> untuk mengunduh atau
+                                        <i class="bi bi-arrow-counterclockwise"></i> untuk memulihkan data.
+                                    </p>
+                                    <div class="table-responsive border rounded bg-white">
+                                        <table class="table table-hover align-middle mb-0">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th class="ps-3" style="width:50px">#</th>
+                                                    <th>Nama File</th>
+                                                    <th style="width:90px">Ukuran</th>
+                                                    <th style="width:160px">Tanggal Backup</th>
+                                                    <th class="text-end pe-3" style="width:100px">Aksi</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="backup-files-content">
+                                                <tr><td colspan="5" class="text-center py-4">Memuat daftar backup...</td></tr>
+                                            </tbody>
+                                        </table>
                                     </div>
                                 </div>
                             </div>
@@ -352,7 +381,7 @@ class Admin {
     }
 
     async deleteTech(id) {
-        if (!confirm('Hapus akun ini permanen?')) return;
+        if (!await confirmDialog('Hapus akun ini secara permanen? Data tidak bisa dikembalikan.', 'Hapus Pengguna', 'Ya, Hapus')) return;
         try {
             await this._removeUserDutySchedules(id);
             await api.delete(`/admin/technicians/${id}`);
@@ -405,11 +434,11 @@ class Admin {
             return;
         }
 
-        const confirmed = confirm("⚠️ PERINGATAN KERAS!\n\nMelakukan import akan MENGHAPUS SEMUA DATA saat ini dan menimpanya dengan data dari file backup.\n\nApakah Anda yakin ingin melanjutkan?");
-        if (!confirmed) return;
-
-        const finalConfirm = confirm("Konfirmasi Terakhir: Anda benar-benar yakin? Proses ini tidak dapat dibatalkan.");
-        if (!finalConfirm) return;
+        if (!await confirmDialog(
+            '⚠️ PERINGATAN KERAS!\n\nMelakukan import akan MENGHAPUS SEMUA DATA saat ini dan menimpanya dengan data dari file backup. Proses ini tidak dapat dibatalkan.',
+            'Konfirmasi Import Data',
+            'Ya, Import'
+        )) return;
 
         try {
             showToast('Sedang memproses import...', 'info');
@@ -429,6 +458,91 @@ class Admin {
             };
             reader.readAsText(file);
         } catch (e) { showToast('Gagal melakukan import: ' + e.message, 'error'); }
+    }
+
+    async loadBackupFiles() {
+        const tbody = document.getElementById('backup-files-content');
+        if (!tbody) return;
+        try {
+            const res = await api.get('/admin/backup/files');
+            this.renderBackupFiles(res.data || []);
+        } catch (e) {
+            tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-danger">Gagal memuat: ${escapeHTML(e.message)}</td></tr>`;
+        }
+    }
+
+    renderBackupFiles(files) {
+        const tbody = document.getElementById('backup-files-content');
+        if (!files.length) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">Belum ada file backup tersimpan.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = files.map((f, i) => `
+            <tr>
+                <td class="ps-3 text-muted">${i + 1}</td>
+                <td><small class="fw-medium">${escapeHTML(f.filename)}</small></td>
+                <td><span class="badge bg-light text-dark border">${f.size_formatted || '—'}</span></td>
+                <td><small class="text-muted">${this._formatDate(f.created_at)}</small></td>
+                <td class="text-end pe-3">
+                    <button class="btn btn-sm btn-outline-primary border-0" onclick="adminModule.downloadBackup('${escapeHTML(f.filename)}')" title="Download">
+                        <i class="bi bi-download"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger border-0" onclick="adminModule.restoreBackup('${escapeHTML(f.filename)}')" title="Restore">
+                        <i class="bi bi-arrow-counterclockwise"></i>
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    _formatDate(dateStr) {
+        if (!dateStr) return '—';
+        const d = new Date(dateStr);
+        return d.toLocaleDateString('id-ID', {
+            year: 'numeric', month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit'
+        });
+    }
+
+    async downloadBackup(filename) {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`/api/admin/backup/files/${encodeURIComponent(filename)}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) throw new Error('Gagal mengunduh file');
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 10000);
+            showToast('File berhasil diunduh', 'success');
+        } catch (e) {
+            showToast('Gagal download: ' + e.message, 'error');
+        }
+    }
+
+    async restoreBackup(filename) {
+        if (!await confirmDialog(
+            `Yakin ingin memulihkan data dari file "${filename}"?\n\nSeluruh data saat ini akan DIHAPUS dan diganti dengan data dari file backup. Proses ini tidak dapat dibatalkan.`,
+            'Restore Data',
+            'Ya, Restore'
+        )) return;
+
+        try {
+            showToast('Sedang merestore data...', 'info');
+            const res = await api.post(`/admin/backup/restore/${encodeURIComponent(filename)}`);
+            if (res.success) {
+                alert('Data berhasil dipulihkan! Aplikasi akan dimuat ulang.');
+                window.location.reload();
+            }
+        } catch (e) {
+            showToast('Gagal restore: ' + e.message, 'error');
+        }
     }
 
     setupEventListeners() {
@@ -500,6 +614,9 @@ class Admin {
                 document.getElementById('reports-panel').classList.toggle('d-none', page !== 'reports');
                 if (page === 'reports') {
                     this.reportsModule.render('reports-panel');
+                }
+                if (page === 'backup') {
+                    this.loadBackupFiles();
                 }
             });
         });
