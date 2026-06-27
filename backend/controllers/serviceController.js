@@ -403,6 +403,11 @@ exports.deleteTicket = async (req, res, next) => {
     }
 
     await ticket.updateStatus('Cancelled');
+    if (ticket.customer && ticket.customer.phone) {
+      whatsappService.notifyServiceStatus(ticket).catch(err => {
+        console.error('[deleteTicket] Gagal kirim WA cancel:', err.message);
+      });
+    }
     res.status(200).json({ success: true, message: 'Tiket berhasil dibatalkan' });
   } catch (error) {
     next(error);

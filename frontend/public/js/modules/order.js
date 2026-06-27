@@ -99,6 +99,7 @@ class Order {
                                         <option value="Ordered">Sudah Dipesan</option>
                                         <option value="Arrived">Sudah Sampai</option>
                                         <option value="Picked_Up">Sudah Diambil</option>
+                                        <option value="Cancelled">Dibatalkan</option>
                                     </select>
                                 </div>
                             </div>
@@ -284,11 +285,11 @@ class Order {
                         </div>
                         <div class="d-flex gap-2 border-top pt-2">
                             <select class="form-select form-select-sm" style="width: 150px" onchange="orderModule.updateStatus('${o._id}', this.value)">
-                                <option value="Pending" ${o.status === 'Pending' ? 'selected' : ''}>Antrian</option>
-                                <option value="Searching" ${o.status === 'Searching' ? 'selected' : ''}>Mencari</option>
-                                <option value="Ordered" ${o.status === 'Ordered' ? 'selected' : ''}>Dipesan</option>
-                                <option value="Arrived" ${o.status === 'Arrived' ? 'selected' : ''}>Sampai</option>
-                                <option value="Picked_Up" ${o.status === 'Picked_Up' ? 'selected' : ''}>Diambil</option>
+                                ${(() => {
+                                    const validStatuses = this._getValidOrderStatuses(o.status);
+                                    const allLabels = { Pending: 'Antrian', Searching: 'Mencari', Ordered: 'Dipesan', Arrived: 'Sampai', Picked_Up: 'Diambil', Cancelled: 'Dibatalkan' };
+                                    return validStatuses.map(s => `<option value="${s}" ${o.status === s ? 'selected' : ''}>${allLabels[s] || s}</option>`).join('');
+                                })()}
                             </select>
                             <select class="form-select form-select-sm" style="width: 130px" onchange="orderModule.togglePayment('${o._id}', this)">
                                 <option value="Belum Lunas" ${o.payment_status === 'Belum Lunas' ? 'selected' : ''}>Belum Lunas</option>
@@ -360,7 +361,21 @@ class Order {
         } catch (e) { showToast(e.message, 'error'); }
     }
 
+    _getValidOrderStatuses(currentStatus) {
+        const transitions = {
+            'Pending': ['Searching', 'Picked_Up', 'Cancelled'],
+            'Searching': ['Ordered', 'Picked_Up', 'Cancelled'],
+            'Ordered': ['Arrived', 'Picked_Up', 'Cancelled'],
+            'Arrived': ['Picked_Up', 'Cancelled'],
+            'Picked_Up': ['Cancelled'],
+            'Cancelled': ['Pending']
+        };
+        return transitions[currentStatus] || [];
+    }
+
     async updateStatus(id, newStatus) {
+        const label = { Pending: 'Antrian', Searching: 'Mencari', Ordered: 'Dipesan', Arrived: 'Sampai', Picked_Up: 'Diambil', Cancelled: 'Dibatalkan' }[newStatus] || newStatus;
+        if (!await confirmDialog(`Ubah status pesanan menjadi "${label}"?`, 'Ubah Status', 'Ya, Ubah')) return;
         try {
             await api.updateSpecialOrderStatus(id, newStatus);
             showToast('Status pesanan diperbarui');

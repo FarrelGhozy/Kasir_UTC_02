@@ -227,6 +227,12 @@ exports.updatePaymentStatus = async (req, res, next) => {
     }
     await order.save();
 
+    if (order.status === 'Picked_Up' && order.customer && order.customer.phone) {
+      whatsappService.notifyOrderStatus(order).catch(err => {
+        console.error('[updatePaymentStatus] Gagal kirim WA picked_up:', err.message);
+      });
+    }
+
     res.status(200).json({ success: true, data: order });
   } catch (error) {
     next(error);
@@ -247,6 +253,12 @@ exports.deleteOrder = async (req, res, next) => {
     // JIKA BUKAN ADMIN: Hanya ubah status jadi Cancelled
     order.status = 'Cancelled';
     await order.save();
+
+    if (order.customer && order.customer.phone) {
+      whatsappService.notifyOrderStatus(order).catch(err => {
+        console.error('[deleteOrder] Gagal kirim WA cancel:', err.message);
+      });
+    }
     
     res.status(200).json({ success: true, message: 'Pesanan berhasil dibatalkan' });
   } catch (error) {

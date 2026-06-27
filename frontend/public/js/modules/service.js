@@ -393,6 +393,7 @@ class Service {
                                         <option value="Waiting_Part">Tunggu Part</option>
                                         <option value="In_Progress">Dikerjakan</option>
                                         <option value="Completed">Selesai</option>
+                                        <option value="Picked_Up">Diambil</option>
                                         <option value="Cancelled">Dibatalkan</option>
                                     </select>
                                     <button class="btn btn-sm btn-outline-primary" id="refresh-tickets-btn">
@@ -1172,6 +1173,9 @@ class Service {
             this.openPayment(id);
             return;
         }
+        const t = this.tickets.find(x => x._id === id);
+        const label = { Queue: 'Antrian', Diagnosing: 'Diagnosa', Waiting_Part: 'Tunggu Part', In_Progress: 'Dikerjakan', Completed: 'Selesai', Cancelled: 'Dibatalkan' }[newStatus] || newStatus;
+        if (!await confirmDialog(`Ubah status tiket menjadi "${label}"?`, 'Ubah Status', 'Ya, Ubah')) return;
         try {
             await api.updateTicketStatus(id, newStatus);
             showToast('Status diperbarui');
