@@ -203,6 +203,15 @@ class ReminderService {
         // Skip tiket yang dibuat sebelum server start (hindari spam restart)
         if (createdAt < this.server_started_at) continue;
 
+        // Skip jika pengingat sudah dikirim < 12 jam yang lalu
+        const lastTechReminder = ticket.history?.last_technician_reminder_at
+          ? new Date(ticket.history.last_technician_reminder_at)
+          : null;
+        if (lastTechReminder) {
+          const hoursSinceLastReminder = (now - lastTechReminder) / (1000 * 60 * 60);
+          if (hoursSinceLastReminder < 12) continue;
+        }
+
         const technicianId = ticket.technician.id || ticket.technician._id;
         const techUser = await User.findById(technicianId).lean();
 
