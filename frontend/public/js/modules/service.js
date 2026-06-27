@@ -1144,7 +1144,7 @@ class Service {
                             ` : ''}
 
                             ${isCompleted ? `
-                                <button class="btn btn-sm btn-outline-dark" onclick="service.printInvoice('${t._id}')" title="Nota">
+                                <button class="btn btn-sm btn-outline-dark" onclick="service.downloadNota('${t._id}', 'entry')" title="Nota Masuk">
                                     <i class="bi bi-printer"></i>
                                 </button>
                             ` : ''}
@@ -1565,9 +1565,9 @@ class Service {
             showToast('Servis Selesai!');
             this.getOrCreateModal('finalizeModal').hide();
             await this.loadTickets();
-            this.printInvoice(id);
+            this.downloadNota(id, 'payment');
         } catch(e) {
- showToast(e.message, 'error'); }
+  showToast(e.message, 'error'); }
     }
 
     renderPatternVisualization(seqStr) {
@@ -1696,54 +1696,12 @@ class Service {
             </div>
         `;
         document.getElementById('detail-content').innerHTML = html;
-        document.getElementById('print-copy-btn').onclick = () => this.printInvoice(id);
+        document.getElementById('print-copy-btn').onclick = () => this.downloadNota(id, 'payment');
         this.getOrCreateModal('detailModal').show();
     }
 
-    printInvoice(id) {
-        const t = this.tickets.find(x => x._id === id);
-        if(!t) return;
-        
-        // Format Nama File: nama_nomerPelanggan_barang_angkaRandoom.pdf
-        const randomNum = Math.floor(Math.random() * 10000);
-        const fileName = `${t.customer.name}_${t.customer.phone}_${t.device.type}_${randomNum}`.replace(/\s+/g, '_');
-
-        const iframe = document.createElement('iframe');
-        iframe.style.display = 'none';
-        document.body.appendChild(iframe);
-        const doc = iframe.contentWindow.document;
-        doc.open();
-        doc.write(`
-            <html><head><title>${fileName}</title><style>
-                body { font-family: 'Courier New', monospace; padding: 20px; width: 80mm; font-size: 12px; }
-                .header { text-align: center; border-bottom: 2px dashed #000; margin-bottom: 10px; }
-                .row { display: flex; justify-content: space-between; margin-bottom: 3px; }
-                .divider { border-top: 1px dashed #000; margin: 10px 0; }
-                .bold { font-weight: bold; }
-                .footer { text-align: center; margin-top: 20px; font-size: 10px; }
-            </style></head><body>
-                <div class="header">
-                    <div style="font-size: 16px; font-weight: bold;">BENGKEL UTC</div>
-                    <div>Jln. Raya Siman, Ponorogo</div>
-                </div>
-                <div class="row"><span>Tiket</span> <span>${t.ticket_number}</span></div>
-                <div class="row"><span>Tgl</span> <span>${new Date().toLocaleDateString('id-ID')}</span></div>
-                <div class="row"><span>Klien</span> <span>${escapeHTML(t.customer.name)}</span></div>
-                <div class="divider"></div>
-                <div class="row"><span>Perangkat</span> <span>${escapeHTML(t.device.type)} ${escapeHTML(t.device.brand || '')}</span></div>
-                <div class="row"><span>Sandi/Pola</span> <span>${escapeHTML(t.device.password || '-')}/${escapeHTML(t.device.pattern || '-')}</span></div>
-                <div class="divider"></div>
-                ${t.parts_used.map(p => `<div class="row"><span>${escapeHTML(p.name)} x${p.qty}</span><span>${new Intl.NumberFormat('id-ID').format(p.subtotal)}</span></div>`).join('')}
-                <div class="row"><span>Jasa</span><span>${new Intl.NumberFormat('id-ID').format(t.service_fee)}</span></div>
-                <div class="divider"></div>
-                <div class="row bold"><span>TOTAL</span><span>${new Intl.NumberFormat('id-ID', {style:'currency',currency:'IDR'}).format(t.total_cost)}</span></div>
-                <div class="footer"><p>Terima Kasih!</p></div>
-            </body></html>
-        `);
-        doc.close();
-        iframe.contentWindow.focus();
-        iframe.contentWindow.print();
-        setTimeout(() => document.body.removeChild(iframe), 5000);
+    downloadNota(id, type) {
+        window.open(`/api/services/${id}/nota?type=${type || 'payment'}`, '_blank');
     }
 
     handlePhotoInput(input) {
