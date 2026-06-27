@@ -82,8 +82,8 @@ describe('sendServiceWelcomeMessages', () => {
     await whatsappService.sendServiceWelcomeMessages(ticket);
 
     expect(axios.get).toHaveBeenCalledTimes(1);
-    expect(axios.post).toHaveBeenCalledTimes(3);
-    expect(whatsappService.delay).toHaveBeenCalledTimes(2);
+    expect(axios.post).toHaveBeenCalledTimes(4);
+    expect(whatsappService.delay).toHaveBeenCalledTimes(3);
   });
 
   test('no phone returns early', async () => {
@@ -115,7 +115,7 @@ describe('sendOrderWelcomeMessages', () => {
 
     expect(axios.get).toHaveBeenCalledTimes(1);
     expect(axios.post).toHaveBeenCalledTimes(3);
-    expect(whatsappService.delay).toHaveBeenCalledTimes(2);
+    expect(whatsappService.delay).toHaveBeenCalledTimes(3);
   });
 
   test('no phone returns early', async () => {
@@ -151,8 +151,7 @@ describe('notifyServiceStatus', () => {
     Waiting_Part: 'Menunggu Suku Cadang',
     In_Progress: 'Sedang Dikerjakan oleh Teknisi',
     Completed: 'Selesai & Siap Diambil',
-    Cancelled: 'Dibatalkan',
-    Picked_Up: 'Sudah Diambil'
+    Cancelled: 'Dibatalkan'
   };
 
   Object.entries(statusLabels).forEach(([status, label]) => {
@@ -213,7 +212,6 @@ describe('notifyOrderStatus', () => {
     Searching: 'Sedang Kami Carikan di Supplier',
     Ordered: 'Sudah Kami Pesan ke Supplier',
     Arrived: 'SUDAH SAMPAI di Toko',
-    Picked_Up: 'Sudah Diambil',
     Cancelled: 'Dibatalkan'
   };
 
@@ -229,6 +227,13 @@ describe('notifyOrderStatus', () => {
     await whatsappService.notifyOrderStatus({ ...baseOrder, status: 'Arrived' });
     const text = axios.post.mock.calls[0][1].text;
     expect(text).toContain('Barang pesanan Kakak sudah sampai');
+  });
+
+  test('Picked_Up sends message with thank you', async () => {
+    await whatsappService.notifyOrderStatus({ ...baseOrder, status: 'Picked_Up' });
+    const text = axios.post.mock.calls[0][1].text;
+    expect(text).toContain('terima kasih sudah mengambil pesanannya');
+    expect(text).toContain('Nota Digital Resmi');
   });
 });
 
