@@ -13,6 +13,7 @@ frontend/node_modules/
 # Local Uploads (Sangat Penting!)
 backend/uploads/*
 !backend/uploads/.gitkeep
+!backend/uploads/notas/.gitkeep
 
 # Testing
 coverage/
