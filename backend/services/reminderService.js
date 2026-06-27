@@ -6,6 +6,10 @@ const whatsappService = require('./whatsappService');
 const SystemLog = require('../models/SystemLog');
 
 class ReminderService {
+  constructor() {
+    this.server_started_at = new Date();
+  }
+
   init() {
     // Cron untuk pengingat pelanggan (setiap jam 08:00-15:00 WIB, skip Jumat)
     cron.schedule('0 8-15 * * *', async () => {
@@ -64,6 +68,10 @@ class ReminderService {
       for (const ticket of tickets) {
         const now = new Date();
         const completedAt = new Date(ticket.history.completed_at);
+
+        // Skip tiket yang selesai sebelum server start (hindari spam restart)
+        if (completedAt < this.server_started_at) continue;
+
         const lastReminder = ticket.history.last_customer_reminder_at
           ? new Date(ticket.history.last_customer_reminder_at)
           : null;
@@ -126,6 +134,10 @@ class ReminderService {
       for (const order of orders) {
         const now = new Date();
         const arrivedAt = new Date(order.history.arrived_at);
+
+        // Skip order yang arrived sebelum server start (hindari spam restart)
+        if (arrivedAt < this.server_started_at) continue;
+
         const lastReminder = order.history.last_customer_reminder_at
           ? new Date(order.history.last_customer_reminder_at)
           : null;
@@ -186,6 +198,11 @@ class ReminderService {
 
       for (const ticket of tickets) {
         const now = new Date();
+        const createdAt = ticket.history?.created_at ? new Date(ticket.history.created_at) : now;
+
+        // Skip tiket yang dibuat sebelum server start (hindari spam restart)
+        if (createdAt < this.server_started_at) continue;
+
         const technicianId = ticket.technician.id || ticket.technician._id;
         const techUser = await User.findById(technicianId).lean();
 
