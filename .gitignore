@@ -50,3 +50,6 @@ backend/backups/
 #pembantu 
 CLAUDE.md
 AGENTS.md
+
+# Seed data asli (berisi data real, digantikan seed.dummy.js)
+backend/seed.js
