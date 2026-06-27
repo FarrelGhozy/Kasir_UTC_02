@@ -16,7 +16,7 @@ const dutyScheduleController = require('../controllers/dutyScheduleController');
 
 // Impor middleware
 const { protect, authorize } = require('../middleware/auth');
-const upload = require('../utils/upload');
+const { upload, uploadOrderPhoto } = require('../utils/upload');
 
 // ============================================
 // RUTE PUBLIK (Tanpa Login)
@@ -94,8 +94,8 @@ router.delete('/services/:id', protect, authorize('admin'), serviceController.de
 // ============================================
 router.get('/orders', protect, orderController.getAllOrders);
 router.get('/orders/:id', protect, orderController.getOrderById);
-router.post('/orders', protect, authorize('kasir', 'teknisi', 'admin'), orderController.createOrder);
-router.put('/orders/:id', protect, authorize('kasir', 'teknisi', 'admin'), orderController.updateOrderDetails);
+router.post('/orders', protect, authorize('kasir', 'teknisi', 'admin'), uploadOrderPhoto.single('photo'), orderController.createOrder);
+router.put('/orders/:id', protect, authorize('kasir', 'teknisi', 'admin'), uploadOrderPhoto.single('photo'), orderController.updateOrderDetails);
 router.patch('/orders/:id/status', protect, authorize('kasir', 'teknisi', 'admin'), orderController.updateOrderStatus);
 router.delete('/orders/:id', protect, authorize('admin', 'kasir'), orderController.deleteOrder);
 
@@ -145,11 +145,14 @@ const path = require('path');
 const fs = require('fs');
 router.get('/uploads/:filename', (req, res) => {
   const filename = path.basename(req.params.filename);
-  const filePath = path.join(__dirname, '..', 'uploads', 'services', filename);
-  if (!fs.existsSync(filePath)) {
-    return res.status(404).json({ success: false, message: 'File tidak ditemukan' });
+  const dirs = ['services', 'orders'];
+  for (const dir of dirs) {
+    const filePath = path.join(__dirname, '..', 'uploads', dir, filename);
+    if (fs.existsSync(filePath)) {
+      return res.sendFile(filePath);
+    }
   }
-  res.sendFile(filePath);
+  return res.status(404).json({ success: false, message: 'File tidak ditemukan' });
 });
 
 // ============================================

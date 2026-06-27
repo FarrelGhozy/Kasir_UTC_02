@@ -384,7 +384,7 @@ class Service {
                                 <div class="d-flex flex-wrap gap-2">
                                     <div class="input-group input-group-sm" style="width: 200px;">
                                         <span class="input-group-text bg-light"><i class="bi bi-search"></i></span>
-                                        <input type="text" class="form-control" id="search-customer" placeholder="Cari Nama / HP...">
+                                        <input type="text" class="form-control" id="search-customer" placeholder="Cari...">
                                     </div>
                                     <select class="form-select form-select-sm" id="status-filter" style="width: 150px;">
                                         <option value="">Semua Status</option>
@@ -393,6 +393,7 @@ class Service {
                                         <option value="Waiting_Part">Tunggu Part</option>
                                         <option value="In_Progress">Dikerjakan</option>
                                         <option value="Completed">Selesai</option>
+                                        <option value="Cancelled">Dibatalkan</option>
                                     </select>
                                     <button class="btn btn-sm btn-outline-primary" id="refresh-tickets-btn">
                                         <i class="bi bi-arrow-clockwise"></i>
@@ -601,28 +602,74 @@ class Service {
             </div>
 
             <div class="modal fade" id="addPartModal" tabindex="-1">
-                <div class="modal-dialog">
+                <div class="modal-dialog modal-lg">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h5 class="modal-title">Pasang Sparepart</h5>
+                            <h5 class="modal-title"><i class="bi bi-box-seam me-2"></i>Tambah Part & Pesan Barang</h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                         </div>
                         <div class="modal-body">
                             <input type="hidden" id="part-ticket-id">
-                            <div class="mb-3">
-                                <label class="form-label">Cari Barang</label>
-                                <select class="form-select" id="part-item-select"></select>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Jumlah</label>
-                                <input type="number" class="form-control" id="part-quantity" value="1" min="1">
-                            </div>
-                            <div class="alert alert-warning small">
-                                <i class="bi bi-exclamation-triangle me-1"></i> Stok gudang akan langsung berkurang.
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6 class="border-bottom pb-2 mb-3 fw-bold text-secondary">Sparepart</h6>
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-bold">Cari Barang</label>
+                                        <select class="form-select" id="part-item-select"></select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-bold">Jumlah</label>
+                                        <input type="number" class="form-control" id="part-quantity" value="1" min="1">
+                                    </div>
+                                    <div class="alert alert-warning small">
+                                        <i class="bi bi-exclamation-triangle me-1"></i> Stok gudang akan langsung berkurang.
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <h6 class="border-bottom pb-2 mb-3 fw-bold text-secondary">Pesanan Barang</h6>
+                                    <div class="mb-2 p-2 bg-light rounded small">
+                                        <div><strong>Pelanggan:</strong> <span id="part-order-customer-name"></span></div>
+                                        <div><strong>No. HP:</strong> <span id="part-order-customer-phone"></span></div>
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label small fw-bold">Nama Barang *</label>
+                                        <input type="text" class="form-control form-control-sm" id="part-order-item-name" placeholder="Contoh: RAM DDR4 8GB">
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label small fw-bold">Deskripsi</label>
+                                        <textarea class="form-control form-control-sm" id="part-order-item-desc" rows="2" placeholder="Merek, Speed, Link Produk, dll"></textarea>
+                                    </div>
+                                    <div class="row g-1 mb-2">
+                                        <div class="col-6">
+                                            <label class="form-label small fw-bold">Est. Harga</label>
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text">Rp</span>
+                                                <input type="text" class="form-control currency-input" id="part-order-est-price" placeholder="0" inputmode="numeric">
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="form-label small fw-bold">Uang Muka (DP)</label>
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text">Rp</span>
+                                                <input type="text" class="form-control currency-input" id="part-order-dp" placeholder="0" inputmode="numeric">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label small fw-bold">Catatan</label>
+                                        <textarea class="form-control form-control-sm" id="part-order-notes" rows="2" placeholder="Catatan tambahan"></textarea>
+                                        <input type="hidden" id="part-order-handled-by-id">
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         <div class="modal-footer">
-                            <button type="button" class="btn btn-primary w-100" id="save-part-btn">Tambahkan</button>
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                            <button type="button" class="btn btn-primary fw-bold" id="save-part-btn">
+                                <i class="bi bi-save me-2"></i>Simpan Part & Pesan
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -804,7 +851,10 @@ class Service {
 
         try {
             const res = await api.getServiceTickets(filter ? { status: filter } : {});
-            this.tickets = res.data.filter(t => t.status !== 'Cancelled');
+            this.tickets = res.data.map(t => ({
+                ...t,
+                history: t.history || { created_at: new Date().toISOString() }
+            }));
             this.renderTicketList();
         } catch (err) {
             container.innerHTML = `<div class="alert alert-danger">${escapeHTML(err.message)}</div>`;
@@ -817,17 +867,36 @@ class Service {
         const container = document.getElementById('tickets-container');
         const searchTerm = document.getElementById('search-customer')?.value.toLowerCase() || '';
 
+        const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+
+        const statusLabels = {
+            Queue: 'antrian', Diagnosing: 'diagnosa', Waiting_Part: 'tunggu part',
+            In_Progress: 'dikerjakan', Completed: 'selesai', Picked_Up: 'diambil', Cancelled: 'dibatalkan'
+        };
+
         const filteredTickets = this.tickets.filter(t => {
-            const name = t.customer.name.toLowerCase();
-            const phone = t.customer.phone.toLowerCase();
-            return name.includes(searchTerm) || phone.includes(searchTerm);
+            const fields = [
+                t.customer.name,
+                t.customer.phone,
+                t.customer.email,
+                t.customer.type,
+                t.device.type,
+                t.device.brand,
+                t.device.model,
+                t.device.serial_number,
+                t.device.symptoms,
+                t.technician.name,
+                t.ticket_number,
+                statusLabels[t.status] || t.status
+            ];
+            return fields.some(f => f?.toLowerCase().includes(searchTerm));
         });
 
         const statusPriority = {
             'Diagnosing': 0,
             'In_Progress': 0,
             'Queue': 1,
-            'Waiting_Part': 2,
+            'Waiting_Part': 1,
             'Completed': 3,
             'Picked_Up': 4,
             'Cancelled': 5
@@ -837,7 +906,9 @@ class Service {
             const pa = statusPriority[a.status] ?? 99;
             const pb = statusPriority[b.status] ?? 99;
             if (pa !== pb) return pa - pb;
-            return new Date(b.history.created_at) - new Date(a.history.created_at);
+            const aTime = a.history?.created_at || a._id?.getTimestamp?.() || 0;
+            const bTime = b.history?.created_at || b._id?.getTimestamp?.() || 0;
+            return new Date(bTime) - new Date(aTime);
         });
 
         if (filteredTickets.length === 0) {
@@ -874,7 +945,8 @@ class Service {
                     {val: 'Queue', label: 'Antrian'},
                     {val: 'Diagnosing', label: 'Diagnosa'},
                     {val: 'Waiting_Part', label: 'Tunggu Part'},
-                    {val: 'In_Progress', label: 'Dikerjakan'}
+                    {val: 'In_Progress', label: 'Dikerjakan'},
+                    {val: 'Cancelled', label: 'Dibatalkan'}
                 ];
                 
                 const options = stages.map(s => 
@@ -1005,21 +1077,35 @@ class Service {
                                 <i class="bi bi-eye"></i>
                             </button>
 
+                            ${!['Completed', 'Picked_Up', 'Cancelled'].includes(t.status) ? `
                             <button class="btn btn-sm btn-outline-warning" onclick="service.openEdit('${t._id}')" title="Edit">
                                 <i class="bi bi-pencil"></i>
                             </button>
+                            ` : ''}
                             
-                            <button class="btn btn-sm btn-outline-danger" onclick="service.deleteTicket('${t._id}')" title="Batal">
-                                <i class="bi bi-trash"></i>
+                            ${!['Completed', 'Picked_Up', 'Cancelled'].includes(t.status) ? `
+                            <button class="btn btn-sm ${t.status === 'Waiting_Part' ? 'btn-warning fw-bold' : 'btn-outline-primary'}" onclick="service.openAddPart('${t._id}')" title="Sparepart">
+                                <i class="bi ${t.status === 'Waiting_Part' ? 'bi-box-seam' : 'bi-tools'}"></i>
                             </button>
-                            
-                            <button class="btn btn-sm btn-outline-primary" onclick="service.openAddPart('${t._id}')" title="Part">
-                                <i class="bi bi-tools"></i>
-                            </button>
+                            ` : ''}
 
+                            ${!['Completed', 'Picked_Up', 'Cancelled'].includes(t.status) ? `
                             <button class="btn btn-sm btn-success fw-bold px-3" onclick="service.openFinalize('${t._id}')">
                                 <i class="bi bi-check-lg"></i>
                             </button>
+                            ` : ''}
+
+                            ${!['Completed', 'Picked_Up', 'Cancelled'].includes(t.status) ? `
+                            <button class="btn btn-sm btn-outline-danger" onclick="service.cancelTicket('${t._id}')" title="Batalkan">
+                                <i class="bi bi-x-circle"></i>
+                            </button>
+                            ` : ''}
+
+                            ${['admin', 'owner'].includes(currentUser.role) ? `
+                            <button class="btn btn-sm btn-outline-danger" onclick="service.deleteTicket('${t._id}')" title="Hapus Permanen">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                            ` : ''}
 
                             ${t.warranty_expires_at && new Date() < new Date(t.warranty_expires_at) ? `
                                 <button class="btn btn-sm btn-warning fw-bold" onclick="service.claimWarranty('${t._id}')" title="Klaim Garansi">
@@ -1141,11 +1227,22 @@ class Service {
         }
     }
 
+    async cancelTicket(id) {
+        if (!confirm('Yakin ingin MEMBATALKAN tiket ini? Data tetap tersimpan.')) return;
+        try {
+            await api.updateTicketStatus(id, 'Cancelled');
+            showToast('Tiket berhasil dibatalkan', 'success');
+            await this.loadTickets();
+        } catch (e) {
+            showToast(e.message, 'error');
+        }
+    }
+
     async deleteTicket(id) {
-        if (!confirm('Yakin ingin MEMBATALKAN/MENGHAPUS tiket ini?')) return;
+        if (!confirm('Yakin ingin MENGHAPUS PERMANEN tiket ini? Data akan hilang dan tidak bisa dikembalikan!')) return;
         try {
             await api.deleteServiceTicket(id);
-            showToast('Tiket berhasil dihapus', 'success');
+            showToast('Tiket berhasil dihapus permanen', 'success');
             await this.loadTickets(); 
         } catch (e) {
             showToast(e.message, 'error');
@@ -1297,10 +1394,31 @@ class Service {
 
     openAddPart(id) {
         console.log('Opening Add Part for ticket:', id);
-        // Sesuai permintaan: tutup modal detail jika sedang terbuka
         this.getOrCreateModal('detailModal').hide();
         
+        const t = this.tickets.find(x => x._id === id);
+        
         document.getElementById('part-ticket-id').value = id;
+        
+        // Pre-fill customer info from service ticket
+        if (t) {
+            document.getElementById('part-order-customer-name').textContent = t.customer?.name || '-';
+            document.getElementById('part-order-customer-phone').textContent = t.customer?.phone || '-';
+            if (t.technician?._id) {
+                document.getElementById('part-order-handled-by-id').value = t.technician._id;
+            }
+        }
+        
+        // Reset order fields
+        document.getElementById('part-order-item-name').value = '';
+        document.getElementById('part-order-item-desc').value = '';
+        document.getElementById('part-order-est-price').value = '';
+        document.getElementById('part-order-dp').value = '';
+        document.getElementById('part-order-notes').value = '';
+        
+        // Re-init currency inputs
+        document.querySelectorAll('#addPartModal .currency-input').forEach(input => setupCurrencyInput(input));
+        
         this.getOrCreateModal('addPartModal').show();
     }
 
@@ -1822,15 +1940,43 @@ class Service {
             const tId = document.getElementById('part-ticket-id').value;
             const iId = document.getElementById('part-item-select').value;
             const qty = document.getElementById('part-quantity').value;
+            const btn = document.getElementById('save-part-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Menyimpan...';
             try { 
+                // 1. Tambah sparepart ke tiket servis
                 await api.addPartToService(tId, iId, qty); 
-                showToast('Part ditambahkan'); 
+
+                // 2. Buat pesanan barang jika field nama barang diisi
+                const itemName = document.getElementById('part-order-item-name').value.trim();
+                if (itemName) {
+                    const ticket = this.tickets.find(x => x._id === tId);
+                    const rawPhone = ticket?.customer?.phone || '';
+                    const cleanPhone = rawPhone.replace(/\D/g, '');
+                    const formattedPhone = cleanPhone.startsWith('62') ? '0' + cleanPhone.slice(2) : cleanPhone;
+                    const orderData = {
+                        customer: {
+                            name: ticket?.customer?.name || '',
+                            phone: formattedPhone
+                        },
+                        item_name: itemName,
+                        item_description: document.getElementById('part-order-item-desc').value.trim(),
+                        estimated_price: parseCurrencyValue(document.getElementById('part-order-est-price').value),
+                        down_payment: parseCurrencyValue(document.getElementById('part-order-dp').value),
+                        handled_by_id: document.getElementById('part-order-handled-by-id').value || undefined,
+                        notes: 'Dari tiket servis #' + (ticket?.ticket_number || '') + ' | ' + (document.getElementById('part-order-notes').value.trim() || '')
+                    };
+                    await api.createSpecialOrder(orderData);
+                    window.orderModule?.loadOrders();
+                    showToast('Part ditambahkan & Pesanan Barang dibuat');
+                } else {
+                    showToast('Part ditambahkan');
+                }
+
                 this.getOrCreateModal('addPartModal').hide(); 
                 
-                // PENTING: Reload tiket agar data Detail terupdate
                 await this.loadTickets();
 
-                // Refresh modal yang sedang terbuka
                 if (document.getElementById('editTicketModal').classList.contains('show')) {
                     this.openEdit(tId);
                 } else if (document.getElementById('detailModal').classList.contains('show')) {
@@ -1838,6 +1984,9 @@ class Service {
                 }
             } catch(e){ 
                 showToast(e.message, 'error'); 
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-save me-2"></i>Simpan Part & Pesan';
             }
         });
 

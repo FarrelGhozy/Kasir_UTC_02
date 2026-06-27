@@ -6,7 +6,8 @@ const crypto = require('crypto');
 // Pastikan folder uploads ada
 const uploadServicesDir = path.join(__dirname, '..', 'uploads', 'services');
 const uploadItemsDir = path.join(__dirname, '..', 'uploads', 'items');
-[uploadServicesDir, uploadItemsDir].forEach(dir => {
+const uploadOrdersDir = path.join(__dirname, '..', 'uploads', 'orders');
+[uploadServicesDir, uploadItemsDir, uploadOrdersDir].forEach(dir => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
@@ -78,4 +79,35 @@ const upload = multer({
   }
 });
 
-module.exports = upload;
+const orderStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, uploadOrdersDir);
+  },
+  filename: function (req, file, cb) {
+    try {
+      let itemName = 'Order';
+      if (req.body.item_name) {
+        itemName = req.body.item_name.replace(/[^a-z0-9]/gi, '_').substring(0, 30);
+      }
+      const allowedExts = ['.jpg', '.jpeg', '.png', '.webp'];
+      const originalExt = path.extname(file.originalname).toLowerCase();
+      const ext = allowedExts.includes(originalExt) ? originalExt : '.jpg';
+      const randomStr = crypto.randomBytes(4).toString('hex');
+      const finalName = `${itemName}_${randomStr}${ext}`;
+      console.log(`Uploading order photo: ${finalName}`);
+      cb(null, finalName);
+    } catch (err) {
+      cb(err);
+    }
+  }
+});
+
+const uploadOrderPhoto = multer({
+  storage: orderStorage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024
+  }
+});
+
+module.exports = { upload, uploadOrderPhoto };

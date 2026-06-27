@@ -322,6 +322,9 @@ class API {
     // ==================== ENDPOINT PEMESANAN BARANG ====================
 
     async createSpecialOrder(data) {
+        if (data instanceof FormData) {
+            return this.request('/orders', { method: 'POST', body: data });
+        }
         return this.post('/orders', data);
     }
 

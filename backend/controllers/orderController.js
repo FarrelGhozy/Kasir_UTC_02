@@ -6,7 +6,11 @@ const { sendInvoiceEmail } = require('../services/emailService');
 
 exports.createOrder = async (req, res, next) => {
   try {
-    const { customer, item_name, item_description, estimated_price, down_payment, handled_by_id, notes } = req.body;
+    let { customer, item_name, item_description, estimated_price, down_payment, handled_by_id, notes } = req.body;
+
+    if (typeof customer === 'string') {
+      try { customer = JSON.parse(customer); } catch (e) { console.log('Customer is not a JSON string'); }
+    }
 
     let handled_by = undefined;
     if (handled_by_id) {
@@ -18,6 +22,13 @@ exports.createOrder = async (req, res, next) => {
 
     const order_number = await SpecialOrder.generateOrderNumber();
 
+    let photo = undefined;
+    if (req.file) {
+      const protocol = req.protocol;
+      const host = req.get('host');
+      photo = `${protocol}://${host}/api/uploads/${req.file.filename}`;
+    }
+
     const order = await SpecialOrder.create({
       order_number,
       customer,
@@ -26,6 +37,7 @@ exports.createOrder = async (req, res, next) => {
       estimated_price,
       down_payment,
       handled_by,
+      photo,
       notes
     });
     
@@ -59,11 +71,16 @@ exports.getAllOrders = async (req, res, next) => {
     if (customer_phone) filter['customer.phone'] = customer_phone;
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
-    const orders = await SpecialOrder.find(filter)
+    let orders = await SpecialOrder.find(filter)
       .sort({ 'history.created_at': -1 })
       .skip(skip)
       .limit(parseInt(limit))
       .lean();
+
+    orders = orders.map(o => ({
+      ...o,
+      remaining_payment: Math.max(0, (o.estimated_price || 0) - (o.down_payment || 0))
+    }));
 
     const total = await SpecialOrder.countDocuments(filter);
 
@@ -85,6 +102,7 @@ exports.getOrderById = async (req, res, next) => {
   try {
     const order = await SpecialOrder.findById(req.params.id).lean();
     if (!order) return res.status(404).json({ success: false, message: 'Pesanan tidak ditemukan' });
+    order.remaining_payment = Math.max(0, (order.estimated_price || 0) - (order.down_payment || 0));
     res.status(200).json({ success: true, data: order });
   } catch (error) {
     next(error);
@@ -119,7 +137,11 @@ exports.updateOrderStatus = async (req, res, next) => {
 
 exports.updateOrderDetails = async (req, res, next) => {
   try {
-    const { customer, item_name, item_description, estimated_price, down_payment, handled_by_id, notes } = req.body;
+    let { customer, item_name, item_description, estimated_price, down_payment, handled_by_id, notes } = req.body;
+
+    if (typeof customer === 'string') {
+      try { customer = JSON.parse(customer); } catch (e) { console.log('Customer is not a JSON string'); }
+    }
     
     const order = await SpecialOrder.findById(req.params.id);
     if (!order) return res.status(404).json({ success: false, message: 'Pesanan tidak ditemukan' });
@@ -130,6 +152,12 @@ exports.updateOrderDetails = async (req, res, next) => {
     if (estimated_price !== undefined) order.estimated_price = estimated_price;
     if (down_payment !== undefined) order.down_payment = down_payment;
     if (notes !== undefined) order.notes = notes;
+
+    if (req.file) {
+      const protocol = req.protocol;
+      const host = req.get('host');
+      order.photo = `${protocol}://${host}/api/uploads/${req.file.filename}`;
+    }
 
     if (handled_by_id) {
       // Cek apakah ada perubahan penanggung jawab

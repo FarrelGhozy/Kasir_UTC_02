@@ -64,6 +64,14 @@ class Order {
                                     </select>
                                 </div>
 
+                                <div class="mb-3">
+                                    <label class="form-label small fw-bold">Foto Barang</label>
+                                    <input type="file" class="form-control" id="order-photo" accept="image/jpeg,image/png,image/webp">
+                                    <div id="order-photo-preview" class="mt-2 d-none">
+                                        <img class="img-thumbnail" style="max-height: 150px;" alt="Preview">
+                                    </div>
+                                </div>
+
                                 <div class="d-grid">
                                     <button type="submit" class="btn btn-success fw-bold py-2" id="save-order-btn">
                                         <i class="bi bi-save me-2"></i>Simpan Pesanan
@@ -240,19 +248,20 @@ class Order {
             <div class="col-12">
                 <div class="card border-0 shadow-sm mb-2 border-start border-4 ${o.status === 'Arrived' ? 'border-success' : 'border-info'}">
                     <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <div>
-                                <h6 class="fw-bold mb-0 text-primary">${escapeHTML(o.item_name)}</h6>
-                                <small class="text-muted">#${o.order_number} | ${formatDateTime(o.createdAt)}</small>
-                            </div>
-                            <div class="text-end">
-                                <span class="badge ${badgeClass}">${o.status}</span>
-                                <div class="small mt-1 ${durationColor}" style="font-size: 0.75rem">
-                                    <i class="bi bi-clock me-1"></i>${durationValue}
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div>
+                                    <h6 class="fw-bold mb-0 text-primary">${escapeHTML(o.item_name)}</h6>
+                                    <small class="text-muted">#${o.order_number} | ${formatDateTime(o.createdAt)}</small>
+                                    ${o.photo ? `<a href="${escapeHTML(o.photo)}" target="_blank" class="d-block small mt-1"><i class="bi bi-image me-1"></i>Lihat Foto</a>` : ''}
                                 </div>
-                                <div class="text-muted" style="font-size: 0.65rem">${durationLabel}</div>
+                                <div class="text-end">
+                                    <span class="badge ${badgeClass}">${o.status}</span>
+                                    <div class="small mt-1 ${durationColor}" style="font-size: 0.75rem">
+                                        <i class="bi bi-clock me-1"></i>${durationValue}
+                                    </div>
+                                    <div class="text-muted" style="font-size: 0.65rem">${durationLabel}</div>
+                                </div>
                             </div>
-                        </div>
                         <div class="row small mb-3">
                             <div class="col-md-4">
                                 <small class="text-secondary fw-bold">PELANGGAN</small>
@@ -266,7 +275,10 @@ class Order {
                             </div>
                             <div class="col-md-4">
                                 <small class="text-secondary fw-bold">SISA BAYAR</small>
-                                <div class="h6 fw-bold text-danger mb-0">${formatCurrency(o.remaining_payment)}</div>
+                                ${o.remaining_payment <= 0
+                                  ? '<div class="h6 fw-bold text-success mb-0"><i class="bi bi-check-circle-fill me-1"></i>LUNAS</div>'
+                                  : `<div class="h6 fw-bold text-danger mb-0">${formatCurrency(o.remaining_payment)}</div>
+                                     <span class="badge bg-warning text-dark mt-1">BELUM LUNAS</span>`}
                                 <div class="small text-muted">Ditangani: ${o.handled_by?.name || '-'}</div>
                             </div>
                         </div>
@@ -379,24 +391,60 @@ class Order {
     setupEventListeners() {
         document.getElementById('order-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const data = {
-                customer: {
+            const photoInput = document.getElementById('order-photo');
+            let data;
+            if (photoInput && photoInput.files && photoInput.files[0]) {
+                data = new FormData();
+                data.append('photo', photoInput.files[0]);
+                data.append('customer', JSON.stringify({
                     name: document.getElementById('order-customer-name').value,
                     phone: document.getElementById('order-customer-phone').value
-                },
-                item_name: document.getElementById('order-item-name').value,
-                item_description: document.getElementById('order-item-desc').value,
-                estimated_price: parseCurrencyValue(document.getElementById('order-est-price').value),
-                down_payment: parseCurrencyValue(document.getElementById('order-dp').value),
-                handled_by_id: document.getElementById('order-staff-select').value
-            };
+                }));
+                data.append('item_name', document.getElementById('order-item-name').value);
+                data.append('item_description', document.getElementById('order-item-desc').value);
+                data.append('estimated_price', parseCurrencyValue(document.getElementById('order-est-price').value));
+                data.append('down_payment', parseCurrencyValue(document.getElementById('order-dp').value));
+                const staffId = document.getElementById('order-staff-select').value;
+                if (staffId) data.append('handled_by_id', staffId);
+            } else {
+                data = {
+                    customer: {
+                        name: document.getElementById('order-customer-name').value,
+                        phone: document.getElementById('order-customer-phone').value
+                    },
+                    item_name: document.getElementById('order-item-name').value,
+                    item_description: document.getElementById('order-item-desc').value,
+                    estimated_price: parseCurrencyValue(document.getElementById('order-est-price').value),
+                    down_payment: parseCurrencyValue(document.getElementById('order-dp').value),
+                    handled_by_id: document.getElementById('order-staff-select').value
+                };
+            }
             try {
                 await api.createSpecialOrder(data);
                 showToast('Pesanan berhasil disimpan');
                 document.getElementById('order-form').reset();
+                document.getElementById('order-photo-preview').classList.add('d-none');
                 this.loadOrders();
             } catch (e) { showToast(e.message, 'error'); }
         });
+
+        const photoInput = document.getElementById('order-photo');
+        if (photoInput) {
+            photoInput.addEventListener('change', function() {
+                const preview = document.getElementById('order-photo-preview');
+                const img = preview.querySelector('img');
+                if (this.files && this.files[0]) {
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                        img.src = ev.target.result;
+                        preview.classList.remove('d-none');
+                    };
+                    reader.readAsDataURL(this.files[0]);
+                } else {
+                    preview.classList.add('d-none');
+                }
+            });
+        }
 
         document.getElementById('order-customer-phone').addEventListener('blur', (e) => {
             this.validateWA(e.target.value);
