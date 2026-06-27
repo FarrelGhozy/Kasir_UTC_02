@@ -317,7 +317,7 @@ class Order {
                             </select>
                             <button class="btn btn-sm btn-outline-primary" onclick="orderModule.openEdit('${o._id}')" title="Edit"><i class="bi bi-pencil"></i></button>
                             <button class="btn btn-sm btn-outline-danger" onclick="orderModule.deleteOrder('${o._id}')" title="Batal"><i class="bi bi-trash"></i></button>
-                            <button class="btn btn-sm btn-outline-dark" onclick="orderModule.printInvoice('${o._id}')" title="Cetak Nota"><i class="bi bi-printer"></i></button>
+                            <button class="btn btn-sm btn-outline-dark" onclick="orderModule.downloadNota('${o._id}', 'payment')" title="Cetak Nota"><i class="bi bi-printer"></i></button>
                         </div>
                     </div>
                 </div>
@@ -325,51 +325,8 @@ class Order {
         }).join('');
     }
 
-    printInvoice(id) {
-        const o = this.orders.find(x => x._id === id);
-        if(!o) return;
-        
-        const fileName = `Order_${o.customer.name}_${o.order_number}`.replace(/\s+/g, '_');
-
-        const iframe = document.createElement('iframe');
-        iframe.style.display = 'none';
-        document.body.appendChild(iframe);
-        const doc = iframe.contentWindow.document;
-        doc.open();
-        doc.write(`
-            <html><head><title>${fileName}</title><style>
-                body { font-family: 'Courier New', monospace; padding: 20px; width: 80mm; font-size: 12px; }
-                .header { text-align: center; border-bottom: 2px dashed #000; margin-bottom: 10px; }
-                .row { display: flex; justify-content: space-between; margin-bottom: 3px; }
-                .divider { border-top: 1px dashed #000; margin: 10px 0; }
-                .bold { font-weight: bold; }
-                .footer { text-align: center; margin-top: 20px; font-size: 10px; }
-            </style></head><body>
-                <div class="header">
-                    <div style="font-size: 16px; font-weight: bold;">BENGKEL UTC</div>
-                    <div>Jln. Raya Siman, Ponorogo</div>
-                    <div style="font-size: 10px;">PESANAN BARANG</div>
-                </div>
-                <div class="row"><span>No. Order</span> <span>${o.order_number}</span></div>
-                <div class="row"><span>Tanggal</span> <span>${new Date(o.createdAt).toLocaleDateString('id-ID')}</span></div>
-                <div class="row"><span>Pelanggan</span> <span>${o.customer.name}</span></div>
-                <div class="row"><span>No. HP</span> <span>${o.customer.phone}</span></div>
-                <div class="divider"></div>
-                <div class="row bold"><span>Barang:</span></div>
-                <div style="margin-bottom: 5px;">${o.item_name}</div>
-                <div class="row"><span>Status</span> <span>${o.status}</span></div>
-                <div class="divider"></div>
-                <div class="row"><span>Est. Total</span> <span>${new Intl.NumberFormat('id-ID').format(o.estimated_price)}</span></div>
-                <div class="row"><span>DP (Masuk)</span> <span>${new Intl.NumberFormat('id-ID').format(o.down_payment)}</span></div>
-                <div class="divider"></div>
-                <div class="row bold"><span>SISA BAYAR</span><span>${new Intl.NumberFormat('id-ID', {style:'currency',currency:'IDR'}).format(o.remaining_payment)}</span></div>
-                <div class="footer"><p>Simpan nota ini sebagai bukti DP.</p><p>Terima Kasih!</p></div>
-            </body></html>
-        `);
-        doc.close();
-        iframe.contentWindow.focus();
-        iframe.contentWindow.print();
-        setTimeout(() => document.body.removeChild(iframe), 5000);
+    downloadNota(id, type) {
+        window.open(`/api/orders/${id}/nota?type=${type || 'payment'}`, '_blank');
     }
 
     async togglePayment(id, select) {
