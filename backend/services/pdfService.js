@@ -149,13 +149,13 @@ function addHeader(doc, title) {
 
   doc.image(LOGO_PATH, PAGE.margin, y, { width: logoSize, height: logoSize });
 
-  doc.fontSize(11).fillColor(hexCode(...COLORS.primary));
+  doc.font('Helvetica-Bold').fontSize(11).fillColor(hexCode(...COLORS.primary));
   doc.text('UNIDA TECHNOLOGY CENTRE', PAGE.margin + logoSize + 3 * MM, y + 1 * MM, {
     width: CONTENT_WIDTH - logoSize - 3 * MM,
     align: 'left',
   });
 
-  doc.fontSize(7.5).fillColor(hexCode(...COLORS.muted));
+  doc.font('Helvetica').fontSize(7.5).fillColor(hexCode(...COLORS.muted));
   doc.text('Gedung Zubair Ruangan 205', PAGE.margin + logoSize + 3 * MM, y + 5 * MM);
   doc.text('+62 821-5661-4855 (admin Kantor)', PAGE.margin + logoSize + 3 * MM, y + 8 * MM);
 
@@ -166,38 +166,63 @@ function addHeader(doc, title) {
     .strokeColor(hexCode(...COLORS.primary))
     .stroke();
 
-  doc.fontSize(14).fillColor(hexCode(...COLORS.primary));
+  doc.font('Helvetica-Bold').fontSize(14).fillColor(hexCode(...COLORS.primary));
   doc.text(title, PAGE.margin, lineY + 2 * MM, { width: CONTENT_WIDTH, align: 'center' });
 }
 
 function addCustomerSection(doc, customer) {
   const y = doc.y + 3 * MM;
-  doc.fontSize(7.5).fillColor(hexCode(...COLORS.text));
-
   const leftX = PAGE.margin;
   const rightX = PAGE.margin + CONTENT_WIDTH / 2;
+  const fontSize = 7.5;
+  const color = hexCode(...COLORS.text);
 
-  doc.text(`Pelanggan  : ${customer.name || '-'}`, leftX, y);
-  doc.text(`No. HP     : ${customer.phone || '-'}`, leftX, doc.y + 2.5 * MM);
-  doc.text(`Tipe       : ${customer.type || '-'}`, leftX, doc.y + 2.5 * MM);
+  doc.font('Helvetica-Bold').fontSize(fontSize).fillColor(color);
+  doc.text('Pelanggan', leftX, y, { continued: true });
+  doc.font('Helvetica').text(`  : ${customer.name || '-'}`);
+
+  doc.font('Helvetica-Bold').fontSize(fontSize).fillColor(color);
+  doc.text('No. HP', leftX, doc.y + 2.5 * MM, { continued: true });
+  doc.font('Helvetica').text(`     : ${customer.phone || '-'}`);
+
+  doc.font('Helvetica-Bold').fontSize(fontSize).fillColor(color);
+  doc.text('Tipe', leftX, doc.y + 2.5 * MM, { continued: true });
+  doc.font('Helvetica').text(`       : ${customer.type || '-'}`);
 
   doc.y = y;
-  doc.text(`Tanggal    : ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}`, rightX, y);
+  doc.font('Helvetica-Bold').fontSize(fontSize).fillColor(color);
+  doc.text('Tanggal', rightX, y, { continued: true });
+  doc.font('Helvetica').text(`    : ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}`);
 }
 
 function addServiceDetails(doc, ticket) {
   const y = doc.y + 5 * MM;
-  doc.fontSize(7.5).fillColor(hexCode(...COLORS.text));
+  const fontSize = 7.5;
+  const color = hexCode(...COLORS.text);
+  const x = PAGE.margin;
 
   const deviceName = [ticket.device.type, ticket.device.brand, ticket.device.model].filter(Boolean).join(' ');
 
-  doc.text(`No. Tiket  : ${ticket.ticket_number}`, PAGE.margin, y);
-  doc.text(`Perangkat  : ${deviceName || '-'}`, PAGE.margin, doc.y + 2.5 * MM);
-  doc.text(`Serial No  : ${ticket.device.serial_number || '-'}`, PAGE.margin, doc.y + 2.5 * MM);
-  doc.text(`Keluhan    : ${ticket.device.symptoms || '-'}`, PAGE.margin, doc.y + 2.5 * MM);
+  doc.font('Helvetica-Bold').fontSize(fontSize).fillColor(color);
+  doc.text('No. Tiket', x, y, { continued: true });
+  doc.font('Helvetica').text(`  : ${ticket.ticket_number}`);
+
+  doc.font('Helvetica-Bold').fontSize(fontSize).fillColor(color);
+  doc.text('Perangkat', x, doc.y + 2.5 * MM, { continued: true });
+  doc.font('Helvetica').text(`  : ${deviceName || '-'}`);
+
+  doc.font('Helvetica-Bold').fontSize(fontSize).fillColor(color);
+  doc.text('Serial No', x, doc.y + 2.5 * MM, { continued: true });
+  doc.font('Helvetica').text(`  : ${ticket.device.serial_number || '-'}`);
+
+  doc.font('Helvetica-Bold').fontSize(fontSize).fillColor(color);
+  doc.text('Keluhan', x, doc.y + 2.5 * MM, { continued: true });
+  doc.font('Helvetica').text(`    : ${ticket.device.symptoms || '-'}`);
 
   if (ticket.technician && ticket.technician.name) {
-    doc.text(`Teknisi    : ${ticket.technician.name}`, PAGE.margin, doc.y + 2.5 * MM);
+    doc.font('Helvetica-Bold').fontSize(fontSize).fillColor(color);
+    doc.text('Teknisi', x, doc.y + 2.5 * MM, { continued: true });
+    doc.font('Helvetica').text(`    : ${ticket.technician.name}`);
   }
 }
 
@@ -213,25 +238,23 @@ function addPricingSection(doc, ticket) {
     .strokeColor(hexCode(...COLORS.border))
     .stroke();
 
-  doc.fontSize(8).fillColor(hexCode(...COLORS.accent));
+  doc.font('Helvetica-Bold').fontSize(8).fillColor(hexCode(...COLORS.accent));
   doc.text('RINCIAN BIAYA', PAGE.margin, y, { underline: false });
 
   let rowY = doc.y + 2 * MM;
 
   if (ticket.service_fee > 0) {
-    const label = 'Jasa Servis';
-    doc.fontSize(7.5).fillColor(hexCode(...COLORS.text));
-    doc.text(label, PAGE.margin, rowY);
-    doc.text(formatCurrency(ticket.service_fee), PAGE.width - PAGE.margin, rowY, { align: 'right' });
+    doc.font('Helvetica-Bold').fontSize(7.5).fillColor(hexCode(...COLORS.text));
+    doc.text('Jasa Servis', PAGE.margin, rowY);
+    doc.font('Helvetica').text(formatCurrency(ticket.service_fee), PAGE.margin, rowY, { width: CONTENT_WIDTH, align: 'right' });
     rowY += 4 * MM;
   }
 
   if (ticket.parts_used && ticket.parts_used.length > 0) {
     ticket.parts_used.forEach((p) => {
-      doc.fontSize(7).fillColor(hexCode(...COLORS.text));
-      const label = `${p.name} (x${p.qty})`;
-      doc.text(label, PAGE.margin, rowY);
-      doc.text(formatCurrency(p.subtotal), PAGE.width - PAGE.margin, rowY, { align: 'right' });
+      doc.font('Helvetica-Bold').fontSize(7).fillColor(hexCode(...COLORS.text));
+      doc.text(`${p.name} (x${p.qty})`, PAGE.margin, rowY);
+      doc.font('Helvetica').text(formatCurrency(p.subtotal), PAGE.margin, rowY, { width: CONTENT_WIDTH, align: 'right' });
       rowY += 3.5 * MM;
     });
   }
@@ -243,13 +266,13 @@ function addPricingSection(doc, ticket) {
     .strokeColor(hexCode(...COLORS.border))
     .stroke();
 
-  doc.fontSize(9).fillColor(hexCode(...COLORS.primary));
+  doc.font('Helvetica-Bold').fontSize(9).fillColor(hexCode(...COLORS.primary));
   doc.text('TOTAL', PAGE.margin, totalY);
-  doc.text(formatCurrency(totalCost), PAGE.width - PAGE.margin, totalY, { align: 'right' });
+  doc.font('Helvetica').text(formatCurrency(totalCost), PAGE.margin, totalY, { width: CONTENT_WIDTH, align: 'right' });
 
   const statusY = totalY + 5 * MM;
   const isPaid = ticket.payment_method || totalCost === 0;
-  doc.fontSize(7.5);
+  doc.font('Helvetica-Bold').fontSize(7.5);
   if (isPaid) {
     doc.fillColor(hexCode(...COLORS.success));
     doc.text('Status Bayar : LUNAS', PAGE.margin, statusY);
@@ -265,28 +288,42 @@ function addWarrantySection(doc, ticket) {
     ? new Date(ticket.warranty_expires_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
     : '7 hari dari pengambilan';
 
-  doc.fontSize(7).fillColor(hexCode(...COLORS.muted));
-  doc.text(`Garansi : 7 Hari (s/d ${expiryDate})`, PAGE.margin, y);
+  doc.font('Helvetica-Bold').fontSize(7).fillColor(hexCode(...COLORS.muted));
+  doc.text('Garansi', PAGE.margin, y, { continued: true });
+  doc.font('Helvetica').text(` : 7 Hari (s/d ${expiryDate})`);
   doc.text('Garansi berlaku untuk jenis kerusakan yang sama.', PAGE.margin, doc.y + 2.5 * MM);
 }
 
 function addOrderDetails(doc, order) {
   const y = doc.y + 5 * MM;
-  doc.fontSize(7.5).fillColor(hexCode(...COLORS.text));
+  const fontSize = 7.5;
+  const color = hexCode(...COLORS.text);
+  const x = PAGE.margin;
 
-  doc.text(`No. Order  : ${order.order_number}`, PAGE.margin, y);
-  doc.text(`Barang     : ${order.item_name || '-'}`, PAGE.margin, doc.y + 2.5 * MM);
+  doc.font('Helvetica-Bold').fontSize(fontSize).fillColor(color);
+  doc.text('No. Order', x, y, { continued: true });
+  doc.font('Helvetica').text(`  : ${order.order_number}`);
+
+  doc.font('Helvetica-Bold').fontSize(fontSize).fillColor(color);
+  doc.text('Barang', x, doc.y + 2.5 * MM, { continued: true });
+  doc.font('Helvetica').text(`     : ${order.item_name || '-'}`);
 
   if (order.item_description) {
-    doc.text(`Deskripsi  : ${order.item_description}`, PAGE.margin, doc.y + 2.5 * MM);
+    doc.font('Helvetica-Bold').fontSize(fontSize).fillColor(color);
+    doc.text('Deskripsi', x, doc.y + 2.5 * MM, { continued: true });
+    doc.font('Helvetica').text(`  : ${order.item_description}`);
   }
 
   if (order.handled_by && order.handled_by.name) {
-    doc.text(`Ditangani  : ${order.handled_by.name}`, PAGE.margin, doc.y + 2.5 * MM);
+    doc.font('Helvetica-Bold').fontSize(fontSize).fillColor(color);
+    doc.text('Ditangani', x, doc.y + 2.5 * MM, { continued: true });
+    doc.font('Helvetica').text(`  : ${order.handled_by.name}`);
   }
 
   if (order.notes) {
-    doc.text(`Catatan    : ${order.notes}`, PAGE.margin, doc.y + 2.5 * MM);
+    doc.font('Helvetica-Bold').fontSize(fontSize).fillColor(color);
+    doc.text('Catatan', x, doc.y + 2.5 * MM, { continued: true });
+    doc.font('Helvetica').text(`    : ${order.notes}`);
   }
 }
 
@@ -301,21 +338,21 @@ function addOrderPricing(doc, order) {
     .strokeColor(hexCode(...COLORS.border))
     .stroke();
 
-  doc.fontSize(8).fillColor(hexCode(...COLORS.accent));
+  doc.font('Helvetica-Bold').fontSize(8).fillColor(hexCode(...COLORS.accent));
   doc.text('RINCIAN BIAYA', PAGE.margin, y);
 
   let rowY = doc.y + 2 * MM;
 
   const price = order.estimated_price || 0;
-  doc.fontSize(7.5).fillColor(hexCode(...COLORS.text));
+  doc.font('Helvetica-Bold').fontSize(7.5).fillColor(hexCode(...COLORS.text));
   doc.text('Estimasi Harga', PAGE.margin, rowY);
-  doc.text(formatCurrency(price), PAGE.width - PAGE.margin, rowY, { align: 'right' });
+  doc.font('Helvetica').text(formatCurrency(price), PAGE.margin, rowY, { width: CONTENT_WIDTH, align: 'right' });
   rowY += 4 * MM;
 
   const dp = order.down_payment || 0;
-  doc.fontSize(7.5).fillColor(hexCode(...COLORS.success));
+  doc.font('Helvetica-Bold').fontSize(7.5).fillColor(hexCode(...COLORS.success));
   doc.text('DP Dibayar', PAGE.margin, rowY);
-  doc.text(formatCurrency(dp), PAGE.width - PAGE.margin, rowY, { align: 'right' });
+  doc.font('Helvetica').text(formatCurrency(dp), PAGE.margin, rowY, { width: CONTENT_WIDTH, align: 'right' });
   rowY += 4 * MM;
 
   doc.moveTo(PAGE.margin, rowY - 1.5 * MM)
@@ -324,12 +361,12 @@ function addOrderPricing(doc, order) {
     .strokeColor(hexCode(...COLORS.border))
     .stroke();
 
-  doc.fontSize(9).fillColor(hexCode(...COLORS.primary));
+  doc.font('Helvetica-Bold').fontSize(9).fillColor(hexCode(...COLORS.primary));
   doc.text('Sisa Bayar', PAGE.margin, rowY);
-  doc.text(formatCurrency(remaining), PAGE.width - PAGE.margin, rowY, { align: 'right' });
+  doc.font('Helvetica').text(formatCurrency(remaining), PAGE.margin, rowY, { width: CONTENT_WIDTH, align: 'right' });
 
   const statusY = rowY + 5 * MM;
-  doc.fontSize(7.5);
+  doc.font('Helvetica-Bold').fontSize(7.5);
   if (order.payment_status === 'Lunas') {
     doc.fillColor(hexCode(...COLORS.success));
     doc.text('Status Bayar : LUNAS', PAGE.margin, statusY);
@@ -350,7 +387,7 @@ function addQRCode(doc, qrBuffer) {
     height: qrSize,
   });
 
-  doc.fontSize(5.5).fillColor(hexCode(...COLORS.muted));
+  doc.font('Helvetica').fontSize(5.5).fillColor(hexCode(...COLORS.muted));
   doc.text('Scan untuk verifikasi nota', PAGE.margin, y + qrSize + 1 * MM, {
     width: CONTENT_WIDTH,
     align: 'center',
@@ -359,7 +396,7 @@ function addQRCode(doc, qrBuffer) {
 
 function addFooter(doc) {
   const y = PAGE.height - 12 * MM;
-  doc.fontSize(7).fillColor(hexCode(...COLORS.muted));
+  doc.font('Helvetica').fontSize(7).fillColor(hexCode(...COLORS.muted));
   doc.text('Terima kasih telah menggunakan jasa kami.', PAGE.margin, y, {
     width: CONTENT_WIDTH,
     align: 'center',
@@ -466,12 +503,13 @@ function addEntryDisclaimer(doc, ticket) {
   const y = doc.y + 3 * MM;
 
   if (ticket.service_fee && ticket.service_fee > 0) {
-    doc.fontSize(7).fillColor(hexCode(...COLORS.muted));
-    doc.text(`Estimasi Biaya Jasa : ${formatCurrency(ticket.service_fee)}`, PAGE.margin, y);
+    doc.font('Helvetica-Bold').fontSize(7).fillColor(hexCode(...COLORS.muted));
+    doc.text('Estimasi Biaya Jasa', PAGE.margin, y, { continued: true });
+    doc.font('Helvetica').text(` : ${formatCurrency(ticket.service_fee)}`);
     doc.fontSize(5.5).fillColor(hexCode(...COLORS.danger));
     doc.text('* Estimasi dapat berubah sesuai kondisi perangkat yang ditemukan saat diagnosa.', PAGE.margin, doc.y + 1.5 * MM);
   } else {
-    doc.fontSize(6.5).fillColor(hexCode(...COLORS.muted));
+    doc.font('Helvetica').fontSize(6.5).fillColor(hexCode(...COLORS.muted));
     doc.text('Biaya akan diinformasikan setelah proses diagnosa selesai.', PAGE.margin, y);
     doc.fontSize(5.5).fillColor(hexCode(...COLORS.danger));
     doc.text('* Biaya dapat berubah sesuai kondisi perangkat yang ditemukan.', PAGE.margin, doc.y + 1.5 * MM);
@@ -487,7 +525,7 @@ function addTCSection(doc) {
     .strokeColor(hexCode(...COLORS.border))
     .stroke();
 
-  doc.fontSize(6.5).fillColor(hexCode(...COLORS.accent));
+  doc.font('Helvetica-Bold').fontSize(6.5).fillColor(hexCode(...COLORS.accent));
   doc.text('SYARAT DAN KETENTUAN', PAGE.margin, y + 0.5 * MM);
 
   const terms = [
@@ -506,7 +544,7 @@ function addTCSection(doc) {
   ];
 
   let rowY = doc.y + 1.5 * MM;
-  doc.fontSize(5.5).fillColor(hexCode(...COLORS.text));
+  doc.font('Helvetica').fontSize(5.5).fillColor(hexCode(...COLORS.text));
   terms.forEach((t, i) => {
     doc.text(`${i + 1}. ${t}`, PAGE.margin, rowY, { width: CONTENT_WIDTH });
     rowY = doc.y + 1 * MM;
@@ -522,7 +560,7 @@ function addQRCodeEntry(doc, qrBuffer) {
     width: qrSize, height: qrSize,
   });
 
-  doc.fontSize(5).fillColor(hexCode(...COLORS.muted));
+  doc.font('Helvetica').fontSize(5).fillColor(hexCode(...COLORS.muted));
   doc.text('Scan untuk verifikasi nota', PAGE.margin, y + qrSize + 1 * MM, {
     width: CONTENT_WIDTH, align: 'center',
   });
