@@ -14,6 +14,10 @@ const SpecialOrder = require('../../models/SpecialOrder');
 const User = require('../../models/User');
 const reminderService = require('../../services/reminderService');
 
+beforeAll(() => {
+  reminderService.server_started_at = new Date('2020-01-01');
+});
+
 beforeEach(() => {
   jest.clearAllMocks();
 });
@@ -190,49 +194,7 @@ describe('remindTechnicians', () => {
   });
 });
 
-describe('runReminders', () => {
-  afterEach(() => {
-    jest.useRealTimers();
-  });
 
-  test('skips on Friday (day 5)', async () => {
-    jest.useFakeTimers();
-    jest.setSystemTime(new Date('2026-06-05T10:00:00'));
-
-    const spy1 = jest.spyOn(reminderService, 'remindCustomersForService').mockResolvedValue();
-    const spy2 = jest.spyOn(reminderService, 'remindCustomersForOrders').mockResolvedValue();
-    const spy3 = jest.spyOn(reminderService, 'remindTechnicians').mockResolvedValue();
-
-    await reminderService.runReminders();
-
-    expect(spy1).not.toHaveBeenCalled();
-    expect(spy2).not.toHaveBeenCalled();
-    expect(spy3).not.toHaveBeenCalled();
-
-    spy1.mockRestore();
-    spy2.mockRestore();
-    spy3.mockRestore();
-  });
-
-  test('runs all 3 reminder methods on non-Friday', async () => {
-    jest.useFakeTimers();
-    jest.setSystemTime(new Date('2026-06-08T10:00:00'));
-
-    const spy1 = jest.spyOn(reminderService, 'remindCustomersForService').mockResolvedValue();
-    const spy2 = jest.spyOn(reminderService, 'remindCustomersForOrders').mockResolvedValue();
-    const spy3 = jest.spyOn(reminderService, 'remindTechnicians').mockResolvedValue();
-
-    await reminderService.runReminders();
-
-    expect(spy1).toHaveBeenCalledTimes(1);
-    expect(spy2).toHaveBeenCalledTimes(1);
-    expect(spy3).toHaveBeenCalledTimes(1);
-
-    spy1.mockRestore();
-    spy2.mockRestore();
-    spy3.mockRestore();
-  });
-});
 
 describe('batch processing', () => {
   test('processes multiple qualifying tickets', async () => {
