@@ -1,4 +1,4 @@
-import api, { formatCurrency, formatDateTime, showToast, setupCurrencyInput, parseCurrencyValue, calculateElapsedTime, validateWhatsApp, escapeHTML } from '../api.js';
+import api, { formatCurrency, formatDateTime, showToast, setupCurrencyInput, parseCurrencyValue, calculateElapsedTime, validateWhatsApp, escapeHTML, confirmDialog } from '../api.js';
 
 class Order {
     constructor() {
@@ -369,7 +369,7 @@ class Order {
     }
 
     async deleteOrder(id) {
-        if (!confirm('Batalkan pesanan ini?')) return;
+        if (!await confirmDialog('Batalkan pesanan ini?', 'Konfirmasi', 'Ya, Batalkan')) return;
         try {
             await api.deleteSpecialOrder(id);
             showToast('Pesanan dibatalkan');

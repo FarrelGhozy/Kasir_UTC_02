@@ -582,10 +582,58 @@ export function showError(containerId, message) {
 }
 
 /**
- * Dialog konfirmasi
+ * Dialog konfirmasi (Bootstrap modal)
+ * @param {string} message - Pesan konfirmasi
+ * @param {string} title - Judul modal (default: 'Konfirmasi')
+ * @param {string} confirmText - Teks tombol konfirmasi (default: 'Hapus')
+ * @returns {Promise<boolean>}
  */
-export function confirmDialog(message) {
-    return confirm(message);
+export function confirmDialog(message, title = 'Konfirmasi', confirmText = 'Hapus') {
+    return new Promise((resolve) => {
+        const modalEl = document.getElementById('confirmModal');
+        const titleEl = document.getElementById('confirmModalTitle');
+        const messageEl = document.getElementById('confirmModalMessage');
+        const confirmBtn = document.getElementById('confirmModalConfirm');
+        const cancelBtn = document.getElementById('confirmModalCancel');
+
+        titleEl.textContent = title;
+        messageEl.textContent = message;
+        confirmBtn.innerHTML = `<i class="bi bi-trash me-2"></i>${confirmText}`;
+
+        const existing = bootstrap.Modal.getInstance(modalEl);
+        if (existing) existing.dispose();
+        const modal = new bootstrap.Modal(modalEl);
+
+        let resolved = false;
+
+        const onConfirm = () => {
+            if (resolved) return;
+            resolved = true;
+            resolve(true);
+            modal.hide();
+        };
+
+        const onCancel = () => {
+            if (resolved) return;
+            resolved = true;
+            resolve(false);
+            modal.hide();
+        };
+
+        modalEl.addEventListener('hidden.bs.modal', () => {
+            if (!resolved) {
+                resolved = true;
+                resolve(false);
+            }
+            confirmBtn.removeEventListener('click', onConfirm);
+            cancelBtn.removeEventListener('click', onCancel);
+        }, { once: true });
+
+        confirmBtn.addEventListener('click', onConfirm);
+        cancelBtn.addEventListener('click', onCancel);
+
+        modal.show();
+    });
 }
 
 /**

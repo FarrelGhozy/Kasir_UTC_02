@@ -727,7 +727,7 @@ class Inventory {
     }
 
     async deleteItem(itemId, itemName) {
-        if (!confirmDialog(`Apakah Anda yakin ingin menghapus "${itemName}"?`)) return;
+        if (!await confirmDialog(`Apakah Anda yakin ingin menghapus "${itemName}"?`)) return;
 
         try {
             await api.deleteItem(itemId);

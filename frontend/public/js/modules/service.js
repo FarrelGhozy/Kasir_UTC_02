@@ -1,6 +1,6 @@
 // public/js/modules/service.js - Modul Manajemen Servis (FIXED: Add Part & Detail View)
 
-import api, { formatCurrency, formatDateTime, showToast, showError, setupCurrencyInput, parseCurrencyValue, calculateElapsedTime, validateWhatsApp, escapeHTML, loadScript } from '../api.js';
+import api, { formatCurrency, formatDateTime, showToast, showError, setupCurrencyInput, parseCurrencyValue, calculateElapsedTime, validateWhatsApp, escapeHTML, loadScript, confirmDialog } from '../api.js';
 
 /**
  * Helper class for Pattern Lock UI
@@ -1276,7 +1276,7 @@ class Service {
     }
 
     async deleteTicket(id) {
-        if (!confirm('Yakin ingin MENGHAPUS PERMANEN tiket ini? Data akan hilang dan tidak bisa dikembalikan!')) return;
+        if (!await confirmDialog('Yakin ingin MENGHAPUS PERMANEN tiket ini? Data akan hilang dan tidak bisa dikembalikan!', 'Hapus Permanen', 'Ya, Hapus')) return;
         try {
             await api.deleteServiceTicket(id);
             showToast('Tiket berhasil dihapus permanen', 'success');
