@@ -500,7 +500,7 @@ class Dashboard {
                 date: new Date(ticket.history?.completed_at || ticket.history?.created_at || ticket.createdAt),
                 amount: ticket.total_cost || 0,
                 status: ticket.status === 'Picked_Up' ? 'Diambil' : 'Selesai',
-                icon: 'bi-tools',
+                icon: 'bi-wrench',
                 color: 'text-warning', // Warna oranye untuk servis
                 badge: 'bg-success text-white'
             }));
