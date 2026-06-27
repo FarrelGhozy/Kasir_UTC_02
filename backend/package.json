@@ -32,7 +32,9 @@
     "mongoose": "^9.1.5",
     "multer": "^2.1.1",
     "node-cron": "^4.2.1",
-    "nodemailer": "^8.0.7"
+    "nodemailer": "^8.0.7",
+    "pdfkit": "^0.15.0",
+    "qrcode": "^1.5.4"
   },
   "devDependencies": {
     "@babel/preset-env": "^7.29.7",

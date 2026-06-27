@@ -1,5 +1,10 @@
 const axios = require('axios');
+const path = require('path');
 const SystemLog = require('../models/SystemLog');
+const pdfService = require('./pdfService');
+const { saveNota } = require('../utils/notaStorage');
+
+const BACKEND_URL = process.env.BACKEND_URL || 'http://backend:5000';
 
 /**
  * WhatsApp Service using WAHA (WhatsApp HTTP API)
@@ -72,8 +77,54 @@ class WhatsAppService {
   }
 
   /**
+   * Mengirim dokumen (PDF) ke nomor tertentu via WAHA
+   * @param {string} phone Nomor HP
+   * @param {string} fileUrl URL publik file PDF
+   * @param {string} caption Pesan teks pendamping
+   */
+  async sendDocument(phone, fileUrl, caption) {
+    try {
+      let cleanPhone = phone.toString().replace(/\D/g, '');
+      if (cleanPhone.startsWith('0')) {
+        cleanPhone = '62' + cleanPhone.slice(1);
+      }
+      const chatId = cleanPhone.includes('@') ? cleanPhone : `${cleanPhone}@c.us`;
+
+      const url = `${this.baseURL}/api/sendDocument`;
+      const data = {
+        chatId: chatId,
+        media: fileUrl,
+        caption: caption || '',
+        session: this.session
+      };
+
+      const config = {
+        headers: { 'X-Api-Key': this.apiKey },
+        timeout: 30000
+      };
+
+      console.log(`[WhatsApp] Mencoba kirim dokumen ke ${chatId}...`);
+      const response = await axios.post(url, data, config);
+      console.log(`[WhatsApp] Sukses kirim dokumen ke ${chatId}.`);
+      return { success: true, data: response.data };
+    } catch (error) {
+      const errorData = error.response?.data;
+      const errorMessage = errorData?.message || errorData?.error || error.message;
+      console.error(`[WhatsApp] Gagal kirim dokumen ke ${phone}:`, errorMessage);
+
+      SystemLog.create({
+        level: 'ERROR',
+        source: 'WhatsAppService',
+        message: `Gagal kirim dokumen ke ${phone}`,
+        details: { error: errorMessage, status: error.response?.status, target: phone }
+      }).catch(err => console.error('Gagal simpan log WA:', err));
+
+      return { success: false, error: errorMessage, status: error.response?.status };
+    }
+  }
+
+  /**
    * Helper untuk memberikan jeda waktu (delay)
-   * @param {number} ms Milidetik
    */
   delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -313,12 +364,43 @@ Bahwa benar Saya sebelumnya telah membaca dan menerima semua penjelasan dari UTC
         ? new Date(ticket.warranty_expires_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
         : '7 hari dari sekarang';
 
-      message += `Terima kasih Kak sudah mengambil perangkatnya. 😊\n\n`;
-      message += `*PENGINGAT GARANSI:*\n`;
-      message += `• Masa Garansi: *7 Hari* (Berlaku s/d ${expiryDate})\n`;
-      message += `• Garansi berlaku hanya untuk *jenis kerusakan yang sama* dengan pengerjaan sebelumnya.\n`;
-      message += `• Mohon perhatikan kembali *SOP & Syarat Ketentuan* yang telah kami kirimkan di awal (terkait segel, kelalaian pengguna, dll).\n\n`;
-      message += `Semoga perangkatnya awet dan bermanfaat ya Kak! 🙏✨\n`;
+      message = `Halo Kak *${ticket.customer.name}*, terima kasih sudah mengambil perangkatnya 😊🙏
+
+Berikut kami lampirkan *Nota Digital Resmi* untuk tiket #${ticket.ticket_number}.
+Silakan simpan nota ini sebagai bukti pengambilan yang sah.
+
+*PENGINGAT GARANSI:*
+• Masa Garansi: *7 Hari* (Berlaku s/d ${expiryDate})
+• Garansi berlaku hanya untuk *jenis kerusakan yang sama*.
+
+Semoga perangkatnya awet dan bermanfaat! ✨
+
+_Tim Unida Technology Centre_`;
+
+      const result = await this.sendMessage(ticket.customer.phone, message);
+
+      try {
+        const pdfResult = await pdfService.generateServiceNota(ticket);
+        const { fileUrl } = await saveNota(
+          pdfResult,
+          'SVC',
+          ticket.ticket_number,
+          ticket.customer.name
+        );
+        const fullUrl = `${BACKEND_URL}${fileUrl}`;
+        const caption = `Nota Digital Servis - ${ticket.ticket_number}`;
+        await this.sendDocument(ticket.customer.phone, fullUrl, caption);
+      } catch (pdfErr) {
+        console.error('[WhatsApp] Gagal generate/kirim PDF nota servis:', pdfErr.message);
+        SystemLog.create({
+          level: 'ERROR',
+          source: 'PDFService',
+          message: 'Gagal generate/kirim PDF nota servis',
+          details: { ticket_id: ticket._id, error: pdfErr.message }
+        }).catch(() => {});
+      }
+
+      return result;
     } else {
       message += `Estimasi Jasa Awal: *${currencyFormat.format(ticket.service_fee)}*\n`;
       message += `_(Biaya akhir akan dikonfirmasi setelah selesai)_\n\n`;
@@ -364,6 +446,40 @@ Bahwa benar Saya sebelumnya telah membaca dan menerima semua penjelasan dari UTC
       message += `Kakak bisa segera mengambilnya di jam operasional toko dengan melunasi sisa pembayaran di atas ya. Sampai jumpa di toko! 👋\n`;
     } else if (order.status === 'Pending') {
       message += `Pesanan Kakak sudah kami terima dan akan segera kami proses pencariannya. Mohon ditunggu ya Kak. 🙏\n`;
+    } else if (order.status === 'Picked_Up') {
+      message = `Halo Kak *${order.customer.name}*, terima kasih sudah mengambil pesanannya 😊🙏
+
+Berikut kami lampirkan *Nota Digital Resmi* untuk order #${order.order_number}.
+Silakan simpan nota ini sebagai bukti pengambilan yang sah.
+
+Semoga barangnya bermanfaat! ✨
+
+_Tim Unida Technology Centre_`;
+
+      const result = await this.sendMessage(order.customer.phone, message);
+
+      try {
+        const pdfResult = await pdfService.generateOrderNota(order);
+        const { fileUrl } = await saveNota(
+          pdfResult,
+          'ORD',
+          order.order_number,
+          order.customer.name
+        );
+        const fullUrl = `${BACKEND_URL}${fileUrl}`;
+        const caption = `Nota Digital Pesanan - ${order.order_number}`;
+        await this.sendDocument(order.customer.phone, fullUrl, caption);
+      } catch (pdfErr) {
+        console.error('[WhatsApp] Gagal generate/kirim PDF nota order:', pdfErr.message);
+        SystemLog.create({
+          level: 'ERROR',
+          source: 'PDFService',
+          message: 'Gagal generate/kirim PDF nota order',
+          details: { order_id: order._id, error: pdfErr.message }
+        }).catch(() => {});
+      }
+
+      return result;
     } else {
       message += `Kami akan segera mengabari Kakak kembali saat barang sudah mendarat di toko kami. 😊\n`;
     }

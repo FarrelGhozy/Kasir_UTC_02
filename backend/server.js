@@ -116,6 +116,29 @@ app.use('/api', webhookRoutes);
 // Backward compatibility: serve foto dari URL lama (database existing)
 app.use('/backend/uploads/services', express.static(path.join(__dirname, 'uploads', 'services')));
 
+// Serve file nota digital
+app.use('/uploads/notas', express.static(path.join(__dirname, 'uploads', 'notas')));
+
+// Endpoint verifikasi keaslian nota via QR Code
+const ServiceTicket = require('./models/ServiceTicket');
+const SpecialOrder = require('./models/SpecialOrder');
+
+app.get('/api/verify-nota/:model/:id', async (req, res) => {
+  try {
+    const { model, id } = req.params;
+    let doc;
+    if (model === 'ServiceTicket') {
+      doc = await ServiceTicket.findById(id).select('ticket_number customer.name customer.phone status total_cost payment_method warranty_expires_at').lean();
+    } else if (model === 'SpecialOrder') {
+      doc = await SpecialOrder.findById(id).select('order_number customer.name customer.phone status estimated_price down_payment payment_status').lean();
+    }
+    if (!doc) return res.status(404).json({ success: false, message: 'Nota tidak ditemukan' });
+    res.status(200).json({ success: true, data: doc });
+  } catch (error) {
+    res.status(400).json({ success: false, message: 'Kode verifikasi tidak valid' });
+  }
+});
+
 // Health Check
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK', message: 'API Bengkel UTC Ready' });
