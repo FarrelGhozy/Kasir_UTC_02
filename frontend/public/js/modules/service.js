@@ -1144,7 +1144,7 @@ class Service {
                             ` : ''}
 
                             ${isCompleted ? `
-                                <button class="btn btn-sm btn-outline-dark" onclick="service.downloadNota('${t._id}', 'entry')" title="Nota Masuk">
+                                <button class="btn btn-sm btn-outline-dark" onclick="service.downloadNota('${t._id}', 'payment')" title="Nota Pembayaran">
                                     <i class="bi bi-printer"></i>
                                 </button>
                             ` : ''}
@@ -1701,7 +1701,8 @@ class Service {
     }
 
     downloadNota(id, type) {
-        window.open(`/api/services/${id}/nota?type=${type || 'payment'}`, '_blank');
+        const token = localStorage.getItem('token');
+        window.open(`/api/services/${id}/nota?type=${type || 'payment'}&token=${token}`, '_blank');
     }
 
     handlePhotoInput(input) {

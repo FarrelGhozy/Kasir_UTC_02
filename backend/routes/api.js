@@ -16,7 +16,7 @@ const dutyScheduleController = require('../controllers/dutyScheduleController');
 const notaController = require('../controllers/notaController');
 
 // Impor middleware
-const { protect, authorize } = require('../middleware/auth');
+const { protect, authorize, protectQuery } = require('../middleware/auth');
 const { upload, uploadOrderPhoto } = require('../utils/upload');
 
 // ============================================
@@ -89,7 +89,7 @@ router.post('/services/:id/parts', protect, authorize('teknisi', 'kasir', 'admin
 router.delete('/services/:id/parts/:part_id', protect, authorize('teknisi', 'kasir', 'admin'), serviceController.removePartFromService);
 router.patch('/services/:id/service-fee', protect, authorize('teknisi', 'kasir', 'admin'), serviceController.updateServiceFee);
 router.delete('/services/:id', protect, authorize('admin'), serviceController.deleteTicket);
-router.get('/services/:id/nota', protect, notaController.downloadServiceNota);
+router.get('/services/:id/nota', protectQuery, notaController.downloadServiceNota);
 
 // ============================================
 // RUTE PEMESANAN BARANG (SPECIAL ORDER)
@@ -101,7 +101,7 @@ router.put('/orders/:id', protect, authorize('kasir', 'teknisi', 'admin'), uploa
 router.patch('/orders/:id/status', protect, authorize('kasir', 'teknisi', 'admin'), orderController.updateOrderStatus);
 router.patch('/orders/:id/payment', protect, authorize('kasir', 'teknisi', 'admin'), orderController.updatePaymentStatus);
 router.delete('/orders/:id', protect, authorize('admin', 'kasir'), orderController.deleteOrder);
-router.get('/orders/:id/nota', protect, notaController.downloadOrderNota);
+router.get('/orders/:id/nota', protectQuery, notaController.downloadOrderNota);
 
 // ============================================
 // RUTE TRANSAKSI / KASIR (POS)

@@ -66,6 +66,16 @@ exports.protect = async (req, res, next) => {
 };
 
 /**
+ * Protect — juga terima token dari query parameter (untuk window.open)
+ */
+exports.protectQuery = async (req, res, next) => {
+  if (!req.headers.authorization && req.query.token) {
+    req.headers.authorization = `Bearer ${req.query.token}`;
+  }
+  return exports.protect(req, res, next);
+};
+
+/**
  * Otorisasi peran tertentu (Role Authorization)
  */
 exports.authorize = (...roles) => {

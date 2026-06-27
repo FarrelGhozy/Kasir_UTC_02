@@ -326,7 +326,8 @@ class Order {
     }
 
     downloadNota(id, type) {
-        window.open(`/api/orders/${id}/nota?type=${type || 'payment'}`, '_blank');
+        const token = localStorage.getItem('token');
+        window.open(`/api/orders/${id}/nota?type=${type || 'payment'}&token=${token}`, '_blank');
     }
 
     async togglePayment(id, select) {
