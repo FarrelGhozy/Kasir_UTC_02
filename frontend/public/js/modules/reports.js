@@ -26,7 +26,7 @@ class Reports {
                                         <i class="bi bi-calendar-month me-2"></i>Pendapatan Bulanan
                                     </button>
                                     <button type="button" class="btn btn-outline-primary" data-report="top-items">
-                                        <i class="bi bi-trophy me-2"></i>Barang Terlaris ${!isAdmin ? '<i class="bi bi-lock-fill ms-1 small opacity-50"></i>' : ''}
+                                        <i class="bi bi-star me-2"></i>Barang Terlaris ${!isAdmin ? '<i class="bi bi-lock-fill ms-1 small opacity-50"></i>' : ''}
                                     </button>
                                     <button type="button" class="btn btn-outline-primary" data-report="performance">
                                         <i class="bi bi-bar-chart me-2"></i>Performa Karyawan ${!isAdmin ? '<i class="bi bi-lock-fill ms-1 small opacity-50"></i>' : ''}
