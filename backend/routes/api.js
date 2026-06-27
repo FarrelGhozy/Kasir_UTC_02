@@ -97,6 +97,7 @@ router.get('/orders/:id', protect, orderController.getOrderById);
 router.post('/orders', protect, authorize('kasir', 'teknisi', 'admin'), uploadOrderPhoto.single('photo'), orderController.createOrder);
 router.put('/orders/:id', protect, authorize('kasir', 'teknisi', 'admin'), uploadOrderPhoto.single('photo'), orderController.updateOrderDetails);
 router.patch('/orders/:id/status', protect, authorize('kasir', 'teknisi', 'admin'), orderController.updateOrderStatus);
+router.patch('/orders/:id/payment', protect, authorize('kasir', 'teknisi', 'admin'), orderController.updatePaymentStatus);
 router.delete('/orders/:id', protect, authorize('admin', 'kasir'), orderController.deleteOrder);
 
 // ============================================

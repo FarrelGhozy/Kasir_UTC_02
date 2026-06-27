@@ -36,9 +36,13 @@ RUN echo 'server {\
   location / {\
     try_files $uri $uri/ /index.html;\
   }\
-  location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|webp|woff2?)$ {\
+  location ~* \.(css|png|jpg|jpeg|gif|ico|svg|webp|woff2?)$ {\
     expires 1d;\
     add_header Cache-Control "public, must-revalidate";\
+  }\
+  location ~* \.(js)$ {\
+    expires -1;\
+    add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate";\
   }\
 }' > /etc/nginx/conf.d/default.conf
 

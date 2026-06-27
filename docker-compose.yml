@@ -1,7 +1,7 @@
 services:
   # 1. Database MongoDB
   mongo_db:
-    image: mongo:latest
+    image: mongo:7.0
     restart: always
     container_name: utc_mongo
     ports:

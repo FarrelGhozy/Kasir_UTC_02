@@ -6,7 +6,7 @@ const { sendInvoiceEmail } = require('../services/emailService');
 
 exports.createOrder = async (req, res, next) => {
   try {
-    let { customer, item_name, item_description, estimated_price, down_payment, handled_by_id, notes } = req.body;
+    let { customer, item_name, item_description, estimated_price, down_payment, handled_by_id, notes, service_ticket } = req.body;
 
     if (typeof customer === 'string') {
       try { customer = JSON.parse(customer); } catch (e) { console.log('Customer is not a JSON string'); }
@@ -38,7 +38,8 @@ exports.createOrder = async (req, res, next) => {
       down_payment,
       handled_by,
       photo,
-      notes
+      notes,
+      service_ticket: service_ticket || undefined
     });
     
     if (order.customer.email) {
@@ -65,10 +66,11 @@ exports.createOrder = async (req, res, next) => {
 
 exports.getAllOrders = async (req, res, next) => {
   try {
-    const { status, customer_phone, page = 1, limit = 20 } = req.query;
+    const { status, customer_phone, service_ticket, page = 1, limit = 20 } = req.query;
     const filter = {};
     if (status) filter.status = status;
     if (customer_phone) filter['customer.phone'] = customer_phone;
+    if (service_ticket) filter.service_ticket = service_ticket;
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
     let orders = await SpecialOrder.find(filter)
@@ -175,6 +177,56 @@ exports.updateOrderDetails = async (req, res, next) => {
     }
 
     await order.save();
+    res.status(200).json({ success: true, data: order });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.updatePaymentStatus = async (req, res, next) => {
+  try {
+    const { payment_status } = req.body;
+    if (!['Lunas', 'Belum Lunas'].includes(payment_status)) {
+      return res.status(400).json({ success: false, message: 'Status pembayaran tidak valid' });
+    }
+
+    const order = await SpecialOrder.findById(req.params.id);
+    if (!order) return res.status(404).json({ success: false, message: 'Pesanan tidak ditemukan' });
+
+    order.payment_status = payment_status;
+    if (payment_status === 'Lunas') {
+      order.status = 'Picked_Up';
+      order.history.picked_up_at = new Date();
+
+      const ServiceTicket = require('../models/ServiceTicket');
+      let ticket = null;
+
+      // Cari via direct reference
+      if (order.service_ticket) {
+        ticket = await ServiceTicket.findById(order.service_ticket);
+      }
+
+      // Fallback: cari dari nomor tiket di notes
+      if (!ticket && order.notes) {
+        const match = order.notes.match(/#([A-Z0-9-]+)/);
+        if (match) {
+          ticket = await ServiceTicket.findOne({ ticket_number: match[1] });
+          if (ticket) {
+            order.service_ticket = ticket._id;
+          }
+        }
+      }
+
+      if (ticket) {
+        try {
+          await ticket.updateStatus('In_Progress');
+        } catch (statusErr) {
+          console.error(`[Order] Gagal update status tiket servis ${ticket._id}: ${statusErr.message}`);
+        }
+      }
+    }
+    await order.save();
+
     res.status(200).json({ success: true, data: order });
   } catch (error) {
     next(error);
