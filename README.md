@@ -21,6 +21,65 @@
 
 ---
 
+## 🧪 Coba Cepat (Tanpa Docker)
+
+Ingin mencoba sistem ini langsung tanpa ribet Docker? Ikuti langkah berikut:
+
+### 1. Clone & Masuk Folder
+```bash
+git clone https://github.com/username/Kasir_UTC_02.git
+cd Kasir_UTC_02
+```
+
+### 2. Install Dependencies
+```bash
+cd backend
+npm install
+cd ..
+```
+
+### 3. Siapkan MongoDB
+Pastikan MongoDB sudah berjalan di lokal (default `mongodb://localhost:27017`).  
+Atau gunakan Docker hanya untuk MongoDB:
+```bash
+docker run -d --name mongo-utc -p 27017:27017 mongo:6
+```
+
+### 4. Konfigurasi Environment
+Buat file `backend/.env`:
+```env
+PORT=5000
+MONGODB_URI=mongodb://localhost:27017/bengkel_utc
+JWT_SECRET=rahasia123
+NODE_ENV=development
+```
+
+### 5. Seed Database (Data Dummy)
+Gunakan seed khusus **dummy** agar tidak tercampur data asli:
+```bash
+cd backend
+npm run seed:dummy
+```
+
+### 6. Jalankan Backend
+```bash
+npm run dev
+```
+Backend aktif di `http://localhost:5000`.
+
+### 7. Buka Frontend
+Frontend bisa dijalankan dengan:
+```bash
+# Opsi 1 — Python (sudah tersedia di Linux/Mac)
+cd frontend/public && python3 -m http.server 8080
+
+# Opsi 2 — VS Code Live Server
+# Klik kanan frontend/public/index.html → Open with Live Server
+```
+Buka `http://localhost:8080` di browser.
+
+---
+
 ## 🚀 Fitur Unggulan Baru
 
 ### 📧 Notifikasi Email & Nota Digital (Baru!)
@@ -126,12 +185,14 @@ docker compose exec backend npm run seed
 
 ### 4. Cara Akses & Penggunaan
 
-| Layanan | URL Akses | Kredensial Default |
+| Layanan | URL Akses | Kredensial Default (Docker / seed.js) |
 | :--- | :--- | :--- |
-| **Aplikasi Utama (Admin)** | `http://localhost:8080` | User: `admin-utc01` / Pass: `adminutc28` |
+| **Aplikasi Utama (Admin)** | `http://localhost:8080` | User: `admin-utc01` / Pass: `adminrahasia26` |
 | **Aplikasi Utama (Kasir)** | `http://localhost:8080` | User: `kasir1` / Pass: `kasirutc0326` |
-| **WhatsApp Bot (WAHA)** | `http://localhost:8000` | User: `admin-utc01` / Pass: `adminutc28` |
+| **WhatsApp Bot (WAHA)** | `http://localhost:8000` | (Gunakan kredensial WAHA) |
 | **Database Explorer** | `localhost:27018` | (Gunakan MongoDB Compass) |
+
+> **Untuk seed dummy** (`seed.dummy.js`): Admin=`admin_dummy` / `DummyAdmin456`, Kasir=`kasir_dummy` / `DummyKasir456`
 
 ---
 
@@ -169,11 +230,27 @@ docker compose exec backend npm run seed
 ---
 
 ## 🔐 Akun Akses Default
-Jika Anda menggunakan perintah `npm run seed`, gunakan akun berikut:
 
-- **Superadmin (Akses penuh & kelola teknisi):** `admin-utc01` / `adminutc28`
-- **Kasir (Hanya POS & Servis):** `kasir1` / `kasirutc0326`
-- **Teknisi:** `wildan_utc`, `kaukab_utc`, `rasya_utc`, `tamam_utc`, `syamsi_utc`, `akbar_utc` — password: sesuai data di seed
+### Seed Asli (`seed.js` — hanya lokal)
+```bash
+node seed.js
+```
+| Role | Username | Password |
+| :--- | :--- | :--- |
+| Admin | `admin-utc01` | `adminrahasia26` |
+| Kasir | `kasir1` | `kasirutc0326` |
+| Teknisi | `farrel_utc`, `kaukab_utc`, `rasya_utc`, dll | `Teknisiutc26` |
+
+### Seed Dummy (`seed.dummy.js` — untuk umum/coba-coba)
+```bash
+npm run seed:dummy
+```
+| Role | Username | Password |
+| :--- | :--- | :--- |
+| Admin | `admin_dummy` | `DummyAdmin456` |
+| Kasir | `kasir_dummy` | `DummyKasir456` |
+| Manajer | `manajer_dummy` | `DummyManajer456` |
+| Teknisi | `alpha_tech`, `beta_tech`, `gamma_tech`, dll | `DummyPass123` |
 
 ---
 
