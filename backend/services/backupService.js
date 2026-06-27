@@ -10,6 +10,7 @@ const ServiceTicket = require('../models/ServiceTicket');
 const Transaction = require('../models/Transaction');
 const SpecialOrder = require('../models/SpecialOrder');
 const SystemLog = require('../models/SystemLog');
+const { convertDateStringsToDates, convertObjectIdFields } = require('../utils/dateUtils');
 
 const gzip = util.promisify(zlib.gzip);
 const gunzip = util.promisify(zlib.gunzip);
@@ -170,11 +171,13 @@ class BackupService {
 
     let adminDoc = null;
     let adminId = null;
+    let adminUsername = null;
     if (preservedUserId) {
       const currentAdmin = await User.findById(preservedUserId).select('+password').lean();
       if (currentAdmin) {
         adminDoc = { ...currentAdmin };
         adminId = currentAdmin._id;
+        adminUsername = currentAdmin.username;
         delete adminDoc._id;
       }
     }
@@ -188,10 +191,35 @@ class BackupService {
       SystemLog.deleteMany({})
     ]);
 
+    if (data.users?.length > 0) {
+      data.users.forEach(convertDateStringsToDates);
+      data.users.forEach(convertObjectIdFields);
+    }
+    if (data.items?.length > 0) {
+      data.items.forEach(convertDateStringsToDates);
+      data.items.forEach(convertObjectIdFields);
+    }
+    if (data.service_tickets?.length > 0) {
+      data.service_tickets.forEach(convertDateStringsToDates);
+      data.service_tickets.forEach(convertObjectIdFields);
+    }
+    if (data.transactions?.length > 0) {
+      data.transactions.forEach(convertDateStringsToDates);
+      data.transactions.forEach(convertObjectIdFields);
+    }
+    if (data.special_orders?.length > 0) {
+      data.special_orders.forEach(convertDateStringsToDates);
+      data.special_orders.forEach(convertObjectIdFields);
+    }
+    if (data.system_logs?.length > 0) {
+      data.system_logs.forEach(convertDateStringsToDates);
+      data.system_logs.forEach(convertObjectIdFields);
+    }
+
     const insertOps = [];
     if (data.users?.length > 0) {
-      const filteredUsers = adminDoc
-        ? data.users.filter(u => String(u._id) !== String(adminId))
+      const filteredUsers = (adminDoc && adminId)
+        ? data.users.filter(u => String(u._id) !== String(adminId) && u.username !== adminUsername)
         : data.users;
       if (filteredUsers.length > 0) {
         insertOps.push(User.collection.insertMany(filteredUsers));
@@ -205,8 +233,8 @@ class BackupService {
 
     await Promise.all(insertOps);
 
-    if (adminDoc) {
-      const adminExists = await User.collection.findOne({ _id: adminId });
+    if (adminDoc && adminId) {
+      const adminExists = await User.collection.findOne({ username: adminUsername });
       if (!adminExists) {
         await User.collection.insertOne({ ...adminDoc, _id: adminId });
       }

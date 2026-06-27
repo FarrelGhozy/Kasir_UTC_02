@@ -8,6 +8,7 @@ const Transaction = require('../models/Transaction');
 const SpecialOrder = require('../models/SpecialOrder');
 const SystemLog = require('../models/SystemLog');
 const backupService = require('../services/backupService');
+const { convertDateStringsToDates, convertObjectIdFields } = require('../utils/dateUtils');
 
 /**
  * @desc    Export all system data
@@ -54,9 +55,10 @@ exports.importData = async (req, res, next) => {
     }
 
     const currentAdmin = await User.findById(req.user.id).select('+password').lean();
+    const adminUsername = currentAdmin?.username || 'admin-utc01';
 
     // Simpan data admin agar tetap bisa login setelah restore
-    const adminDoc = { ...currentAdmin };
+    const adminDoc = currentAdmin ? { ...currentAdmin } : {};
     delete adminDoc._id;
 
     // 1. Hapus SEMUA data lama terlebih dahulu
@@ -69,11 +71,38 @@ exports.importData = async (req, res, next) => {
       SystemLog.deleteMany({})
     ]);
 
-    // 2. Insert data dari backup (tanpa hook agar password tetap ter-hash)
+    // 2. Konversi string tanggal ke Date object & string ObjectId ke ObjectId asli
+    //    (biar query filter tanggal, findById, populate, dll berfungsi normal)
+    if (data.users?.length > 0) {
+      data.users.forEach(convertDateStringsToDates);
+      data.users.forEach(convertObjectIdFields);
+    }
+    if (data.items?.length > 0) {
+      data.items.forEach(convertDateStringsToDates);
+      data.items.forEach(convertObjectIdFields);
+    }
+    if (data.service_tickets?.length > 0) {
+      data.service_tickets.forEach(convertDateStringsToDates);
+      data.service_tickets.forEach(convertObjectIdFields);
+    }
+    if (data.transactions?.length > 0) {
+      data.transactions.forEach(convertDateStringsToDates);
+      data.transactions.forEach(convertObjectIdFields);
+    }
+    if (data.special_orders?.length > 0) {
+      data.special_orders.forEach(convertDateStringsToDates);
+      data.special_orders.forEach(convertObjectIdFields);
+    }
+    if (data.system_logs?.length > 0) {
+      data.system_logs.forEach(convertDateStringsToDates);
+      data.system_logs.forEach(convertObjectIdFields);
+    }
+
+    // 3. Insert data dari backup (tanpa hook agar password tetap ter-hash)
     const insertOps = [];
     if (data.users?.length > 0) {
       // Filter admin yg sedang login agar tidak konflik — nanti di-insert manual
-      const filteredUsers = data.users.filter(u => u.username !== currentAdmin.username);
+      const filteredUsers = data.users.filter(u => u.username !== adminUsername);
       if (filteredUsers.length > 0) insertOps.push(User.collection.insertMany(filteredUsers));
     }
     if (data.items?.length > 0) insertOps.push(Item.collection.insertMany(data.items));
@@ -84,10 +113,12 @@ exports.importData = async (req, res, next) => {
 
     await Promise.all(insertOps);
 
-    // 3. Insert ulang admin yg sedang login (pakai collection.insertOne agar pre('save') hook tidak terpicu)
-    const adminExists = await User.collection.findOne({ username: currentAdmin.username });
-    if (!adminExists) {
-      await User.collection.insertOne({ ...adminDoc, _id: currentAdmin._id });
+    // 4. Insert ulang admin yg sedang login (pakai collection.insertOne agar pre('save') hook tidak terpicu)
+    if (currentAdmin) {
+      const adminExists = await User.collection.findOne({ username: adminUsername });
+      if (!adminExists) {
+        await User.collection.insertOne({ ...adminDoc, _id: currentAdmin._id });
+      }
     }
 
     res.status(200).json({

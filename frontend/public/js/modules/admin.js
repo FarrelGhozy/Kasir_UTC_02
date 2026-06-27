@@ -1,4 +1,4 @@
-import api, { showToast, escapeHTML, confirmDialog } from '../api.js';
+import api, { showToast, escapeHTML, confirmDialog, loadScript } from '../api.js';
 import Reports from './reports.js';
 
 class Admin {
@@ -140,10 +140,18 @@ class Admin {
                                                 <div class="card-body p-3 p-md-4 text-center">
                                                     <i class="bi bi-cloud-upload text-primary backup-icon" style="font-size: 2.5rem; font-size: clamp(2rem, 5vw, 4rem);"></i>
                                                     <h5 class="fw-bold mt-2 mt-md-3">Ekspor Data (Backup)</h5>
-                                                    <p class="text-muted small">Unduh seluruh data database ke dalam file JSON untuk cadangan.</p>
-                                                    <button class="btn btn-primary px-4 fw-bold btn-sm btn-md-normal" id="export-btn">
-                                                        <i class="bi bi-download me-2"></i>Export Data Sekarang
-                                                    </button>
+                                                    <p class="text-muted small">Unduh seluruh data database ke dalam file JSON (.json) atau JSON terkompresi (.json.gz).</p>
+                                                    <div class="d-flex justify-content-center align-items-center gap-2 flex-wrap">
+                                                        <div class="btn-group btn-group-sm shadow-sm" role="group">
+                                                            <input type="radio" class="btn-check" name="exportFormat" id="export-json" value="json" checked>
+                                                            <label class="btn btn-outline-primary" for="export-json">.json</label>
+                                                            <input type="radio" class="btn-check" name="exportFormat" id="export-gz" value="gz">
+                                                            <label class="btn btn-outline-primary" for="export-gz">.json.gz</label>
+                                                        </div>
+                                                        <button class="btn btn-primary fw-bold btn-sm btn-md-normal" id="export-btn">
+                                                            <i class="bi bi-download me-2"></i>Export
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -158,7 +166,7 @@ class Admin {
                                                         <strong>PENTING:</strong> Import akan menimpa seluruh data saat ini.
                                                     </div>
                                                     <div class="input-group input-group-sm mb-2 mt-auto">
-                                                        <input type="file" class="form-control" id="import-file" accept=".json">
+                                                        <input type="file" class="form-control" id="import-file" accept=".json,.json.gz,.gz">
                                                         <button class="btn btn-danger fw-bold" type="button" id="import-btn">
                                                             <i class="bi bi-upload me-2"></i>Import
                                                         </button>
@@ -404,21 +412,40 @@ class Admin {
         new bootstrap.Modal(document.getElementById('editTechModal')).show();
     }
 
+    async loadPako() {
+        if (window.pako) return;
+        await loadScript('https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js');
+    }
+
     async handleExport() {
         try {
             showToast('Menyiapkan backup data...', 'info');
             const res = await api.get('/admin/backup/export');
 
-            const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const downloadAnchorNode = document.createElement('a');
+            const jsonStr = JSON.stringify(res.data, null, 2);
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const formatEl = document.querySelector('[name="exportFormat"]:checked');
+            const format = formatEl ? formatEl.value : 'json';
 
-            downloadAnchorNode.setAttribute("href", url);
-            downloadAnchorNode.setAttribute("download", `backup_utc_${timestamp}.json`);
-            document.body.appendChild(downloadAnchorNode);
-            downloadAnchorNode.click();
-            downloadAnchorNode.remove();
+            let blob, filename;
+
+            if (format === 'gz') {
+                await this.loadPako();
+                const compressed = window.pako.gzip(jsonStr);
+                blob = new Blob([compressed], { type: 'application/gzip' });
+                filename = `backup_utc_${timestamp}.json.gz`;
+            } else {
+                blob = new Blob([jsonStr], { type: 'application/json' });
+                filename = `backup_utc_${timestamp}.json`;
+            }
+
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
             setTimeout(() => URL.revokeObjectURL(url), 10000);
 
             showToast('Backup berhasil diunduh', 'success');
@@ -430,7 +457,7 @@ class Admin {
         const file = fileInput.files[0];
 
         if (!file) {
-            showToast('Silakan pilih file backup (.json) terlebih dahulu', 'warning');
+            showToast('Silakan pilih file backup (.json / .json.gz) terlebih dahulu', 'warning');
             return;
         }
 
@@ -443,20 +470,42 @@ class Admin {
         try {
             showToast('Sedang memproses import...', 'info');
 
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                try {
-                    const jsonData = JSON.parse(e.target.result);
-                    const res = await api.post('/admin/backup/import', { data: jsonData });
-                    if (res.success) {
-                        alert('Data berhasil dipulihkan! Aplikasi akan dimuat ulang.');
-                        window.location.reload();
+            const isGz = file.name.endsWith('.gz');
+
+            if (isGz) {
+                await this.loadPako();
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    try {
+                        const compressed = new Uint8Array(e.target.result);
+                        const jsonStr = window.pako.ungzip(compressed, { to: 'string' });
+                        const jsonData = JSON.parse(jsonStr);
+                        const res = await api.post('/admin/backup/import', { data: jsonData });
+                        if (res.success) {
+                            alert('Data berhasil dipulihkan! Aplikasi akan dimuat ulang.');
+                            window.location.reload();
+                        }
+                    } catch (err) {
+                        showToast('File tidak valid: ' + err.message, 'error');
                     }
-                } catch (err) {
-                    showToast('File tidak valid: ' + err.message, 'error');
-                }
-            };
-            reader.readAsText(file);
+                };
+                reader.readAsArrayBuffer(file);
+            } else {
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    try {
+                        const jsonData = JSON.parse(e.target.result);
+                        const res = await api.post('/admin/backup/import', { data: jsonData });
+                        if (res.success) {
+                            alert('Data berhasil dipulihkan! Aplikasi akan dimuat ulang.');
+                            window.location.reload();
+                        }
+                    } catch (err) {
+                        showToast('File tidak valid: ' + err.message, 'error');
+                    }
+                };
+                reader.readAsText(file);
+            }
         } catch (e) { showToast('Gagal melakukan import: ' + e.message, 'error'); }
     }
 
