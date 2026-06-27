@@ -13,6 +13,7 @@ const adminController = require('../controllers/adminController');
 const backupController = require('../controllers/backupController');
 const waController = require('../controllers/waController');
 const dutyScheduleController = require('../controllers/dutyScheduleController');
+const notaController = require('../controllers/notaController');
 
 // Impor middleware
 const { protect, authorize } = require('../middleware/auth');
@@ -166,6 +167,9 @@ router.get('/duty-schedules/day/:day', protect, authorize('admin'), dutySchedule
 router.post('/duty-schedules', protect, authorize('admin'), dutyScheduleController.createSchedule);
 router.put('/duty-schedules/:id', protect, authorize('admin'), dutyScheduleController.updateSchedule);
 router.delete('/duty-schedules/:id', protect, authorize('admin'), dutyScheduleController.deleteSchedule);
+
+// --- Nota Digital ---
+router.get('/notas', protect, notaController.listNotas);
 
 // --- WhatsApp Helper ---
 router.get('/check-wa', protect, waController.checkWANumber);

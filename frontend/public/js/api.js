@@ -299,6 +299,10 @@ class API {
         return this.get(`/orders/${id}`);
     }
 
+    async getNotas() {
+        return this.get('/notas');
+    }
+
     async updateSpecialOrderStatus(id, status) {
         return this.patch(`/orders/${id}/status`, { status });
     }
