@@ -192,11 +192,26 @@ class Order {
         const container = document.getElementById('orders-container');
         const searchTerm = document.getElementById('search-order')?.value.toLowerCase() || '';
 
+        const statusLabels = {
+            Pending: 'antrian', Searching: 'mencari', Ordered: 'dipesan',
+            Arrived: 'sampai', Picked_Up: 'diambil', Cancelled: 'dibatalkan'
+        };
+
         const filteredOrders = this.orders.filter(o => {
-            const name = o.customer.name.toLowerCase();
-            const phone = o.customer.phone.toLowerCase();
-            const item = o.item_name.toLowerCase();
-            return name.includes(searchTerm) || phone.includes(searchTerm) || item.includes(searchTerm);
+            const fields = [
+                o.customer.name,
+                o.customer.phone,
+                o.customer.type,
+                o.item_name,
+                o.item_description,
+                o.order_number,
+                o.notes,
+                o.handled_by?.name,
+                o.payment_status,
+                String(o.estimated_price),
+                statusLabels[o.status] || o.status
+            ];
+            return fields.some(f => f?.toLowerCase().includes(searchTerm));
         });
 
         const statusPriority = {
@@ -209,6 +224,11 @@ class Order {
         };
 
         filteredOrders.sort((a, b) => {
+            if (searchTerm) {
+                const aScore = this._getOrderMatchScore(a, searchTerm);
+                const bScore = this._getOrderMatchScore(b, searchTerm);
+                if (aScore !== bScore) return bScore - aScore;
+            }
             const pa = statusPriority[a.status] ?? 99;
             const pb = statusPriority[b.status] ?? 99;
             if (pa !== pb) return pa - pb;
@@ -371,6 +391,23 @@ class Order {
             'Cancelled': ['Pending']
         };
         return transitions[currentStatus] || [];
+    }
+
+    _getOrderMatchScore(o, term) {
+        if (!term) return 0;
+        const fields = [
+            o.customer.name,
+            o.customer.phone,
+            o.customer.type,
+            o.item_name,
+            o.item_description,
+            o.order_number,
+            o.notes,
+            o.handled_by?.name,
+            o.payment_status,
+            String(o.estimated_price),
+        ];
+        return fields.filter(f => f?.toLowerCase().includes(term)).length;
     }
 
     async updateStatus(id, newStatus) {

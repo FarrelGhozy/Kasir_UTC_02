@@ -905,8 +905,13 @@ class Service {
                 t.device.model,
                 t.device.serial_number,
                 t.device.symptoms,
+                t.device.accessories,
+                t.device.password,
+                t.device.pattern,
                 t.technician.name,
                 t.ticket_number,
+                t.notes,
+                ...(t.parts_used || []).map(p => p.name),
                 statusLabels[t.status] || t.status
             ];
             return fields.some(f => f?.toLowerCase().includes(searchTerm));
@@ -923,6 +928,11 @@ class Service {
         };
 
         filteredTickets.sort((a, b) => {
+            if (searchTerm) {
+                const aScore = this._getServiceMatchScore(a, searchTerm);
+                const bScore = this._getServiceMatchScore(b, searchTerm);
+                if (aScore !== bScore) return bScore - aScore;
+            }
             const pa = statusPriority[a.status] ?? 99;
             const pb = statusPriority[b.status] ?? 99;
             if (pa !== pb) return pa - pb;
@@ -2077,6 +2087,29 @@ class Service {
         document.getElementById('confirm-finish-btn').addEventListener('click', () => this.confirmFinish());
 
         document.getElementById('confirm-payment-btn').addEventListener('click', () => this.confirmPayment());
+    }
+
+    _getServiceMatchScore(t, term) {
+        if (!term) return 0;
+        const fields = [
+            t.customer.name,
+            t.customer.phone,
+            t.customer.email,
+            t.customer.type,
+            t.device.type,
+            t.device.brand,
+            t.device.model,
+            t.device.serial_number,
+            t.device.symptoms,
+            t.device.accessories,
+            t.device.password,
+            t.device.pattern,
+            t.technician.name,
+            t.ticket_number,
+            t.notes,
+            ...(t.parts_used || []).map(p => p.name)
+        ];
+        return fields.filter(f => f?.toLowerCase().includes(term)).length;
     }
 }
 
