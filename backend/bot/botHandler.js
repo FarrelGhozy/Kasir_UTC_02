@@ -69,6 +69,10 @@ async function handleIncomingMessage(payload) {
     return;
   }
 
+  // ⛔ BOT SAMBUTAN & PEMBERITAHUAN TUTUP DINONAKTIFKAN SEMENTARA
+  // Aktifkan kembali dengan menghapus baris return di bawah ini
+  return;
+
   const now = Date.now();
   const lastChat = chatSessions.get(from);
   const status = isWorkingHours();
