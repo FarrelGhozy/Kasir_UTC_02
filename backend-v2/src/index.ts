@@ -8,6 +8,7 @@ import { backupRouter } from "./routes/backup";
 import { orderRouter, warrantyRouter, reportRouter } from "./routes/orders";
 import { inventoryRouter } from "./routes/inventory";
 import { serviceRouter } from "./routes/services";
+import { dashboardRouter } from "./routes/dashboard";
 import { SECURITY_HEADERS } from "./middleware/security";
 import { mapError } from "./middleware/error";
 
@@ -43,6 +44,7 @@ const app = new Elysia()
               { name: "Reports" },
               { name: "Inventory" },
               { name: "Services" },
+              { name: "Dashboard" },
             ],
           },
         })
@@ -78,6 +80,7 @@ const app = new Elysia()
   .use(reportRouter)
   .use(inventoryRouter)
   .use(serviceRouter)
+  .use(dashboardRouter)
   .listen(config.PORT);
 
 console.log(
