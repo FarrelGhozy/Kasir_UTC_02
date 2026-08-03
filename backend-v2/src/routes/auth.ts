@@ -1,61 +1,68 @@
-import { Elysia, t } from "elysia";
-import { jwt } from "@elysiajs/jwt";
+// Route auth v2 — #96: access 8h + refresh token httpOnly cookie (rotation).
+// Token TIDAK lagi di localStorage; refresh token hanya hidup di cookie HttpOnly.
+import { Elysia, t, type HTTPHeaders } from "elysia";
 import { config } from "../config/env";
-import { prisma } from "../db";
 import { checkLoginRateLimit } from "../middleware/security";
-import * as bcrypt from "bcryptjs";
+import { mapError } from "../middleware/error";
+import { authenticate } from "../middleware/auth";
+import {
+  loginUser,
+  rotateRefreshToken,
+  revokeRefreshToken,
+} from "../services/authService";
+
+const REFRESH_COOKIE = "utc_refresh";
+
+/** Set cookie refresh token: HttpOnly + SameSite=Lax + Secure HANYA kalau request HTTPS.
+ *  (NODE_ENV=production di docker ≠ HTTPS — jangan paksa Secure di HTTP, cookie bakal ditolak browser) */
+function setRefreshCookie(
+  set: { headers: HTTPHeaders },
+  token: string,
+  maxAgeMs: number,
+  isHttps: boolean
+) {
+  const parts = [
+    `${REFRESH_COOKIE}=${token}`,
+    "Path=/api/v2/auth",
+    "HttpOnly",
+    "SameSite=Lax",
+    `Max-Age=${Math.floor(maxAgeMs / 1000)}`,
+  ];
+  if (isHttps) parts.push("Secure");
+  set.headers["Set-Cookie"] = parts.join("; ");
+}
+
+/** Hapus cookie refresh (logout). */
+function clearRefreshCookie(set: { headers: HTTPHeaders }) {
+  set.headers["Set-Cookie"] = `${REFRESH_COOKIE}=; Path=/api/v2/auth; HttpOnly; SameSite=Lax; Max-Age=0`;
+}
+
+function getRefreshToken(headers: Record<string, string | undefined>): string {
+  const cookie = headers.cookie || "";
+  const m = new RegExp(`${REFRESH_COOKIE}=([^;]+)`).exec(cookie);
+  return m ? decodeURIComponent(m[1]!) : "";
+}
 
 export const authRouter = new Elysia({ prefix: "/api/v2/auth" })
-  .use(
-    jwt({
-      name: "jwt",
-      secret: config.JWT_SECRET,
-      exp: config.JWT_EXPIRES_IN,
-    })
-  )
   .post(
     "/login",
-    async ({ body, jwt, set, request }) => {
-      const { username, password } = body;
-
+    async ({ body, set, request }) => {
       // SEC-6: rate limit per IP+username — cek SEBELUM bcrypt (hemat CPU & blokir brute)
-      const rl = checkLoginRateLimit(request, username);
+      const rl = checkLoginRateLimit(request, body.username);
       if (!rl.allowed) {
         set.status = 429;
         set.headers["Retry-After"] = String(rl.retryAfterSec);
-        return {
-          error: "Terlalu banyak percobaan login. Coba lagi nanti.",
-          retryAfterSec: rl.retryAfterSec,
-        };
+        return { error: "Terlalu banyak percobaan login. Coba lagi nanti.", retryAfterSec: rl.retryAfterSec };
       }
-
-      const user = await prisma.user.findUnique({
-        where: { username },
-      });
-      if (!user || !user.isActive) {
-        set.status = 401;
-        return { error: "Kredensial salah" };
+      try {
+        const { user, tokens } = await loginUser(body.username, body.password);
+        setRefreshCookie(set, tokens.refreshToken, tokens.refreshMaxAgeMs, request.url.startsWith("https"));
+        return { token: tokens.accessToken, user };
+      } catch (e) {
+        const r = mapError(e);
+        set.status = r.status;
+        return { error: r.body.error };
       }
-      const ok = await bcrypt.compare(password, user.passwordHash);
-      if (!ok) {
-        set.status = 401;
-        return { error: "Kredensial salah" };
-      }
-
-      const token = await jwt.sign({
-        sub: String(user.id),
-        role: user.role,
-        name: user.name,
-      });
-      return {
-        token,
-        user: {
-          id: user.id,
-          name: user.name,
-          username: user.username,
-          role: user.role,
-        },
-      };
     },
     {
       body: t.Object({
@@ -65,20 +72,45 @@ export const authRouter = new Elysia({ prefix: "/api/v2/auth" })
       tags: ["Auth"],
     }
   )
-  .get("/me", async ({ jwt, headers, set }) => {
-    const auth = headers.authorization || "";
-    const token = auth.replace("Bearer ", "");
-    const payload = await jwt.verify(token);
-    if (!payload) {
-      set.status = 401;
-      return { error: "Unauthorized" };
-    }
-    // SEC-5: verifikasi user ke DB tiap request — nonaktif/demote langsung ditolak
-    const user = await prisma.user.findUnique({
-      where: { id: Number(payload.sub) },
-      select: { id: true, name: true, username: true, role: true, isActive: true },
-    });
-    if (!user || !user.isActive) {
+  // Refresh token rotation — baca cookie, bukan body (XSS-proof)
+  .post(
+    "/refresh",
+    async ({ headers, set, request }) => {
+      try {
+        const rt = getRefreshToken(headers);
+        if (!rt) {
+          set.status = 401;
+          return { error: "Refresh token tidak ada" };
+        }
+        const { user, tokens } = await rotateRefreshToken(rt);
+        setRefreshCookie(set, tokens.refreshToken, tokens.refreshMaxAgeMs, request.url.startsWith("https"));
+        return { token: tokens.accessToken, user };
+      } catch (e) {
+        const r = mapError(e);
+        set.status = r.status;
+        return { error: r.body.error };
+      }
+    },
+    { tags: ["Auth"] }
+  )
+  // Logout: revoke refresh token + hapus cookie
+  .post(
+    "/logout",
+    async ({ headers, set }) => {
+      try {
+        await revokeRefreshToken(getRefreshToken(headers));
+        clearRefreshCookie(set);
+        return { success: true };
+      } catch {
+        clearRefreshCookie(set);
+        return { success: true };
+      }
+    },
+    { tags: ["Auth"] }
+  )
+  .get("/me", async ({ headers, set }) => {
+    const user = await authenticate(headers);
+    if (!user) {
       set.status = 401;
       return { error: "Unauthorized" };
     }

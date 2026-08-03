@@ -104,10 +104,28 @@ model User {
   dutySchedules    DutySchedule[]
   transactions     Transaction[]
   specialOrders    SpecialOrder[]
+  orderPayments    SpecialOrderPayment[]
   stockAudits      StockAudit[]
+  refreshTokens    RefreshToken[]
 
   @@index([isActive])
   @@map("users")
+}
+
+// ============================================================
+// Refresh tokens (JWT rotation — #96)
+// ============================================================
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
+  tokenHash String   @unique @map("token_hash") @db.VarChar(64)
+  userId    Int      @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([userId])
+  @@map("refresh_tokens")
 }
 
 // ============================================================
@@ -175,6 +193,7 @@ model ServiceTicket {
   totalCost         Decimal             @default(0) @map("total_cost") @db.Decimal(14, 2)
   notes             String?
   warrantyExpiresAt DateTime?           @map("warranty_expires_at") @db.Timestamptz(6)
+  warrantyClaimed   Boolean             @default(false) @map("warranty_claimed")
   claimFromId         Int?                @map("claim_from_id")
     claimFrom           ServiceTicket?      @relation("WarrantyClaims", fields: [claimFromId], references: [id])
     claims              ServiceTicket[]     @relation("WarrantyClaims")
@@ -187,6 +206,8 @@ model ServiceTicket {
 
   @@index([status])
   @@index([technicianId])
+  // M8: max 1 klaim garansi per tiket sumber (NULL gak kena unique — aman)
+  @@unique([claimFromId])
   @@map("service_tickets")
 }
 
@@ -269,7 +290,7 @@ model SpecialOrder {
   estimatedPrice  Decimal        @map("estimated_price") @db.Decimal(14, 2)
   downPayment     Decimal        @default(0) @map("down_payment") @db.Decimal(14, 2)
   status          OrderStatus    @default(Pending)
-  paymentStatus   String         @default("Belum_Lunas") @map("payment_status") @db.VarChar(20)
+  paymentStatus   PaymentStatus  @default(Belum_Lunas) @map("payment_status")
   handledById     Int?           @map("handled_by_id")
   handledBy       User?          @relation(fields: [handledById], references: [id])
   handledByName   String?        @map("handled_by_name") @db.VarChar(100)
@@ -295,6 +316,8 @@ model SpecialOrderPayment {
   amount      Decimal      @db.Decimal(14, 2)
   method      PaymentMethod
   paidAt      DateTime     @default(now()) @map("paid_at") @db.Timestamptz(6)
+  createdById Int?         @map("created_by")
+  createdBy   User?        @relation(fields: [createdById], references: [id])
 
   @@index([orderId])
   @@map("order_payments")

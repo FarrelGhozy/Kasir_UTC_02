@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
+import api, { setAccessToken } from "../lib/api";
 
 type Role = "admin" | "teknisi" | "kasir";
 
@@ -11,40 +12,60 @@ interface AuthUser {
 
 interface AuthContextValue {
   user: AuthUser | null;
-  token: string | null;
   login: (user: AuthUser, token: string) => void;
   logout: () => void;
   isAuthenticated: boolean;
+  /** true saat masih memeriksa sesi (refresh cookie) di awal load */
+  bootstrapping: boolean;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(() => {
-    const raw = localStorage.getItem("utc_v2_user");
-    return raw ? JSON.parse(raw) : null;
-  });
-  const [token, setToken] = useState<string | null>(() =>
-    localStorage.getItem("utc_v2_token")
-  );
+  // User di state (memory) — TIDAK di localStorage. Refresh token di httpOnly cookie.
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [bootstrapping, setBootstrapping] = useState(true);
 
-  const login = (u: AuthUser, t: string) => {
+  // Bootstrap: coba /auth/refresh — kalau cookie masih valid, sesi langsung pulih
+  // (user tidak perlu login ulang, dan tidak ada token XSS-able di storage).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await api.post("/v2/auth/refresh");
+        if (!cancelled && data?.user) {
+          setAccessToken(data.token as string);
+          setUser(data.user as AuthUser);
+        }
+      } catch {
+        // cookie invalid/expired — biarkan di halaman login
+      } finally {
+        if (!cancelled) setBootstrapping(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const login = useCallback((u: AuthUser, t: string) => {
+    setAccessToken(t);
     setUser(u);
-    setToken(t);
-    localStorage.setItem("utc_v2_user", JSON.stringify(u));
-    localStorage.setItem("utc_v2_token", t);
-  };
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(async () => {
+    try {
+      await api.post("/v2/auth/logout");
+    } catch {
+      // tetap logout lokal walau server error
+    }
+    setAccessToken(null);
     setUser(null);
-    setToken(null);
-    localStorage.removeItem("utc_v2_user");
-    localStorage.removeItem("utc_v2_token");
-  };
+  }, []);
 
   return (
     <AuthContext.Provider
-      value={{ user, token, login, logout, isAuthenticated: !!user && !!token }}
+      value={{ user, login, logout, isAuthenticated: !!user, bootstrapping }}
     >
       {children}
     </AuthContext.Provider>
