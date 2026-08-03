@@ -185,15 +185,23 @@ export async function transitionServiceStatus(input: {
   to: ServiceStatus;
   note?: string;
   createdBy?: string;
+  paymentMethod?: string;
 }) {
   const ticket = await prisma.serviceTicket.findUnique({ where: { id: input.ticketId } });
   if (!ticket) throw biz("Tiket servis tidak ditemukan");
   assertServiceTransition(ticket.status, input.to);
 
+  // H4: saat tiket dinyatakan selesai diambil, total>0 wajib paymentMethod tercatat
+  // (kelak: ke transaksi POS). Route status menerima paymentMethod opsional utk di-set.
+  if (input.to === "Picked_Up" && Number(ticket.totalCost) > 0 && !ticket.paymentMethod) {
+    throw biz("Tiket belum tercatat metode pembayaran — isi paymentMethod sebelum Picked_Up");
+  }
+
   const data: Record<string, unknown> = { status: input.to };
   if (input.to === "Diagnosing") data.diagnosedAt = new Date();
   if (input.to === "Completed") data.completedAt = new Date();
   if (input.to === "Picked_Up") data.pickedUpAt = new Date();
+  if (input.paymentMethod) data.paymentMethod = input.paymentMethod;
 
   return prisma.$transaction(async (tx) => {
     await tx.serviceTicket.update({ where: { id: input.ticketId }, data });
@@ -268,6 +276,11 @@ export async function removeServicePart(input: { ticketId: number; partId: numbe
   const part = await prisma.serviceTicketPart.findUnique({ where: { id: input.partId } });
   if (!part) throw biz("Part tidak ditemukan");
   if (part.serviceTicketId !== input.ticketId) throw biz("Part bukan milik tiket ini");
+  const ticket = await prisma.serviceTicket.findUnique({ where: { id: input.ticketId } });
+  // H5: part tidak bisa ditarik setelah tiket selesai
+  if (ticket && ["Completed", "Ready_For_Pickup", "Picked_Up", "Cancelled"].includes(ticket.status)) {
+    throw biz(`Tiket ${ticket.status} tidak bisa diubah partnya`);
+  }
 
   return prisma.$transaction(async (tx) => {
     await tx.serviceTicketPart.delete({ where: { id: input.partId } });
@@ -294,6 +307,10 @@ export async function setServiceFee(input: { ticketId: number; fee: number }) {
   if (input.fee < 0) throw biz("Service fee tidak boleh negatif");
   const ticket = await prisma.serviceTicket.findUnique({ where: { id: input.ticketId } });
   if (!ticket) throw biz("Tiket servis tidak ditemukan");
+  // H5: harga terkonfirmasi tidak berubah setelah completed/pickup
+  if (["Completed", "Ready_For_Pickup", "Picked_Up", "Cancelled"].includes(ticket.status)) {
+    throw biz(`Tiket ${ticket.status} tidak bisa diubah biayanya`);
+  }
   await prisma.serviceTicket.update({
     where: { id: input.ticketId },
     data: { serviceFee: input.fee.toFixed(2) },

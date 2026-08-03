@@ -128,6 +128,7 @@ export const serviceRouter = new Elysia({ prefix: "/api/v2/services" })
           to: body.status,
           note: body.note,
           createdBy: user.name,
+          paymentMethod: body.paymentMethod,
         });
         return { success: true, data: ticket };
       } catch (e) {
@@ -149,6 +150,9 @@ export const serviceRouter = new Elysia({ prefix: "/api/v2/services" })
           Cancelled: "Cancelled",
         }),
         note: t.Optional(t.String()),
+        paymentMethod: t.Optional(
+          t.Enum({ Cash: "Cash", Transfer: "Transfer", QRIS: "QRIS", Card: "Card" })
+        ),
       }),
       tags: ["Services"],
     }
