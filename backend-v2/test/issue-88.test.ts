@@ -137,6 +137,12 @@ describe("M8 — klaim garansi maksimal 1x per tiket", () => {
   });
 
   afterAll(async () => {
+    // claimWarranty membuat claim ticket + service_log milik claim.
+    // Hapus dulu log untuk SEMUA claim ticket (claimFromId = sourceId), baru ticket-nya.
+    const claims = await prisma.serviceTicket.findMany({ where: { claimFromId: sourceId } });
+    for (const c of claims) {
+      await prisma.serviceLog.deleteMany({ where: { serviceTicketId: c.id } });
+    }
     await prisma.serviceLog.deleteMany({ where: { serviceTicketId: sourceId } });
     await prisma.serviceTicket.deleteMany({ where: { claimFromId: sourceId } });
     await prisma.serviceTicket.deleteMany({ where: { id: sourceId } });

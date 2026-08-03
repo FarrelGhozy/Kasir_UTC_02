@@ -163,7 +163,7 @@ export async function addOrderPayment(input: {
         createdById: input.createdById,
       },
     });
-    const fin2 = await orderFinancials(input.orderId);
+    const fin2 = await orderFinancials(input.orderId, tx);
     await tx.specialOrder.update({
       where: { id: input.orderId },
       data: { paymentStatus: fin2.paymentStatus },
