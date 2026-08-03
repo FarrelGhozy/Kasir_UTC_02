@@ -4,26 +4,34 @@ import { swagger } from "@elysiajs/swagger";
 import { PrismaClient } from "@prisma/client";
 import { config, assertSecureConfig } from "./config/env";
 import { authRouter } from "./routes/auth";
+import { SECURITY_HEADERS } from "./middleware/security";
 export const prisma = new PrismaClient();
 
 // SEC-1: validasi config wajib sebelum server jalan
 assertSecureConfig();
 
 const app = new Elysia()
+  .onAfterHandle(({ set }) => {
+    // M6: Security headers global
+    for (const [k, v] of Object.entries(SECURITY_HEADERS)) set.headers[k] = v;
+  })
   .use(
     cors({
-      origin: config.CORS_ORIGIN,
+      origin: config.CORS_ORIGIN.split(",").map((o) => o.trim()),
       credentials: true,
     })
   )
   .use(
-    swagger({
-      path: "/docs",
-      documentation: {
-        info: { title: "Kasir UTC v2 API", version: "2.0.0" },
-        tags: [{ name: "Health" }, { name: "Auth" }],
-      },
-    })
+    // Swagger hanya di development — jangan expose schema API ke production
+    config.NODE_ENV === "production"
+      ? new Elysia()
+      : swagger({
+          path: "/docs",
+          documentation: {
+            info: { title: "Kasir UTC v2 API", version: "2.0.0" },
+            tags: [{ name: "Health" }, { name: "Auth" }],
+          },
+        })
   )
   .onError(({ code, error, set, request }) => {
     const err = error as Error;

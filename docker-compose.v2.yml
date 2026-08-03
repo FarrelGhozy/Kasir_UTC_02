@@ -10,7 +10,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: utc
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-utc_v2_secret_2026}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD di root .env — lihat .env.example}
       POSTGRES_DB: utc_v2
     ports:
       - "27019:5432"
@@ -29,7 +29,7 @@ services:
     env_file:
       - ./backend-v2/.env
     environment:
-      DATABASE_URL: postgresql://utc:${POSTGRES_PASSWORD:-utc_v2_secret_2026}@db_v2:5432/utc_v2?schema=public
+      DATABASE_URL: postgresql://utc:${POSTGRES_PASSWORD}@db_v2:5432/utc_v2?schema=public
       NODE_ENV: production
     ports:
       - "5300:5300"
@@ -37,7 +37,8 @@ services:
       db_v2:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5300/health"]
+      # Image bun tidak punya curl — pakai bun fetch langsung
+      test: ["CMD", "bun", "-e", "fetch('http://localhost:5300/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 15s
       timeout: 5s
       retries: 5

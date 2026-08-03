@@ -36,7 +36,7 @@ bun install
 bun run dev                  # → http://localhost:8090
 ```
 
-Credential seed: `admin` / `Admin@utc2026` (khusus dev, ganti sebelum produksi).
+Credential seed: `admin` (password di-set lewat env `SEED_ADMIN_PASSWORD`, lihat di bawah). Untuk produksi PABRIK ulang user admin & password — jangan pakai nilai seed dev.
 
 ## Struktur
 ```
