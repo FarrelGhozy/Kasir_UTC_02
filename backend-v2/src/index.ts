@@ -1,13 +1,13 @@
 import { Elysia } from "elysia";
 import { cors } from "@elysiajs/cors";
 import { swagger } from "@elysiajs/swagger";
-import { PrismaClient } from "@prisma/client";
 import { config, assertSecureConfig } from "./config/env";
 import { authRouter } from "./routes/auth";
 import { transactionRouter } from "./routes/transactions";
 import { backupRouter } from "./routes/backup";
+import { orderRouter, warrantyRouter, reportRouter } from "./routes/orders";
 import { SECURITY_HEADERS } from "./middleware/security";
-import { prisma } from "./db";
+import { mapError } from "./middleware/error";
 
 // SEC-1: validasi config wajib sebelum server jalan
 assertSecureConfig();
@@ -36,26 +36,18 @@ const app = new Elysia()
         })
   )
   .onError(({ code, error, set, request }) => {
-    const err = error as Error;
-    const isProd = config.NODE_ENV === "production";
-    console.error(
-      `[${new Date().toISOString()}] [ERROR:${code}] ${request?.method} ${request?.url}`,
-      err?.message
-    );
-    if (!isProd && err?.stack) console.error(err.stack);
+    // #99: satu sumber error (mapError). VALIDATION/NOT_FOUND dari Elysia langsung di-map.
     if (code === "VALIDATION") {
       set.status = 400;
-      return { error: "Validasi gagal", message: err?.message };
+      return { error: "Validasi gagal", message: error?.message };
     }
     if (code === "NOT_FOUND") {
       set.status = 404;
       return { error: "Not Found" };
     }
-    set.status = 500;
-    return {
-      error: "Internal Server Error",
-      message: isProd ? "Terjadi kesalahan pada server. Silakan coba lagi." : err?.message,
-    };
+    const r = mapError(error);
+    set.status = r.status;
+    return r.body;
   })
   .get("/health", () => ({
     status: "ok",
@@ -69,6 +61,9 @@ const app = new Elysia()
   .use(authRouter)
   .use(transactionRouter)
   .use(backupRouter)
+  .use(orderRouter)
+  .use(warrantyRouter)
+  .use(reportRouter)
   .listen(config.PORT);
 
 console.log(

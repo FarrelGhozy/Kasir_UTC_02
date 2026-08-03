@@ -1,29 +1,35 @@
+// Error handling terpusat v2 — #99 fix: satu sumber kebenaran.
+//  - [AUTH]  → 401/403 (dari middleware/auth.ts)
+//  - [BIZ]   → 400/409 (business error, konvensi #87)
+//  - lainnya → 500 (tanpa bocor stack di production)
 import { config } from "../config/env";
 
-// Error handler terpusat — TIDAK bocor stack trace ke client (SEC info disclosure fix)
-// Gunakan tipe handler dari Elysia via inference (code, error, set, request)
-export const errorHandler = ({ code, error, set, request }: any) => {
-  const isProd = config.NODE_ENV === "production";
-  // Log penuh ke server console
-  console.error(
-    `[${new Date().toISOString()}] [ERROR:${code}] ${request?.method} ${request?.url}`,
-    error?.message
-  );
-  if (!isProd && error?.stack) console.error(error.stack);
+export interface ErrorResponse {
+  status: number;
+  body: { error: string; [k: string]: unknown };
+}
 
-  if (code === "VALIDATION") {
-    set.status = 400;
-    return { error: "Validasi gagal", message: error?.message };
+/** Map error → status/body. Panggil di handler tiap route (pola #91/#95). */
+export function mapError(e: unknown): ErrorResponse {
+  const msg = e instanceof Error ? e.message : "Terjadi kesalahan";
+
+  if (msg.startsWith("[AUTH]")) {
+    // status 401/403 dari error yang dilempar requireAuth
+    const status = (e as Error & { status?: number }).status ?? 401;
+    return { status, body: { error: msg.replace("[AUTH] ", "").trim() } };
   }
-  if (code === "NOT_FOUND") {
-    set.status = 404;
-    return { error: "Not Found" };
+  if (msg.startsWith("[BIZ]")) {
+    return { status: 400, body: { error: msg.replace("[BIZ]", "").trim() } };
   }
-  set.status = 500;
+  console.error("[error]", e);
   return {
-    error: "Internal Server Error",
-    message: isProd
-      ? "Terjadi kesalahan pada server. Silakan coba lagi."
-      : error?.message,
+    status: 500,
+    body: {
+      error: "Internal Server Error",
+      message:
+        config.NODE_ENV === "production"
+          ? "Terjadi kesalahan pada server. Silakan coba lagi."
+          : msg,
+    },
   };
-};
+}
