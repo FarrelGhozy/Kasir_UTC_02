@@ -74,6 +74,18 @@ enum LogLevel {
 }
 
 // ============================================================
+// Number sequence — fix C1/H15 (nomor anti-kembar, atomik)
+// key contoh: "invoice:2026-08-03" / "ticket" / "order"
+// ============================================================
+model NumberSequence {
+  key       String   @id @db.VarChar(60)
+  value     Int      @default(0)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("number_sequences")
+}
+
+// ============================================================
 // Users
 // ============================================================
 model User {

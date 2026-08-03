@@ -4,8 +4,10 @@ import { swagger } from "@elysiajs/swagger";
 import { PrismaClient } from "@prisma/client";
 import { config, assertSecureConfig } from "./config/env";
 import { authRouter } from "./routes/auth";
+import { transactionRouter } from "./routes/transactions";
+import { backupRouter } from "./routes/backup";
 import { SECURITY_HEADERS } from "./middleware/security";
-export const prisma = new PrismaClient();
+import { prisma } from "./db";
 
 // SEC-1: validasi config wajib sebelum server jalan
 assertSecureConfig();
@@ -65,6 +67,8 @@ const app = new Elysia()
     return { status: "ok", service: "kasir-utc-v2-backend" };
   })
   .use(authRouter)
+  .use(transactionRouter)
+  .use(backupRouter)
   .listen(config.PORT);
 
 console.log(

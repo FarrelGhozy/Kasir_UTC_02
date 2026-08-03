@@ -1,7 +1,7 @@
 import { Elysia, t } from "elysia";
 import { jwt } from "@elysiajs/jwt";
 import { config } from "../config/env";
-import { prisma } from "../index";
+import { prisma } from "../db";
 import { checkLoginRateLimit } from "../middleware/security";
 import * as bcrypt from "bcryptjs";
 
