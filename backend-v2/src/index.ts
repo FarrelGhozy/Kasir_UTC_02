@@ -6,6 +6,8 @@ import { authRouter } from "./routes/auth";
 import { transactionRouter } from "./routes/transactions";
 import { backupRouter } from "./routes/backup";
 import { orderRouter, warrantyRouter, reportRouter } from "./routes/orders";
+import { inventoryRouter } from "./routes/inventory";
+import { serviceRouter } from "./routes/services";
 import { SECURITY_HEADERS } from "./middleware/security";
 import { mapError } from "./middleware/error";
 
@@ -19,7 +21,7 @@ const app = new Elysia()
   })
   .use(
     cors({
-      origin: config.CORS_ORIGIN.split(",").map((o) => o.trim()),
+      origin: config.CORS_ORIGIN.split(",").map((o: string) => o.trim()),
       credentials: true,
     })
   )
@@ -39,6 +41,8 @@ const app = new Elysia()
               { name: "Orders" },
               { name: "Warranty" },
               { name: "Reports" },
+              { name: "Inventory" },
+              { name: "Services" },
             ],
           },
         })
@@ -72,6 +76,8 @@ const app = new Elysia()
   .use(orderRouter)
   .use(warrantyRouter)
   .use(reportRouter)
+  .use(inventoryRouter)
+  .use(serviceRouter)
   .listen(config.PORT);
 
 console.log(
