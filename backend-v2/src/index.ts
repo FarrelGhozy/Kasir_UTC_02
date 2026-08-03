@@ -1,0 +1,68 @@
+import { Elysia } from "elysia";
+import { cors } from "@elysiajs/cors";
+import { swagger } from "@elysiajs/swagger";
+import { PrismaClient } from "@prisma/client";
+import { config, assertSecureConfig } from "./config/env";
+import { authRouter } from "./routes/auth";
+export const prisma = new PrismaClient();
+
+// SEC-1: validasi config wajib sebelum server jalan
+assertSecureConfig();
+
+const app = new Elysia()
+  .use(
+    cors({
+      origin: config.CORS_ORIGIN,
+      credentials: true,
+    })
+  )
+  .use(
+    swagger({
+      path: "/docs",
+      documentation: {
+        info: { title: "Kasir UTC v2 API", version: "2.0.0" },
+        tags: [{ name: "Health" }, { name: "Auth" }],
+      },
+    })
+  )
+  .onError(({ code, error, set, request }) => {
+    const err = error as Error;
+    const isProd = config.NODE_ENV === "production";
+    console.error(
+      `[${new Date().toISOString()}] [ERROR:${code}] ${request?.method} ${request?.url}`,
+      err?.message
+    );
+    if (!isProd && err?.stack) console.error(err.stack);
+    if (code === "VALIDATION") {
+      set.status = 400;
+      return { error: "Validasi gagal", message: err?.message };
+    }
+    if (code === "NOT_FOUND") {
+      set.status = 404;
+      return { error: "Not Found" };
+    }
+    set.status = 500;
+    return {
+      error: "Internal Server Error",
+      message: isProd ? "Terjadi kesalahan pada server. Silakan coba lagi." : err?.message,
+    };
+  })
+  .get("/health", () => ({
+    status: "ok",
+    service: "kasir-utc-v2-backend",
+    time: new Date().toISOString(),
+  }))
+  // Alias untuk konsistensi via Vite proxy (/api → 5300)
+  .get("/api/health", ({ set }) => {
+    return { status: "ok", service: "kasir-utc-v2-backend" };
+  })
+  .use(authRouter)
+  .listen(config.PORT);
+
+console.log(
+  `\n🟢 Kasir UTC v2 backend jalan di http://localhost:${config.PORT}\n` +
+    `   Swagger : http://localhost:${config.PORT}/docs\n` +
+    `   Env     : ${config.NODE_ENV}\n`
+);
+
+export type App = typeof app;
