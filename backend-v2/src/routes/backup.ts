@@ -48,5 +48,6 @@ export const backupRouter = new Elysia({ prefix: "/api/v2/backup" })
     },
     {
       body: t.Object({ backup: t.String() }),
+      tags: ["Backup"],
     }
   );

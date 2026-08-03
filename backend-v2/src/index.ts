@@ -31,7 +31,15 @@ const app = new Elysia()
           path: "/docs",
           documentation: {
             info: { title: "Kasir UTC v2 API", version: "2.0.0" },
-            tags: [{ name: "Health" }, { name: "Auth" }],
+            tags: [
+              { name: "Health" },
+              { name: "Auth" },
+              { name: "Transactions" },
+              { name: "Backup" },
+              { name: "Orders" },
+              { name: "Warranty" },
+              { name: "Reports" },
+            ],
           },
         })
   )

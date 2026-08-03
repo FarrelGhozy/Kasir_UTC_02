@@ -41,6 +41,7 @@ export const transactionRouter = new Elysia({ prefix: "/api/v2/transactions" })
         tax: t.Optional(t.Number()),
         notes: t.Optional(t.String()),
       }),
+      tags: ["Transactions"],
     }
   )
   // read-only: semua role ter-login bisa lihat

@@ -37,6 +37,7 @@ export const orderRouter = new Elysia({ prefix: "/api/v2/orders" })
         handledById: t.Optional(t.Number()),
         notes: t.Optional(t.String()),
       }),
+      tags: ["Orders"],
     }
   )
   // detail keuangan order — semua role ter-login
@@ -68,6 +69,7 @@ export const orderRouter = new Elysia({ prefix: "/api/v2/orders" })
       body: t.Object({
         status: t.Enum({ Pending: "Pending", Searching: "Searching", Ordered: "Ordered", Arrived: "Arrived", Picked_Up: "Picked_Up", Cancelled: "Cancelled" }),
       }),
+      tags: ["Orders"],
     }
   )
   // catat pembayaran → status otomatis Lunas kalau lunas — kasir/teknisi/admin
@@ -95,6 +97,7 @@ export const orderRouter = new Elysia({ prefix: "/api/v2/orders" })
         method: t.Enum({ Cash: "Cash", Transfer: "Transfer", QRIS: "QRIS", Card: "Card" }),
         createdById: t.Optional(t.Number()),
       }),
+      tags: ["Orders"],
     }
   );
 
@@ -122,6 +125,7 @@ export const warrantyRouter = new Elysia({ prefix: "/api/v2/warranty" })
         technicianId: t.Optional(t.Number()),
         notes: t.Optional(t.String()),
       }),
+      tags: ["Warranty"],
     }
   );
 
@@ -138,4 +142,4 @@ export const reportRouter = new Elysia({ prefix: "/api/v2/reports" })
       set.status = r.status;
       return { success: false, error: r.body.error };
     }
-  });
+  }, { tags: ["Reports"] });
