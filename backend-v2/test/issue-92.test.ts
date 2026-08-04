@@ -18,7 +18,7 @@ describe("User management API (admin)", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username: "qa_admin", password: "qa-rbac-pass-2026!" }),
     });
-    const d = await res.json();
+    const d: any = await res.json();
     expect(res.status).toBe(200);
     token = d.token;
   });
@@ -29,7 +29,7 @@ describe("User management API (admin)", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username: "qa_kasir", password: "qa-rbac-pass-2026!" }),
     });
-    const lj = await lr.json();
+    const lj: any = await lr.json();
     const res = await fetch(`${BASE}/api/v2/users`, {
       headers: { Authorization: `Bearer ${lj.token}` },
     });
@@ -41,7 +41,7 @@ describe("User management API (admin)", () => {
       headers: { Authorization: `Bearer ${token}` },
     });
     expect(res.status).toBe(200);
-    const d = await res.json();
+    const d: any = await res.json();
     expect(d.total).toBeGreaterThanOrEqual(6);
     // pastikan password_hash tidak bocor
     expect(JSON.stringify(d.rows)).not.toContain("password_hash");
@@ -62,7 +62,7 @@ describe("User management API (admin)", () => {
       }),
     });
     expect(create.status).toBe(200);
-    const cu = await create.json();
+    const cu: any = await create.json();
     createdId = cu.user.id;
 
     const reset = await fetch(`${BASE}/api/v2/users/${createdId}/reset-password`, {
@@ -77,7 +77,7 @@ describe("User management API (admin)", () => {
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ isActive: false }),
     });
-    const td = await toggle.json();
+    const td: any = await toggle.json();
     expect(toggle.status).toBe(200);
     expect(td.user.isActive).toBe(false);
 
@@ -107,7 +107,7 @@ describe("Order monitoring API", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username: "qa_admin", password: "qa-rbac-pass-2026!" }),
     });
-    token = (await res.json()).token;
+    token = (await res.json() as any).token;
   });
 
   test("GET /orders list (monitoring)", async () => {
@@ -115,7 +115,7 @@ describe("Order monitoring API", () => {
       headers: { Authorization: `Bearer ${token}` },
     });
     expect(res.status).toBe(200);
-    const d = await res.json();
+    const d: any = await res.json();
     expect(d.data.rows).toBeDefined();
     // setidaknya satu order punya kolom finansial
     if (d.data.rows.length > 0) {

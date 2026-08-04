@@ -124,6 +124,28 @@ export async function verifyAccessToken(token: string) {
 }
 
 /** Bersihkan refresh token expired (panggil berkala). */
+/** Ganti password milik sendiri (self-service #93). Validasi old password, hash baru, revoke semua refresh token. */
+export async function changePassword(
+  userId: number,
+  oldPassword: string,
+  newPassword: string
+): Promise<void> {
+  if (!newPassword || newPassword.length < 6) {
+    throw new Error("[BIZ] Password baru minimal 6 karakter");
+  }
+  if (oldPassword === newPassword) {
+    throw new Error("[BIZ] Password baru harus berbeda dari yang lama");
+  }
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw new Error("[AUTH] User tidak ditemukan");
+  const ok = await bcrypt.compare(oldPassword, user.passwordHash);
+  if (!ok) throw new Error("[BIZ] Password lama salah");
+  const hash = await bcrypt.hash(newPassword, 10);
+  await prisma.user.update({ where: { id: userId }, data: { passwordHash: hash } });
+  // logout semua perangkat lain setelah ganti password
+  await revokeAllUserTokens(userId);
+}
+
 export async function cleanupExpiredTokens(): Promise<number> {
   const r = await prisma.refreshToken.deleteMany({ where: { expiresAt: { lt: new Date() } } });
   return r.count;

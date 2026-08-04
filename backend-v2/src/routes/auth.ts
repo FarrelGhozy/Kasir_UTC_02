@@ -9,6 +9,7 @@ import {
   loginUser,
   rotateRefreshToken,
   revokeRefreshToken,
+  changePassword,
 } from "../services/authService";
 
 const REFRESH_COOKIE = "utc_refresh";
@@ -115,4 +116,30 @@ export const authRouter = new Elysia({ prefix: "/api/v2/auth" })
       return { error: "Unauthorized" };
     }
     return user;
-  });
+  })
+  // Ganti password milik sendiri (self-service #93)
+  .post(
+    "/change-password",
+    async ({ headers, set, body }) => {
+      try {
+        const user = await authenticate(headers);
+        if (!user) {
+          set.status = 401;
+          return { error: "Unauthorized" };
+        }
+        await changePassword(user.id, body.oldPassword, body.newPassword);
+        return { success: true };
+      } catch (e: any) {
+        const r = mapError(e);
+        set.status = r.status;
+        return r.body;
+      }
+    },
+    {
+      body: t.Object({
+        oldPassword: t.String({ minLength: 1 }),
+        newPassword: t.String({ minLength: 6 }),
+      }),
+      tags: ["Auth"],
+    }
+  );

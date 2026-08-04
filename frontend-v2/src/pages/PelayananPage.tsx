@@ -1,6 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
+import { Link } from "react-router-dom";
 import api from "../lib/api";
 import { Button, Card, Spinner, Alert } from "../components/ui";
+import { ServiceWizard } from "../components/ServiceWizard";
 
 interface Ticket {
   id: number;
@@ -28,42 +30,25 @@ export function PelayananPage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ customerName: "", customerPhone: "", brand: "", model: "", issue: "" });
+  const [showWizard, setShowWizard] = useState(false);
+  const [toast, setToast] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const { data } = await api.get("/v2/services", { params: { limit: 50 } });
       setTickets(Array.isArray(data?.rows) ? (data.rows as Ticket[]) : []);
+      if (toast) setTimeout(() => setToast(""), 3000);
     } catch {
       setError("Gagal memuat tiket servis.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     load();
   }, [load]);
-
-  async function createTicket() {
-    if (!form.customerName || !form.brand) {
-      setError("Nama pelanggan & merek device wajib diisi.");
-      return;
-    }
-    try {
-      await api.post("/v2/services", {
-        customer: { name: form.customerName, phone: form.customerPhone },
-        device: { brand: form.brand, model: form.model, issue: form.issue },
-      });
-      setShowForm(false);
-      setForm({ customerName: "", customerPhone: "", brand: "", model: "", issue: "" });
-      load();
-    } catch (e: any) {
-      setError(e?.response?.data?.error || "Gagal membuat tiket.");
-    }
-  }
 
   if (loading) return <Spinner label="Memuat tiket servis..." />;
 
@@ -74,47 +59,22 @@ export function PelayananPage() {
           <h1 className="text-2xl font-bold text-slate-800">Pelayanan Servis</h1>
           <p className="text-sm text-slate-500">Kelola tiket servis pelanggan.</p>
         </div>
-        <Button onClick={() => setShowForm((v) => !v)}>{showForm ? "Tutup" : "+ Tiket Baru"}</Button>
+        <Button onClick={() => setShowWizard((v) => !v)}>{showWizard ? "Tutup" : "+ Tiket Baru"}</Button>
       </div>
 
       {error && <Alert tone="error">{error}</Alert>}
+      {toast && <Alert tone="success">{toast}</Alert>}
 
-      {showForm && (
-        <Card className="grid gap-3 p-4 md:grid-cols-2">
-          <input
-            value={form.customerName}
-            onChange={(e) => setForm({ ...form, customerName: e.target.value })}
-            placeholder="Nama pelanggan *"
-            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
+      {showWizard && (
+        <Card className="p-4">
+          <h2 className="mb-3 text-base font-semibold text-slate-800">Buat Tiket Servis Baru</h2>
+          <ServiceWizard
+            onDone={() => {
+              setShowWizard(false);
+              setToast("Tiket servis berhasil dibuat ✓");
+              load();
+            }}
           />
-          <input
-            value={form.customerPhone}
-            onChange={(e) => setForm({ ...form, customerPhone: e.target.value })}
-            placeholder="No. HP"
-            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
-          />
-          <input
-            value={form.brand}
-            onChange={(e) => setForm({ ...form, brand: e.target.value })}
-            placeholder="Merek device * (cth: Samsung)"
-            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
-          />
-          <input
-            value={form.model}
-            onChange={(e) => setForm({ ...form, model: e.target.value })}
-            placeholder="Tipe / model"
-            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
-          />
-          <textarea
-            value={form.issue}
-            onChange={(e) => setForm({ ...form, issue: e.target.value })}
-            placeholder="Keluhan / kerusakan"
-            rows={2}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none md:col-span-2"
-          />
-          <div className="md:col-span-2">
-            <Button onClick={createTicket}>Simpan Tiket</Button>
-          </div>
         </Card>
       )}
 
@@ -145,9 +105,13 @@ export function PelayananPage() {
                   </td>
                   <td className="px-4 py-3">{t.technician?.name ?? "—"}</td>
                   <td className="px-4 py-3">
-                    <span className="inline-block rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+                    <Link
+                      to={`/pelayanan/servis/${t.id}`}
+                      className="inline-block rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-brand-700 hover:bg-brand-100"
+                      aria-label={`Detail tiket ${t.ticketNumber}`}
+                    >
                       {STATUS_LABELS[t.status] ?? t.status}
-                    </span>
+                    </Link>
                   </td>
                 </tr>
               ))}

@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import api from "../lib/api";
 import { Button, Card, Spinner, Alert } from "../components/ui";
+import { ConfirmDialog } from "../components/dialog";
 import { useAuth } from "../contexts/AuthContext";
 
 interface UserRow {
@@ -25,6 +26,8 @@ export function UserManagementPage() {
   const [form, setForm] = useState(EMPTY);
   const [resetId, setResetId] = useState<number | null>(null);
   const [resetPw, setResetPw] = useState("");
+  const [delUser, setDelUser] = useState<UserRow | null>(null);
+  const [delLoading, setDelLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
@@ -98,14 +101,7 @@ export function UserManagementPage() {
 
   async function removeUser(u: UserRow) {
     if (u.id === me?.id) return;
-    if (!window.confirm(`Hapus user "${u.name}"?`)) return;
-    setError("");
-    try {
-      await api.delete(`/v2/users/${u.id}`);
-      load();
-    } catch (e: any) {
-      setError(e?.response?.data?.error || "Gagal menghapus user.");
-    }
+    setDelUser(u); // tampilkan ConfirmDialog
   }
 
   if (loading) return <Spinner label="Memuat user..." />;
@@ -240,6 +236,30 @@ export function UserManagementPage() {
           </tbody>
         </table>
       </div>
+
+      <ConfirmDialog
+        open={delUser !== null}
+        onClose={() => setDelUser(null)}
+        onConfirm={async () => {
+          if (!delUser) return;
+          setDelLoading(true);
+          setError("");
+          try {
+            await api.delete(`/v2/users/${delUser.id}`);
+            load();
+          } catch (e: any) {
+            setError(e?.response?.data?.error || "Gagal menghapus user.");
+          } finally {
+            setDelLoading(false);
+            setDelUser(null);
+          }
+        }}
+        title="Hapus User"
+        message={delUser ? `Yakin ingin menghapus user "${delUser.name}"? Tindakan ini tidak bisa dibatalkan.` : ""}
+        confirmLabel="Hapus"
+        danger
+        loading={delLoading}
+      />
 
       {resetId !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" role="dialog" aria-modal="true">

@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import api from "../lib/api";
 import { useAuth } from "../contexts/AuthContext";
 import { Button, Card, Spinner, Alert, Field } from "../components/ui";
+import { ConfirmDialog } from "../components/dialog";
 
 const DAYS = ["senin", "selasa", "rabu", "kamis", "jumat"] as const;
 const DAY_LABELS: Record<string, string> = {
@@ -35,6 +36,8 @@ export function DutySchedulePage() {
   const [users, setUsers] = useState<DutyUser[]>([]);
   // form tambah
   const [selUserId, setSelUserId] = useState("");
+  const [delId, setDelId] = useState<number | null>(null);
+  const [delLoading, setDelLoading] = useState(false);
   const [selDay, setSelDay] = useState("senin");
 
   const load = useCallback(async () => {
@@ -84,13 +87,7 @@ export function DutySchedulePage() {
   }
 
   async function handleDelete(id: number) {
-    if (!confirm("Hapus jadwal piket ini?")) return;
-    try {
-      await api.delete(`/v2/duty-schedules/${id}`);
-      load();
-    } catch (e: any) {
-      setError(e?.response?.data?.error || "Gagal menghapus.");
-    }
+    setDelId(id); // tampilkan ConfirmDialog
   }
 
   const selUser = users.find((u) => String(u.id) === selUserId);
@@ -199,8 +196,30 @@ export function DutySchedulePage() {
               </ul>
             )}
           </Card>
-        ))}
-      </div>
-    </div>
-  );
-}
+          ))}
+          </div>
+
+          <ConfirmDialog
+          open={delId !== null}
+          onClose={() => setDelId(null)}
+          onConfirm={async () => {
+          setDelLoading(true);
+          try {
+          await api.delete(`/v2/duty-schedules/${delId}`);
+          load();
+          } catch (e: any) {
+          setError(e?.response?.data?.error || "Gagal menghapus.");
+          } finally {
+          setDelLoading(false);
+          setDelId(null);
+          }
+          }}
+          title="Hapus Jadwal Piket"
+          message="Yakin ingin menghapus jadwal piket ini? Tindakan ini tidak bisa dibatalkan."
+          confirmLabel="Hapus"
+          danger
+          loading={delLoading}
+          />
+          </div>
+          );
+          }

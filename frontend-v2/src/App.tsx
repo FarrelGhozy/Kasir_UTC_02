@@ -9,6 +9,7 @@ import { GudangPage } from "./pages/GudangPage";
 import { LaporanPage } from "./pages/LaporanPage";
 import { NotaPage } from "./pages/NotaPage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { ProfilePage } from "./pages/ProfilePage";
 import { OrderPage } from "./pages/OrderPage";
 import { OrderDetailPage } from "./pages/OrderDetailPage";
 import { ServiceDetailPage } from "./pages/ServiceDetailPage";
@@ -36,6 +37,7 @@ export default function App() {
           <Route path="/laporan" element={<LaporanPage />} />
           <Route path="/nota" element={<NotaPage />} />
           <Route path="/pengaturan" element={<SettingsPage />} />
+          <Route path="/profil" element={<ProfilePage />} />
           <Route path="/pengaturan/piket" element={<DutySchedulePage />} />
           <Route path="/pengaturan/pengguna" element={<UserManagementPage />} />
           <Route path="/pengaturan/teknisi" element={<TechnicianManagementPage />} />

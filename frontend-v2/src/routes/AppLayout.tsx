@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Outlet, NavLink, useNavigate } from "react-router-dom";
+import { Outlet, NavLink, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { BRAND } from "../lib/brand";
 import api from "../lib/api";
@@ -99,9 +99,15 @@ export function AppLayout() {
           <div className="mt-2 rounded-lg bg-slate-50 p-3">
             <p className="truncate text-sm font-medium text-slate-700" title={user?.name}>{user?.name}</p>
             <p className="text-xs capitalize text-slate-400">{user?.role}</p>
+            <Link
+              to="/profil"
+              className="mt-2 block w-full rounded-md bg-white px-2 py-1.5 text-left text-xs text-slate-600 hover:bg-slate-100"
+            >
+              Profil & Ganti Password →
+            </Link>
             <button
               onClick={handleLogout}
-              className="mt-2 w-full rounded-md bg-white px-2 py-1.5 text-left text-xs text-red-500 hover:bg-red-50"
+              className="mt-1 w-full rounded-md bg-white px-2 py-1.5 text-left text-xs text-red-500 hover:bg-red-50"
             >
               Keluar →
             </button>
