@@ -11,6 +11,8 @@ import { serviceRouter } from "./routes/services";
 import { dashboardRouter } from "./routes/dashboard";
 import { dutyScheduleRouter } from "./routes/dutySchedule";
 import { notaRouter } from "./routes/notas";
+import { waRouter } from "./routes/wa";
+import { webhookRouter } from "./routes/webhook";
 import { SECURITY_HEADERS } from "./middleware/security";
 import { mapError } from "./middleware/error";
 
@@ -85,6 +87,8 @@ const app = new Elysia()
   .use(dashboardRouter)
   .use(dutyScheduleRouter)
   .use(notaRouter)
+  .use(waRouter)
+  .use(webhookRouter)
   .listen(config.PORT);
 
 console.log(

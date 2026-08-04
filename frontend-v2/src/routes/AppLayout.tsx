@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { BRAND } from "../lib/brand";
+import api from "../lib/api";
 
 const NAV: { to: string; label: string; icon: string; end?: boolean }[] = [
   { to: "/", label: "Dashboard", icon: "📊", end: true },
@@ -18,6 +19,15 @@ export function AppLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
+  const [wa, setWa] = useState<"CONNECTED" | "DISCONNECTED" | "STARTING" | "UNREACHABLE" | "ERROR" | null>(null);
+
+  // status internal WAHA (quiet, tidak blokir UI)
+  useEffect(() => {
+    api
+      .get("/wa/status")
+      .then((r) => setWa(r.data?.status ?? null))
+      .catch(() => setWa("DISCONNECTED"));
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -65,6 +75,19 @@ export function AppLayout() {
         </nav>
 
         <div className="border-t border-slate-200 p-3">
+          {!collapsed && (
+            <div className="mb-2 flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2">
+              <span
+                className={`h-2 w-2 rounded-full ${
+                  wa === "CONNECTED" ? "bg-green-500" : wa === "STARTING" ? "bg-amber-400" : "bg-red-400"
+                }`}
+                aria-hidden="true"
+              />
+              <span className="text-xs text-slate-500">
+                WhatsApp {wa ?? "…"}
+              </span>
+            </div>
+          )}
           <button
             onClick={() => setCollapsed((c) => !c)}
             className={`w-full rounded-lg px-3 py-2 text-sm text-slate-500 hover:bg-slate-100 ${collapsed ? "" : "text-left"}`}
