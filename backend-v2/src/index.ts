@@ -9,6 +9,7 @@ import { orderRouter, warrantyRouter, reportRouter } from "./routes/orders";
 import { inventoryRouter } from "./routes/inventory";
 import { serviceRouter } from "./routes/services";
 import { dashboardRouter } from "./routes/dashboard";
+import { dutyScheduleRouter } from "./routes/dutySchedule";
 import { SECURITY_HEADERS } from "./middleware/security";
 import { mapError } from "./middleware/error";
 
@@ -81,6 +82,7 @@ const app = new Elysia()
   .use(inventoryRouter)
   .use(serviceRouter)
   .use(dashboardRouter)
+  .use(dutyScheduleRouter)
   .listen(config.PORT);
 
 console.log(
