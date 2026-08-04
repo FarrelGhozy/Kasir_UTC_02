@@ -5,6 +5,7 @@ import {
   transitionOrderStatus,
   addOrderPayment,
   orderFinancials,
+  listOrders,
 } from "../services/orderService";
 import { claimWarranty } from "../services/warrantyService";
 import { revenueReport } from "../services/reportService";
@@ -12,6 +13,17 @@ import { requireAuth } from "../middleware/auth";
 import { mapError } from "../middleware/error";
 
 export const orderRouter = new Elysia({ prefix: "/api/v2/orders" })
+  // list order (monitoring) — semua role ter-login
+  .get("/", async ({ query, headers, set }) => {
+    try {
+      await requireAuth(headers);
+      return { success: true, data: await listOrders(query.q) };
+    } catch (e) {
+      const r = mapError(e);
+      set.status = r.status;
+      return { success: false, error: r.body.error };
+    }
+  })
   // buat order baru (DP otomatis tercatat sebagai payment) — kasir/teknisi/admin
   .post(
     "/",

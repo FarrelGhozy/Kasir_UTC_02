@@ -38,6 +38,44 @@ export function formatDecimal(n: bigint): string {
   return (Number(n) / 100).toFixed(2);
 }
 
+/** List order (monitoring) — admin/kasir/teknisi. Sertakan ringkasan keuangan. */
+export async function listOrders(q?: string) {
+  const where = q
+    ? {
+        OR: [
+          { orderNumber: { contains: q, mode: "insensitive" as const } },
+          { itemName: { contains: q, mode: "insensitive" as const } },
+        ],
+      }
+    : {};
+  const rows = await prisma.specialOrder.findMany({
+    where,
+    include: {
+      payments: { select: { id: true, amount: true, method: true, paidAt: true } },
+      customer: { select: { id: true, name: true, phone: true } },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 100,
+  });
+  const data = rows.map((o) => {
+    const est = BigInt(Math.round(Number(o.estimatedPrice) * 100));
+    const paid = o.payments.reduce((a, p) => a + BigInt(Math.round(Number(p.amount) * 100)), 0n);
+    return {
+      id: o.id,
+      orderNumber: o.orderNumber,
+      itemName: o.itemName,
+      status: o.status,
+      paymentStatus: computePaymentStatus(est, paid),
+      estimatedPrice: formatDecimal(est),
+      paidAmount: formatDecimal(paid),
+      remaining: formatDecimal(est - paid),
+      customer: o.customer,
+      createdAt: o.createdAt,
+    };
+  });
+  return { rows: data, total: data.length };
+}
+
 /** Ringkasan keuangan order: total dibayar + sisa + status (dari aggregate).
  *  client = detail: PrismaClient | Omit<PrismaClient, tx> biar bisa dipanggil
  *  di dalam interactive transaction (melihat perubahan uncommitted). */
