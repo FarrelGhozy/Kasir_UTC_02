@@ -26,7 +26,9 @@ interface Bucket {
 }
 
 const WINDOW_MS = 15 * 60 * 1000; // 15 menit
-const MAX_REQUESTS = 20; // 20 percobaan login / window
+// Limit login per window — konfigurable via env (dev/test butuh lebih longgar utk
+// regresi paralel; produksi default 20 tetap ketat — SEC-6)
+const MAX_REQUESTS = Number(process.env.RATE_LIMIT_MAX ?? 20);
 const LOCKOUT_MS = 30 * 60 * 1000; // lockout 30 menit setelah limit
 
 const buckets = new Map<string, Bucket>();

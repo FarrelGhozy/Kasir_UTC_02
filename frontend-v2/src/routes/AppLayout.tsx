@@ -9,6 +9,7 @@ const NAV: { to: string; label: string; icon: string; end?: boolean }[] = [
   { to: "/pelayanan", label: "Pelayanan", icon: "🔧" },
   { to: "/gudang", label: "Gudang", icon: "📦" },
   { to: "/laporan", label: "Laporan", icon: "📈" },
+  { to: "/nota", label: "Nota", icon: "🧾" },
   { to: "/pengaturan", label: "Pengaturan", icon: "⚙️" },
   { to: "/pengaturan/piket", label: "Jadwal Piket", icon: "📅" },
 ];

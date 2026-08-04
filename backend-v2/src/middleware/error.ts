@@ -19,7 +19,9 @@ export function mapError(e: unknown): ErrorResponse {
     return { status, body: { error: msg.replace("[AUTH] ", "").trim() } };
   }
   if (msg.startsWith("[BIZ]")) {
-    return { status: 400, body: { error: msg.replace("[BIZ]", "").trim() } };
+    // hormati status custom (mis. 404 not-found) bila di-set service
+    const status = (e as Error & { status?: number }).status ?? 400;
+    return { status, body: { error: msg.replace("[BIZ]", "").trim() } };
   }
   console.error("[error]", e);
   return {

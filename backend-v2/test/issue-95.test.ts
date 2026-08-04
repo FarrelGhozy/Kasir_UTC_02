@@ -36,7 +36,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await prisma.user.deleteMany({ where: { username: { startsWith: "qa_" } } });
+  // JANGAN hapus user qa_* — akun QA dipakai bersama lintas test (#95-#101).
   await prisma.$disconnect();
 });
 
