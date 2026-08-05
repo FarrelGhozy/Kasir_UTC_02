@@ -29,6 +29,7 @@ interface Detail {
   paymentStatus: string;
   status: string;
   orderNumber: string;
+  photo?: string | null; // #109
   payments: { id: number; amount: string; method: string; paidAt: string }[];
 }
 
@@ -134,6 +135,14 @@ export function OrderDetailPage() {
           </p>
         </Card>
       </div>
+
+      {/* #109: foto barang */}
+      {d.photo && (
+        <Card className="p-4">
+          <p className="mb-2 text-sm font-semibold text-slate-700">Foto Barang</p>
+          <img src={d.photo} alt="Foto barang pesanan" className="max-h-64 rounded-lg border border-slate-200 object-contain" />
+        </Card>
+      )}
 
       {canWrite && nxt.length > 0 && (
         <Card className="p-4">
