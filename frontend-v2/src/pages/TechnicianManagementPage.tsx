@@ -18,6 +18,8 @@ const EMPTY = { name: "", username: "", password: "", role: "teknisi", phone: ""
 export function TechnicianManagementPage() {
   const { user: me } = useAuth();
   const [teknisi, setTeknisi] = useState<UserRow[]>([]);
+  // #111: workload per teknisi {aktif, selesai, total, estimasi biaya}
+  const [workloads, setWorkloads] = useState<Record<number, { active: number; completed: number; total: number; estimatedRevenue: number }>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -29,7 +31,20 @@ export function TechnicianManagementPage() {
     try {
       const { data } = await api.get("/v2/users");
       const rows = Array.isArray(data?.rows) ? (data.rows as UserRow[]) : [];
-      setTeknisi(rows.filter((u) => u.role === "teknisi"));
+      const techs = rows.filter((u) => u.role === "teknisi");
+      setTeknisi(techs);
+      // #111: fetch workload tiap teknisi (paralel; gagal satu → abaikan)
+      const wl = await Promise.all(
+        techs.map(async (t) => {
+          try {
+            const r = await api.get(`/v2/services/technician/${t.id}/workload`);
+            return [t.id, r.data?.data] as const;
+          } catch {
+            return [t.id, null] as const;
+          }
+        })
+      );
+      setWorkloads(Object.fromEntries(wl.filter(([, w]) => w)));
     } catch {
       setError("Gagal memuat teknisi (butuh role admin).");
     } finally {
@@ -143,6 +158,7 @@ export function TechnicianManagementPage() {
                 <th className="px-4 py-3">Username</th>
                 <th className="px-4 py-3">HP / WA</th>
                 <th className="px-4 py-3">Keahlian</th>
+                <th className="px-4 py-3">Beban Kerja</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3 text-right">Aksi</th>
               </tr>
@@ -154,6 +170,21 @@ export function TechnicianManagementPage() {
                   <td className="px-4 py-3 font-mono text-xs text-slate-600">{u.username}</td>
                   <td className="px-4 py-3 text-slate-600">{u.phone || "—"}</td>
                   <td className="px-4 py-3 text-slate-600">{u.jabatan || "—"}</td>
+                  <td className="px-4 py-3">
+                    {workloads[u.id] ? (
+                      <span className="inline-flex flex-wrap items-center gap-1">
+                        <span className="rounded-full bg-brand-50 px-2 py-0.5 text-xs font-semibold text-brand-700">
+                          {workloads[u.id].active} aktif
+                        </span>
+                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                          {workloads[u.id].completed} selesai
+                        </span>
+                        <span className="text-xs text-slate-400">· {workloads[u.id].total} total</span>
+                      </span>
+                    ) : (
+                      <span className="text-xs text-slate-300">…</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3">
                     <span
                       className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${

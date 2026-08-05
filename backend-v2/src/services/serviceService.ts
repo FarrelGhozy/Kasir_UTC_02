@@ -49,6 +49,44 @@ export async function recomputeTotal(
   });
 }
 
+// ── Workload teknisi (paritas main: getTechnicianWorkload) ───────────────────
+// #111: jumlah tiket per status (aktif), total, & ringkasan biaya per teknisi.
+const ACTIVE_STATUSES: ServiceStatus[] = ["Queue", "Diagnosing", "Waiting_Part", "In_Progress"];
+
+export async function getTechnicianWorkload(technicianId: number) {
+  const tech = await prisma.user.findUnique({
+    where: { id: technicianId },
+    select: { id: true, name: true, role: true },
+  });
+  if (!tech) throw new Error("[BIZ] Teknisi tidak ditemukan");
+
+  const tickets = await prisma.serviceTicket.findMany({
+    where: { technicianId, status: { in: [...ACTIVE_STATUSES, "Completed", "Ready_For_Pickup", "Picked_Up"] } },
+    select: { status: true, serviceFee: true },
+  });
+
+  const byStatus: Record<string, number> = {};
+  let active = 0;
+  let completed = 0;
+  let estimatedRevenue = 0;
+  for (const t of tickets) {
+    byStatus[t.status] = (byStatus[t.status] ?? 0) + 1;
+    if (ACTIVE_STATUSES.includes(t.status as ServiceStatus)) active++;
+    else if (t.status === "Completed" || t.status === "Ready_For_Pickup" || t.status === "Picked_Up") completed++;
+    estimatedRevenue += Number(t.serviceFee ?? 0);
+  }
+
+  return {
+    technicianId: tech.id,
+    technicianName: tech.name,
+    byStatus,
+    active,
+    completed,
+    total: tickets.length,
+    estimatedRevenue,
+  };
+}
+
 // ── CRUD tiket ──────────────────────────────────────────────────────────────
 export async function createServiceTicket(input: {
   customerName?: string;

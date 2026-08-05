@@ -5,6 +5,7 @@ import {
   createServiceTicket,
   listServiceTickets,
   getServiceTicket,
+  getTechnicianWorkload,
   updateServiceTicket,
   transitionServiceStatus,
   addServicePart,
@@ -66,6 +67,16 @@ export const serviceRouter = new Elysia({ prefix: "/api/v2/services" })
       await requireAuth(headers);
       const ticketId = query.ticketId ? Number(query.ticketId) : undefined;
       return { success: true, data: await serviceLogs(ticketId) };
+    } catch (e) {
+      const r = mapError(e);
+      set.status = r.status;
+      return { success: false, error: r.body.error };
+    }
+  }, { tags: ["Services"] })
+  .get("/technician/:id/workload", async ({ params, headers, set }) => {
+    try {
+      await requireAuth(headers);
+      return { success: true, data: await getTechnicianWorkload(Number(params.id)) };
     } catch (e) {
       const r = mapError(e);
       set.status = r.status;
