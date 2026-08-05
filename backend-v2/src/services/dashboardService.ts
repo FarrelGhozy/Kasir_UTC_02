@@ -1,6 +1,6 @@
 // Dashboard service v2 — #98: ringkasan bisnis role-aware utk dashboard frontend.
 import { prisma } from "../db";
-import { wibDayStart } from "../lib/wib";
+import { wibDayStart, todayWibKey } from "../lib/wib";
 
 /**
  * Ringkasan dashboard — data dari DB (bukan cuma health check). Role-aware:

@@ -1,6 +1,7 @@
 // Duty schedule service v2 — #100: jadwal piket kebersihan.
 // Migrasi dari v1 (Mongo dutyScheduleController.js). Konvensi v2: biz(), RBAC di handler,
 // include relasi user via select (hormati privacy — jangan include password_hash).
+import { prisma } from "../db";
 import { wibDayIndex } from "../lib/wib";
 import type { Day } from "@prisma/client";
 
