@@ -370,3 +370,16 @@ model SystemLog {
   @@index([timestamp])
   @@map("system_logs")
 }
+
+// ============================================================
+// Migration helper — #86: peta ObjectId lama → id baru PG
+// ============================================================
+model MigrationIdMap {
+  entity    String @db.VarChar(40) // users | items | customers | service_tickets | ...
+  oldId     String @db.VarChar(40) // ObjectId asli di MongoDB
+  newId     Int
+
+  @@id([entity, oldId])
+  @@index([entity, newId])
+  @@map("migration_id_map")
+}
