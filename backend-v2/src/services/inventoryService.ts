@@ -203,3 +203,108 @@ export async function deleteItem(id: number) {
   if (!item) throw biz("Item tidak ditemukan");
   return prisma.item.update({ where: { id }, data: { isActive: false } });
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// #108 — Import/Export CSV inventory (paritas main: PapaParse + upsert by SKU).
+// ═══════════════════════════════════════════════════════════════════════════
+import Papa from "papaparse";
+
+export interface CsvImportResult {
+  added: number;
+  updated: number;
+  failed: number;
+  errors: { row: number; sku?: string; error: string }[];
+}
+
+const CSV_HEADERS = ["sku", "name", "category", "purchase_price", "selling_price", "stock", "min_stock_alert", "description"];
+
+/** Parse CSV → array row object (header dinormalisasi: lowercase, strip non-alnum). */
+function parseCsvRows(csv: string): Record<string, string>[] {
+  const res = Papa.parse<Record<string, string>>(csv.trim(), {
+    header: true,
+    skipEmptyLines: true,
+    transformHeader: (h) => h.trim().toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, ""),
+  });
+  if (res.errors.length && res.data.length === 0) throw new Error(`CSV tidak valid: ${res.errors[0]!.message}`);
+  return res.data.filter((r) => r && Object.values(r).some((v) => v !== undefined && v !== ""));
+}
+
+/**
+ * Import massal dari CSV — upsert by SKU (paritas main):
+ * - SKU+name wajib; baris tanpa keduanya di-skip & dicatat sebagai error.
+ * - SKU sudah ada → update; SKU baru → create. Tidak ada duplikat.
+ * - Stock tidak valid → 0 (seperti main).
+ */
+export async function importItemsCsv(csv: string, userId?: number): Promise<CsvImportResult> {
+  const rows = parseCsvRows(csv);
+  if (rows.length === 0) throw new Error("[400] Tidak ada data valid untuk diimport");
+
+  const result: CsvImportResult = { added: 0, updated: 0, failed: 0, errors: [] };
+
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i]!;
+    const rowNo = i + 2; // baris CSV (header = 1)
+    const sku = (r.sku ?? "").trim().toUpperCase();
+    const name = (r.name ?? "").trim();
+    if (!sku || !name) {
+      result.failed++;
+      result.errors.push({ row: rowNo, sku, error: "SKU & nama wajib diisi" });
+      continue;
+    }
+    try {
+      const category = parseCategory(r.category);
+      const purchasePrice = Number(r.purchase_price ?? r.purchasePrice ?? 0);
+      const sellingPrice = Number(r.selling_price ?? r.sellingPrice ?? 0);
+      const rawStock = r.stock ?? r.stok;
+      const stock = rawStock !== undefined && rawStock !== "" && !isNaN(Number(rawStock)) ? Number(rawStock) : 0;
+      const minStockAlert = Number(r.min_stock_alert ?? r.minStockAlert ?? 5) || 5;
+
+      const existing = await prisma.item.findUnique({ where: { sku } });
+      if (existing) {
+        await prisma.item.update({
+          where: { sku },
+          data: { name, category, purchasePrice, sellingPrice, stock, minStockAlert, description: r.description || existing.description, isActive: true },
+        });
+        result.updated++;
+      } else {
+        await prisma.item.create({
+          data: { sku, name, category, purchasePrice, sellingPrice, stock, minStockAlert, description: r.description || null },
+        });
+        result.added++;
+      }
+    } catch (e: any) {
+      result.failed++;
+      result.errors.push({ row: rowNo, sku, error: e?.message ?? "Gagal import" });
+    }
+  }
+
+  return result;
+}
+
+/** Export semua item aktif → CSV dengan BOM (agar Excel baca UTF-8 dengan benar). */
+export async function exportItemsCsv(): Promise<string> {
+  const items = await prisma.item.findMany({ where: { isActive: true }, orderBy: { name: "asc" } });
+  const rows = items.map((i) => ({
+    sku: i.sku,
+    name: i.name,
+    category: i.category,
+    purchase_price: Number(i.purchasePrice),
+    selling_price: Number(i.sellingPrice),
+    stock: i.stock,
+    min_stock_alert: i.minStockAlert,
+    description: i.description ?? "",
+  }));
+  // BOM UTF-8 + header + data — Papa.unparse handle escaping
+  return "\uFEFF" + Papa.unparse({ fields: CSV_HEADERS, data: rows });
+}
+
+/** Template CSV (header saja + 1 contoh baris). */
+export function csvTemplate(): string {
+  return (
+    "\uFEFF" +
+    Papa.unparse({
+      fields: CSV_HEADERS,
+      data: [["SKU-001", "Oli Mesin 1L", "Oli", "45000", "55000", "20", "5", "Contoh item"]],
+    })
+  );
+}

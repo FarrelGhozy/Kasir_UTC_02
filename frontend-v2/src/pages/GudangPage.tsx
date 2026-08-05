@@ -1,6 +1,6 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import api from "../lib/api";
-import { Spinner, Alert, Badge, StatCard } from "../components/ui";
+import { Spinner, Alert, Badge, StatCard, Button } from "../components/ui";
 
 interface Item {
   id: number;
@@ -27,6 +27,9 @@ export function GudangPage() {
   const [lowOnly, setLowOnly] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  // #108: import/export CSV
+  const [importResult, setImportResult] = useState<{ added: number; updated: number; failed: number; errors: { row: number; sku?: string; error: string }[] } | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -60,6 +63,39 @@ export function GudangPage() {
 
   const lowCount = items.filter((i) => i.stock <= i.minStockAlert).length;
 
+  // ── #108: import/export CSV ────────────────────────────────────────────────
+  async function onFilePicked(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setError("");
+    setImportResult(null);
+    try {
+      const text = await file.text();
+      const r = await api.post("/v2/inventory/import", { csv: text });
+      setImportResult(r.data);
+      load();
+    } catch (err: any) {
+      setError(err?.response?.data?.error || "Gagal import CSV.");
+    }
+  }
+
+  async function downloadCsv(url: string, filename: string) {
+    try {
+      const r = await api.get(url, { responseType: "text" });
+      const blob = new Blob([r.data as string], { type: "text/csv;charset=utf-8" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(link.href);
+    } catch {
+      setError("Gagal mengunduh file CSV.");
+    }
+  }
+
   if (loading) return <Spinner label="Memuat gudang..." />;
 
   return (
@@ -88,7 +124,44 @@ export function GudangPage() {
           <input type="checkbox" checked={lowOnly} onChange={(e) => setLowOnly(e.target.checked)} />
           Stok menipis saja
         </label>
+        <div className="ml-auto flex flex-wrap gap-2">
+          <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden" onChange={onFilePicked} />
+          <Button variant="outline" onClick={() => fileRef.current?.click()}>
+            📥 Import CSV
+          </Button>
+          <Button variant="outline" onClick={() => downloadCsv("/v2/inventory/export", `inventory-${new Date().toISOString().slice(0, 10)}.csv`)}>
+            📤 Export CSV
+          </Button>
+          <Button variant="outline" onClick={() => downloadCsv("/v2/inventory/template", "inventory-template.csv")}>
+            📋 Template
+          </Button>
+        </div>
       </div>
+
+      {/* #108: hasil import */}
+      {importResult && (
+        <div
+          className={`rounded-xl border p-4 text-sm ${
+            importResult.failed > 0 ? "border-amber-200 bg-amber-50 text-amber-800" : "border-emerald-200 bg-emerald-50 text-emerald-800"
+          }`}
+        >
+          <p className="font-semibold">
+            Import selesai — <span className="text-emerald-700">{importResult.added} ditambah</span>,{" "}
+            <span className="text-sky-700">{importResult.updated} diperbarui</span>,{" "}
+            <span className={importResult.failed > 0 ? "text-red-600" : ""}>{importResult.failed} gagal</span>
+          </p>
+          {importResult.errors.length > 0 && (
+            <ul className="mt-2 max-h-32 list-inside list-disc overflow-auto text-xs">
+              {importResult.errors.map((e, i) => (
+                <li key={i}>
+                  Baris {e.row}
+                  {e.sku ? ` (${e.sku})` : ""}: {e.error}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
         <table className="w-full text-left text-sm">

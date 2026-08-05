@@ -6,6 +6,7 @@
   "devDependencies": {
     "@types/bcryptjs": "^3.0.0",
     "@types/bun": "latest",
+    "@types/papaparse": "^5.5.2",
     "prisma": "6"
   },
   "peerDependencies": {
@@ -20,6 +21,7 @@
     "dotenv": "^17.4.2",
     "elysia": "^1.4.29",
     "mongodb": "6",
+    "papaparse": "^5.5.4",
     "zod": "^4.4.3"
   }
 }
