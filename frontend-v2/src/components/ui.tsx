@@ -97,6 +97,8 @@ const STATUS_TONE: Record<string, string> = {
   Draft: "bg-slate-100 text-slate-600",
   pos: "bg-emerald-100 text-emerald-700",
   service: "bg-sky-100 text-sky-700",
+  servis: "bg-sky-100 text-sky-700",
+  order: "bg-violet-100 text-violet-700",
 };
 export function Badge({ status, className = "" }: { status: string; className?: string }) {
   return (

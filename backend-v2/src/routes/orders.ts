@@ -8,7 +8,6 @@ import {
   listOrders,
 } from "../services/orderService";
 import { claimWarranty } from "../services/warrantyService";
-import { revenueReport } from "../services/reportService";
 import { requireAuth } from "../middleware/auth";
 import { mapError } from "../middleware/error";
 
@@ -140,39 +139,3 @@ export const warrantyRouter = new Elysia({ prefix: "/api/v2/warranty" })
       tags: ["Warranty"],
     }
   );
-
-// ── Report revenue (H2: POS + order payments) — admin/kasir/teknisi ───────────
-export const reportRouter = new Elysia({ prefix: "/api/v2/reports" })
-  .get("/revenue", async ({ query, headers, set }) => {
-    try {
-      await requireAuth(headers, ["admin", "kasir", "teknisi"]);
-      let from: Date | undefined;
-      let to: Date | undefined;
-      // #90 M6/M12: validasi tanggal eksplisit — tidak valid => 400.
-      if (query.from) {
-        const d = new Date(query.from);
-        if (isNaN(d.getTime())) {
-          set.status = 400;
-          return { success: false, error: "Tanggal 'from' tidak valid" };
-        }
-        from = d;
-      }
-      if (query.to) {
-        const d = new Date(query.to);
-        if (isNaN(d.getTime())) {
-          set.status = 400;
-          return { success: false, error: "Tanggal 'to' tidak valid" };
-        }
-        to = d;
-      }
-      if (from && to && from > to) {
-        set.status = 400;
-        return { success: false, error: "Range tanggal tidak valid ('from' > 'to')" };
-      }
-      return { success: true, data: await revenueReport({ from, to }) };
-    } catch (e) {
-      const r = mapError(e);
-      set.status = r.status;
-      return { success: false, error: r.body.error };
-    }
-  }, { tags: ["Reports"] });
