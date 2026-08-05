@@ -3,6 +3,7 @@
 //   (2) pembayaran Special Order (order_payments.amount)
 // Disajikan per hari dalam range; total = gabungan keduanya.
 import { prisma } from "../db";
+import { todayWibKey, toWibKey, wibDayStart, wibDayEnd } from "../lib/wib";
 
 export interface RevenueRow {
   date: string; // YYYY-MM-DD (Asia/Jakarta)
@@ -12,8 +13,11 @@ export interface RevenueRow {
 }
 
 export async function revenueReport(input: { from?: Date; to?: Date }) {
-  const from = input.from ?? new Date(new Date().setHours(0, 0, 0, 0));
-  const to = input.to ?? new Date(new Date().setHours(23, 59, 59, 999));
+  const _from = input.from ? new Date(input.from) : new Date();
+  const _to = input.to ? new Date(input.to) : new Date();
+  // default = hari ini WIB (bukan UTC lokal). Jika from/to diberikan, ambil batas hari WIB utk tiap tanggal.
+  const from = input.from ? new Date(Math.min(_from.getTime(), _to.getTime())) : wibDayStart();
+  const to = input.to ? new Date(Math.max(_from.getTime(), _to.getTime())) : wibDayEnd();
 
   const [posRows, orderRows] = await Promise.all([
     prisma.transaction.groupBy({
@@ -39,10 +43,10 @@ export async function revenueReport(input: { from?: Date; to?: Date }) {
   };
 
   for (const r of posRows) {
-    add(r.date.toISOString().slice(0, 10), "pos", Number(r._sum.grandTotal ?? 0));
+    add(toWibKey(r.date), "pos", Number(r._sum.grandTotal ?? 0));
   }
   for (const r of orderRows) {
-    add(r.paidAt.toISOString().slice(0, 10), "orders", Number(r._sum.amount ?? 0));
+    add(toWibKey(r.paidAt), "orders", Number(r._sum.amount ?? 0));
   }
 
   const days = [...map.values()].sort((a, b) => a.date.localeCompare(b.date));

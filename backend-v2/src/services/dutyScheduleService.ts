@@ -1,7 +1,7 @@
 // Duty schedule service v2 — #100: jadwal piket kebersihan.
 // Migrasi dari v1 (Mongo dutyScheduleController.js). Konvensi v2: biz(), RBAC di handler,
 // include relasi user via select (hormati privacy — jangan include password_hash).
-import { prisma } from "../db";
+import { wibDayIndex } from "../lib/wib";
 import type { Day } from "@prisma/client";
 
 function biz(msg: string): Error {
@@ -82,9 +82,7 @@ export async function listMySchedule(userId: number) {
 
 /** GET today (all roles) — senin..jumat pakai WIB, Sabtu/Minggu kosong. */
 export async function listTodaySchedule() {
-  const now = new Date();
-  const wib = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Jakarta" }));
-  const dayIndex = wib.getDay();
+  const dayIndex = wibDayIndex(); // #90 H11: hitung dari WIB eksplisit, bukan TZ proses
   const map: Record<number, Day> = { 1: "senin", 2: "selasa", 3: "rabu", 4: "kamis", 5: "jumat" };
   const today = map[dayIndex];
   if (!today) {

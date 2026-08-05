@@ -1,5 +1,6 @@
 // Dashboard service v2 — #98: ringkasan bisnis role-aware utk dashboard frontend.
 import { prisma } from "../db";
+import { wibDayStart } from "../lib/wib";
 
 /**
  * Ringkasan dashboard — data dari DB (bukan cuma health check). Role-aware:
@@ -7,8 +8,7 @@ import { prisma } from "../db";
  * Uang dikembalikan rounded ke rupiah (angka); format di frontend.
  */
 export async function dashboardSummary(user: { role: string }) {
-  const startToday = new Date();
-  startToday.setHours(0, 0, 0, 0);
+  const startToday = wibDayStart(); // #90: konsisten WIB, bukan UTC lokal
   const isFull = user.role === "admin" || user.role === "kasir";
 
   // ── Kasir/Admin: penjualan & transaksi hari ini ─────────────────────────
@@ -60,7 +60,7 @@ export async function dashboardSummary(user: { role: string }) {
 
   return {
     scope: isFull ? "full" : "service-only",
-    date: startToday.toISOString().split("T")[0],
+    date: todayWibKey(),
     revenueToday: isFull ? revenueToday : null,
     transactionsToday: isFull ? txToday : null,
     lowStockCount: isFull ? lowStock : null,
