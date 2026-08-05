@@ -1,6 +1,7 @@
+import { Link, useParams } from "react-router-dom";
 import { useEffect, useState, useCallback } from "react";
-import { useParams, Link } from "react-router-dom";
 import api from "../lib/api";
+import { openNotaPdf } from "../lib/notaPdf";
 import { Button, Card, Spinner, Alert } from "../components/ui";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -82,9 +83,14 @@ export function ServiceDetailPage() {
             Tiket <span className="font-mono text-brand-700">{d.ticketNumber}</span>
           </h1>
         </div>
-        <span className="inline-block rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700">
-          {STATUS_LABELS[d.status] ?? d.status}
-        </span>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => openNotaPdf("servis", d.id)}>
+            🖨️ Cetak Nota PDF
+          </Button>
+          <span className="inline-block rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700">
+            {STATUS_LABELS[d.status] ?? d.status}
+          </span>
+        </div>
       </div>
 
       {error && <Alert tone="error">{error}</Alert>}

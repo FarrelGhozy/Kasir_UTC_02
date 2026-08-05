@@ -6,6 +6,7 @@
   "devDependencies": {
     "@types/bcryptjs": "^3.0.0",
     "@types/bun": "latest",
+    "@types/pdfkit": "^0.17.6",
     "prisma": "6"
   },
   "peerDependencies": {
@@ -20,6 +21,7 @@
     "dotenv": "^17.4.2",
     "elysia": "^1.4.29",
     "mongodb": "6",
+    "pdfkit": "^0.19.1",
     "zod": "^4.4.3"
   }
 }
