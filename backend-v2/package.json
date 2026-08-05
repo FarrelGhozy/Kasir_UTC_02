@@ -6,6 +6,7 @@
   "devDependencies": {
     "@types/bcryptjs": "^3.0.0",
     "@types/bun": "latest",
+    "@types/node-cron": "^3.0.11",
     "prisma": "6"
   },
   "peerDependencies": {
@@ -20,6 +21,7 @@
     "dotenv": "^17.4.2",
     "elysia": "^1.4.29",
     "mongodb": "6",
+    "node-cron": "^4.6.0",
     "zod": "^4.4.3"
   }
 }

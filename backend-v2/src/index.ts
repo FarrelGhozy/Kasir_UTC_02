@@ -13,6 +13,7 @@ import { dutyScheduleRouter } from "./routes/dutySchedule";
 import { notaRouter } from "./routes/notas";
 import { waRouter } from "./routes/wa";
 import { webhookRouter } from "./routes/webhook";
+import { startSchedulers } from "./bot";
 import { userRouter } from "./routes/users";
 import { SECURITY_HEADERS } from "./middleware/security";
 import { mapError } from "./middleware/error";
@@ -92,6 +93,9 @@ const app = new Elysia()
   .use(webhookRouter)
   .use(userRouter)
   .listen(config.PORT);
+
+// #110: start scheduler WA reminder (duty + weekly) — guard internal, tidak crash saat gagal
+startSchedulers();
 
 console.log(
   `\n🟢 Kasir UTC v2 backend jalan di http://localhost:${config.PORT}\n` +
