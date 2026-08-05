@@ -3,6 +3,7 @@
 // Konvensi #87: uang dalam SEN di kalkulasi, simpan rupiah (Decimal 14,2).
 import { prisma } from "../db";
 import { nextTicketNo } from "./sequence";
+import { sendServiceNotaEmail } from "./emailService"; // #103: email nota digital
 import type { ServiceStatus, PaymentMethod } from "@prisma/client";
 
 function biz(msg: string): Error {
@@ -53,6 +54,7 @@ export async function recomputeTotal(
 export async function createServiceTicket(input: {
   customerName?: string;
   customerPhone?: string;
+  customerEmail?: string; // #103: email untuk nota digital
   device?: unknown;
   technicianId?: number;
   technicianName?: string;
@@ -74,10 +76,17 @@ export async function createServiceTicket(input: {
         data: {
           name: input.customerName,
           phone: input.customerPhone,
+          email: input.customerEmail || null, // #103: email untuk nota digital
           type: "walkin",
         },
       });
       customerId = c.id;
+    } else if (input.customerEmail) {
+      // #103: update email bila pelanggan lama belum punya / ganti email
+      await prisma.customer.update({
+        where: { id: customerId },
+        data: { email: input.customerEmail },
+      });
     }
   }
 
@@ -163,6 +172,7 @@ export async function updateServiceTicket(
     technicianName?: string;
     notes?: string;
     paymentMethod?: PaymentMethod;
+    customerEmail?: string; // #103: update email pelanggan
   }
 ) {
   const existing = await prisma.serviceTicket.findUnique({ where: { id } });
@@ -176,6 +186,13 @@ export async function updateServiceTicket(
   if (input.technicianName !== undefined) data.technicianName = input.technicianName;
   if (input.notes !== undefined) data.notes = input.notes;
   if (input.paymentMethod !== undefined) data.paymentMethod = input.paymentMethod;
+  if (input.customerEmail !== undefined && existing.customerId) {
+    // #103: simpan/perbarui email di record customer terkait
+    await prisma.customer.update({
+      where: { id: existing.customerId },
+      data: { email: input.customerEmail || null },
+    });
+  }
   return prisma.serviceTicket.update({ where: { id }, data });
 }
 
@@ -203,7 +220,7 @@ export async function transitionServiceStatus(input: {
   if (input.to === "Picked_Up") data.pickedUpAt = new Date();
   if (input.paymentMethod) data.paymentMethod = input.paymentMethod;
 
-  return prisma.$transaction(async (tx) => {
+  const updated = await prisma.$transaction(async (tx) => {
     await tx.serviceTicket.update({ where: { id: input.ticketId }, data });
     await tx.serviceLog.create({
       data: {
@@ -219,6 +236,25 @@ export async function transitionServiceStatus(input: {
       include: { customer: true, parts: { include: { item: true } } },
     });
   });
+
+  // #103: kirim email nota digital saat servis selesai (Completed).
+  // Fire-and-forget — kegagalan email TIDAK menggagalkan transisi status.
+  if (input.to === "Completed" && updated) {
+    sendServiceNotaEmail({
+      ticketNumber: updated.ticketNumber,
+      device: (updated.device as { brand?: string; model?: string }) ?? {},
+      serviceFee: Number(updated.serviceFee),
+      totalCost: Number(updated.totalCost),
+      customer: updated.customer,
+      parts: updated.parts.map((p) => ({
+        name: p.name,
+        qty: p.qty,
+        subtotal: Number(p.item?.sellingPrice ?? 0) * p.qty,
+      })),
+    }).catch(() => {}); // double-guard: emailService sendiri tidak throw
+  }
+
+  return updated;
 }
 
 // ── Parts (pakai stok item) ─────────────────────────────────────────────────
