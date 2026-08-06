@@ -1,11 +1,16 @@
 // Test #111 — Endpoint workload teknisi.
 // getTechnicianWorkload: teknisi tak ada → throw [BIZ]; hitung aktif/selesai/total/revenue
 // per status FSM v2; tiket tanpa teknisi tidak ikut; Cancelled tidak dihitung.
-import { describe, expect, test, afterAll } from "bun:test";
+import { describe, expect, test, beforeAll, afterAll } from "bun:test";
 import { prisma } from "../src/db";
 import { getTechnicianWorkload } from "../src/services/serviceService";
 
 const createdIds: number[] = [];
+const createdUsers: number[] = [];
+
+// Teknisi dibuat sendiri (id dinamis). Di awal DB (fresh/dev) tidak ada
+// jaminan id = 6 — setelah #86 migrasi, urutan user berubah total.
+let techId = 0;
 
 async function mk(ticketNumber: string, technicianId: number | null, status: string, serviceFee?: number) {
   const t = await prisma.serviceTicket.create({
@@ -22,8 +27,22 @@ async function mk(ticketNumber: string, technicianId: number | null, status: str
 }
 
 describe("Workload teknisi #111", () => {
+  beforeAll(async () => {
+    const u = await prisma.user.create({
+      data: {
+        name: "QA Teknisi #111",
+        username: `qa_teknisi_111_${Date.now()}`,
+        passwordHash: "-",
+        role: "teknisi",
+      },
+    });
+    techId = u.id;
+    createdUsers.push(u.id);
+  });
+
   afterAll(async () => {
     await prisma.serviceTicket.deleteMany({ where: { id: { in: createdIds } } });
+    await prisma.user.deleteMany({ where: { id: { in: createdUsers } } });
     await prisma.$disconnect();
   });
 
@@ -32,12 +51,12 @@ describe("Workload teknisi #111", () => {
   });
 
   test("hitung aktif/selesai/total/revenue dari beberapa status", async () => {
-    await mk("WL-UNIT-1", 6, "Queue", 100000);
-    await mk("WL-UNIT-2", 6, "In_Progress", 150000);
-    await mk("WL-UNIT-3", 6, "Completed", 75000);
-    await mk("WL-UNIT-4", 6, "Cancelled", 50000); // tidak dihitung
+    await mk("WL-UNIT-1", techId, "Queue", 100000);
+    await mk("WL-UNIT-2", techId, "In_Progress", 150000);
+    await mk("WL-UNIT-3", techId, "Completed", 75000);
+    await mk("WL-UNIT-4", techId, "Cancelled", 50000); // tidak dihitung
 
-    const wl = await getTechnicianWorkload(6);
+    const wl = await getTechnicianWorkload(techId);
     expect(wl.active).toBe(2);
     expect(wl.completed).toBe(1);
     expect(wl.total).toBe(3);
@@ -48,9 +67,9 @@ describe("Workload teknisi #111", () => {
   });
 
   test("tiket tanpa teknisi tidak ikut dihitung", async () => {
-    const before = await getTechnicianWorkload(6);
+    const before = await getTechnicianWorkload(techId);
     await mk("WL-UNIT-5", null, "In_Progress", 90000);
-    const after = await getTechnicianWorkload(6);
+    const after = await getTechnicianWorkload(techId);
     expect(after.total).toBe(before.total);
   });
 });
