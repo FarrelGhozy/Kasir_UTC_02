@@ -12,8 +12,8 @@ import { describe, expect, test, afterAll } from "bun:test";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../src/db";
 import { mapError } from "../src/middleware/error";
-import { clientIp, checkLoginRateLimit } from "../src/middleware/security";
-import { validatePhoto, addOrderPayment } from "../src/services/orderService";
+import { clientIp, checkLoginRateLimit, SECURITY_HEADERS } from "../src/middleware/security";
+import { validatePhoto, addOrderPayment, createOrder } from "../src/services/orderService";
 import { createTransaction } from "../src/services/transactionService";
 import { adjustStock, createItem } from "../src/services/inventoryService";
 import { resetPassword } from "../src/services/userService";
@@ -126,6 +126,14 @@ describe("struk POS pajak #startup-audit R9", () => {
   });
 });
 
+// ── S11: CSP header API ─────────────────────────────────────────────────────
+describe("security headers #startup-audit S11", () => {
+  test("CSP default-src 'none' aktif di semua response", () => {
+    expect(SECURITY_HEADERS["Content-Security-Policy"]).toContain("default-src 'none'");
+    expect(SECURITY_HEADERS["Content-Security-Policy"]).toContain("frame-ancestors 'none'");
+  });
+});
+
 // ── Integration: R11/R2/R3/R4/R7 ────────────────────────────────────────────
 describe("guard transaksi #startup-audit (R11/R2/R3/R4/R7)", () => {
   test("R11: checkout pajak negatif → ditolak", async () => {
@@ -218,6 +226,22 @@ describe("guard transaksi #startup-audit (R11/R2/R3/R4/R7)", () => {
     const { refreshToken } = await issueTokens(user);
     await rotateRefreshToken(refreshToken); // pakai sekali — sah
     await expect(rotateRefreshToken(refreshToken)).rejects.toThrow(/tidak valid|sudah dipakai/);
+  });
+
+  test("R15: createOrder + DP atomik (payment tercatat, status Lunas)", async () => {
+    const fin = await createOrder({
+      itemName: "Sparepart R15",
+      estimatedPrice: 50_000,
+      downPayment: 50_000, // DP penuh → otomatis Lunas
+      handledById: 1,
+    });
+    cleanOrderIds.push(fin.orderId);
+    expect(fin.paymentStatus).toBe("Lunas");
+    const payments = await prisma.specialOrderPayment.findMany({
+      where: { orderId: fin.orderId },
+    });
+    expect(payments).toHaveLength(1);
+    expect(Number(payments[0]?.amount)).toBe(50_000);
   });
 });
 

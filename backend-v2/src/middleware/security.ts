@@ -13,6 +13,8 @@ export const SECURITY_HEADERS: Record<string, string> = {
   "Cross-Origin-Opener-Policy": "same-origin",
   "Cross-Origin-Resource-Policy": "same-origin",
   "Cache-Control": "no-store", // API responses tidak boleh di-cache (token/nota)
+  // #startup-audit S11: API murni JSON — blok semua pemuatan resource & framing.
+  "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
 };
 
 // ── SEC-6: Rate limiter in-memory (per-IP + per-username, lockout) ───────────

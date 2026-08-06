@@ -29,7 +29,9 @@ export const orderRouter = new Elysia({ prefix: "/api/v2/orders" })
     async ({ body, headers, set }) => {
       try {
         const user = await requireAuth(headers, ["kasir", "teknisi", "admin"]);
-        const order = await createOrder({ ...body, handledById: body.handledById ?? user.id });
+        // #startup-audit R15: atribusi SELALU dari token — body handledById
+        // dihapus (sebelumnya client bisa mengaku sebagai user lain).
+        const order = await createOrder({ ...body, handledById: user.id });
         set.status = 201;
         return { success: true, data: order };
       } catch (e) {
@@ -45,7 +47,6 @@ export const orderRouter = new Elysia({ prefix: "/api/v2/orders" })
         itemDescription: t.Optional(t.String()),
         estimatedPrice: t.Number(),
         downPayment: t.Optional(t.Number()),
-        handledById: t.Optional(t.Number()),
         notes: t.Optional(t.String()),
         photo: t.Optional(t.String()), // #109: dataURL hasil kompresi browser
       }),
@@ -90,11 +91,12 @@ export const orderRouter = new Elysia({ prefix: "/api/v2/orders" })
     async ({ params, body, headers, set }) => {
       try {
         const user = await requireAuth(headers, ["kasir", "teknisi", "admin"]);
+        // #startup-audit R15: createdById selalu dari token (bukan body).
         const data = await addOrderPayment({
           orderId: Number(params.id),
           amount: body.amount,
           method: body.method,
-          createdById: body.createdById ?? user.id,
+          createdById: user.id,
         });
         return { success: true, data };
       } catch (e) {
@@ -107,7 +109,6 @@ export const orderRouter = new Elysia({ prefix: "/api/v2/orders" })
       body: t.Object({
         amount: t.Number(),
         method: t.Enum({ Cash: "Cash", Transfer: "Transfer", QRIS: "QRIS", Card: "Card" }),
-        createdById: t.Optional(t.Number()),
       }),
       tags: ["Orders"],
     }

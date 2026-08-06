@@ -134,41 +134,45 @@ export async function createOrder(input: {
   notes?: string;
   photo?: string;
 }) {
-  const orderNumber = await nextOrderNo();
-  const order = await prisma.specialOrder.create({
-    data: {
-      orderNumber,
-      customerId: input.customerId,
-      itemName: input.itemName,
-      itemDescription: input.itemDescription,
-      photo: validatePhoto(input.photo),
-      estimatedPrice: input.estimatedPrice,
-      downPayment: input.downPayment ?? 0,
-      handledById: input.handledById,
-      notes: input.notes,
-      status: "Pending",
-    },
-  });
-
-  // DP awal langsung tercatat sebagai payment (H2: uang masuk tercatat)
-  if (input.downPayment && input.downPayment > 0) {
-    await prisma.specialOrderPayment.create({
+  // #startup-audit R15: order + DP payment ATOMIK dalam satu transaksi —
+  // sebelumnya order bisa tersimpan padahal pencatatan DP gagal (partial write).
+  return prisma.$transaction(async (tx) => {
+    const orderNumber = await nextOrderNo();
+    const order = await tx.specialOrder.create({
       data: {
-        orderId: order.id,
-        amount: input.downPayment,
-        method: "Cash",
-        createdById: input.handledById,
+        orderNumber,
+        customerId: input.customerId,
+        itemName: input.itemName,
+        itemDescription: input.itemDescription,
+        photo: validatePhoto(input.photo),
+        estimatedPrice: input.estimatedPrice,
+        downPayment: input.downPayment ?? 0,
+        handledById: input.handledById,
+        notes: input.notes,
+        status: "Pending",
       },
     });
-    // sync status payment dari aggregate (H1)
-    const fin = await orderFinancials(order.id);
-    await prisma.specialOrder.update({
-      where: { id: order.id },
-      data: { paymentStatus: fin.paymentStatus },
-    });
-  }
 
-  return orderFinancials(order.id);
+    // DP awal langsung tercatat sebagai payment (H2: uang masuk tercatat)
+    if (input.downPayment && input.downPayment > 0) {
+      await tx.specialOrderPayment.create({
+        data: {
+          orderId: order.id,
+          amount: input.downPayment,
+          method: "Cash",
+          createdById: input.handledById,
+        },
+      });
+      // sync status payment dari aggregate (H1) — lihat uncommitted via tx
+      const fin = await orderFinancials(order.id, tx);
+      await tx.specialOrder.update({
+        where: { id: order.id },
+        data: { paymentStatus: fin.paymentStatus },
+      });
+    }
+
+    return orderFinancials(order.id, tx);
+  });
 }
 
 // ── H13: transisi status dengan FSM ketat ───────────────────────────────────

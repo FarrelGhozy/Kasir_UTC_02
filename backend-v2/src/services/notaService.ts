@@ -190,7 +190,7 @@ export async function getNotaPdf(source: string, id: number): Promise<Buffer> {
       include: {
         customer: { select: { name: true, phone: true } },
         technician: { select: { name: true } },
-        parts: { include: { item: true } },
+        parts: true,
       },
     });
     if (!s) throw biz("Nota servis tidak ditemukan", 404);
@@ -211,7 +211,9 @@ export async function getNotaPdf(source: string, id: number): Promise<Buffer> {
         ...s.parts.map((p) => ({
           name: p.name ?? "Part",
           qty: p.qty,
-          price: Number(p.item?.sellingPrice ?? 0),
+          // #startup-audit R8: harga TERTERA saat part dipasang (priceAtTime),
+          // bukan harga item saat ini (bisa berubah setelah update harga).
+          price: Number(p.priceAtTime),
           subtotal: Number(p.subtotal),
         })),
         {
