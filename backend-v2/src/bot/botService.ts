@@ -3,6 +3,7 @@
 // Semua keluar lewat waService (bukan hardcode URL/token); WAHA offline tidak crash (sendMessage return {success:false}).
 import { prisma } from "../db";
 import { sendMessage } from "../services/waService";
+import { wibDayIndex, WIB_OFFSET } from "../lib/wib";
 
 // ── Konfigurasi bot (paritas main botConfig.js) ─────────────────────────────
 export const BOT_CONFIG = {
@@ -37,9 +38,8 @@ async function getTechnicianPhones(): Promise<Set<string>> {
 
 /** Waktu operasional dalam WIB (UTC+7). */
 export function isWorkingHours(now = new Date()): { open: boolean; reason: "event" | "friday" | "hours" | "open" } {
-  const wib = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Jakarta" }));
-  const day = wib.getDay();
-  const hour = wib.getHours();
+  const day = wibDayIndex(now);
+  const hour = new Date(now.getTime() + WIB_OFFSET).getUTCHours(); // jam WIB (offset tetap)
   if (day === BOT_CONFIG.CLOSED_DAY) return { open: false, reason: "friday" };
   if (hour < BOT_CONFIG.OPERATIONAL_HOURS.OPEN || hour >= BOT_CONFIG.OPERATIONAL_HOURS.CLOSE) return { open: false, reason: "hours" };
   return { open: true, reason: "open" };

@@ -4,14 +4,17 @@
 import { describe, expect, test, afterAll } from "bun:test";
 import { prisma } from "../src/db";
 import { getTodaySummary, getTransactionByInvoice, createTransaction } from "../src/services/transactionService";
+import { wibDayStart } from "../src/lib/wib";
 
 const createdIds: number[] = [];
 let testInvoice = "";
+let createdItemId: number | null = null;
 
 async function makeItem(name: string, price: number) {
   const it = await prisma.item.create({
     data: { name, sku: `POS-T112-${Date.now()}-${Math.floor(Math.random() * 1000)}`, purchasePrice: price, sellingPrice: price, stock: 50, isActive: true },
   });
+  createdItemId = it.id; // #startup-audit R17: hapus item test di afterAll
   return it;
 }
 
@@ -26,6 +29,11 @@ describe("POS summary & invoice lookup #112", () => {
         await prisma.transactionItem.deleteMany({ where: { transactionId: t.id } });
       }
       await prisma.transaction.deleteMany({ where: { id: { in: createdIds } } });
+    }
+    if (createdItemId) {
+      // R17: stockAudit RESTRICT — hapus audit item test dulu, baru item
+      await prisma.stockAudit.deleteMany({ where: { itemId: createdItemId } });
+      await prisma.item.delete({ where: { id: createdItemId } });
     }
     await prisma.$disconnect();
   });
@@ -55,6 +63,20 @@ describe("POS summary & invoice lookup #112", () => {
     expect(found.cashier).toBeTruthy();
     expect(found.items.length).toBe(1);
     expect(Number(found.items[0]!.subtotal)).toBe(50000);
+  });
+
+  test("getTodaySummary: boundary 00:01 WIB masuk hitungan hari ini (#startup-audit R16)", async () => {
+    // Transaksi di 1 menit setelah tengah malam WIB (mis. 17:01Z kemarin) harus
+    // TERMASUK "hari ini" — regresi window UTC tengah malam (transaksi pagi WIB hilang).
+    const before = await getTodaySummary();
+    const earlyWib = new Date(wibDayStart().getTime() + 60_000); // 00:01 WIB
+    const t = await prisma.transaction.create({
+      data: { invoiceNo: `INV-T112-R16-${Date.now()}`, cashierId: 1, grandTotal: 7777, paymentMethod: "Cash", amountPaid: 7777, date: earlyWib },
+    });
+    createdIds.push(t.id);
+    const after = await getTodaySummary();
+    expect(after.totalTransactions).toBe(before.totalTransactions + 1);
+    expect(after.totalRevenue - before.totalRevenue).toBe(7777);
   });
 
   test("getTransactionByInvoice: tidak ada → throw [BIZ]", async () => {

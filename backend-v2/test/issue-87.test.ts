@@ -8,6 +8,12 @@ import { createBackup, restoreBackup, validateBackup } from "../src/services/bac
 
 const prisma = new PrismaClient();
 
+// #startup-audit R17: transaksi & item buatan test HARUS dibersihkan —
+// sebelumnya C1 (20 checkout paralel) meninggalkan 20 transaksi permanen
+// per run `bun test` (data kotor menumpuk: +20 txn/invoice per run).
+const createdTxnIds: number[] = [];
+let createdItemId: number | null = null;
+
 beforeAll(async () => {
   // seed: kasir + item stok 100
   await prisma.user.upsert({
@@ -32,9 +38,20 @@ beforeAll(async () => {
       stock: 100,
     },
   });
+  const it = await prisma.item.findUniqueOrThrow({ where: { sku: "TEST-001" } });
+  createdItemId = it.id;
 });
 
 afterAll(async () => {
+  // R17: bersihkan SEMUA transaksi buatan test C1 + item test (data tidak menumpuk)
+  if (createdTxnIds.length) {
+    await prisma.transactionItem.deleteMany({ where: { transactionId: { in: createdTxnIds } } });
+    await prisma.transaction.deleteMany({ where: { id: { in: createdTxnIds } } });
+  }
+  if (createdItemId) {
+    await prisma.stockAudit.deleteMany({ where: { itemId: createdItemId } });
+    await prisma.item.deleteMany({ where: { id: createdItemId } });
+  }
   await prisma.$disconnect();
 });
 
@@ -78,6 +95,7 @@ describe("C1 — checkout race 2 kasir bersamaan", () => {
 
     const fulfilled = results.filter((r) => r.status === "fulfilled");
     expect(fulfilled.length).toBe(20); // semua sukses
+    for (const r of fulfilled) createdTxnIds.push((r as PromiseFulfilledResult<any>).value.id);
 
     const invoices = fulfilled.map((r) => (r as PromiseFulfilledResult<any>).value.invoiceNo);
     expect(new Set(invoices).size).toBe(20); // 20 nomor BEDA — anti-kembar ✓

@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
-import api, { setAccessToken } from "../lib/api";
+import api, { setAccessToken, bootstrapSession } from "../lib/api";
 
 type Role = "admin" | "teknisi" | "kasir";
 
@@ -28,20 +28,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Bootstrap: coba /auth/refresh — kalau cookie masih valid, sesi langsung pulih
   // (user tidak perlu login ulang, dan tidak ada token XSS-able di storage).
+  // Single-flight via bootstrapSession(): aman dari double-invoke StrictMode.
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      try {
-        const { data } = await api.post("/v2/auth/refresh");
-        if (!cancelled && data?.user) {
-          setAccessToken(data.token as string);
-          setUser(data.user as AuthUser);
-        }
-      } catch {
-        // cookie invalid/expired — biarkan di halaman login
-      } finally {
-        if (!cancelled) setBootstrapping(false);
+      const session = await bootstrapSession();
+      if (!cancelled && session) {
+        setAccessToken(session.token);
+        setUser(session.user as AuthUser);
       }
+      if (!cancelled) setBootstrapping(false);
     })();
     return () => {
       cancelled = true;

@@ -4,6 +4,9 @@
 
 const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
 
+/** Offset WIB (UTC+7, ms) — dipakai helper jam WIB di luar modul ini. */
+export const WIB_OFFSET = WIB_OFFSET_MS;
+
 /** Key WIB "YYYY-MM-DD" dari Date (UTC) → pakai offset 7 jam. */
 export function toWibKey(utc: Date): string {
   return new Date(utc.getTime() + WIB_OFFSET_MS).toISOString().slice(0, 10);

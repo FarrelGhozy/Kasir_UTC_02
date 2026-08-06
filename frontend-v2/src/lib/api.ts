@@ -73,15 +73,38 @@ api.interceptors.response.use(
       }
     }
 
-    // Token tidak bisa dipulihka
+    // Token tidak bisa dipulihkan
     if (error.response?.status === 401) {
       accessToken = null;
-      if (!window.location.pathname.startsWith("/login")) {
+      // #startup-ux: JANGAN redirect paksa saat yang gagal endpoint auth/refresh —
+      // 401 di sana bisa karena race rotation refresh paralel (StrictMode) atau
+      // cookie kedaluwarsa; sesi yang valid tetap harus bisa pulih (RequireAuth
+      // yang memutuskan redirect saat bootstrapping selesai).
+      if (!isAuthUrl && !window.location.pathname.startsWith("/login")) {
         window.location.href = "/login";
       }
     }
     return Promise.reject(error);
   }
 );
+
+// ── Bootstrap sesi (single-flight) ─────────────────────────────────────────
+// Dipanggil AuthProvider saat boot. StrictMode menjalankan effect 2× → tanpa
+// single-flight, dua refresh paralel dengan cookie SAMA akan bertabrakan dengan
+// rotasi anti-reuse (R7): hanya satu yang menang, satunya 401 → sesi gagal pulih.
+let bootstrapPromise: Promise<{ token: string; user: unknown } | null> | null = null;
+
+export function bootstrapSession(): Promise<{ token: string; user: unknown } | null> {
+  if (!bootstrapPromise) {
+    bootstrapPromise = axios
+      .post("/api/v2/auth/refresh", {}, { withCredentials: true })
+      .then((r) => ({ token: r.data.token as string, user: r.data.user }))
+      .catch(() => null)
+      .finally(() => {
+        bootstrapPromise = null;
+      });
+  }
+  return bootstrapPromise;
+}
 
 export default api;

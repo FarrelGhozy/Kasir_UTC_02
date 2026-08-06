@@ -138,10 +138,14 @@ export async function listTransactions(params: { page?: number; limit?: number; 
 
 // ── Ringkasan transaksi hari ini (WIB) — paritas main: getTodaySummary ───────
 // #112: total transaksi + omzet + breakdown metode bayar untuk tanggal WIB hari ini.
+// #startup-audit R16: pakai wibDayStart() dari lib/wib (SATU sumber kebenaran #90).
+// Sebelumnya trik toLocaleString + Date.UTC menghasilkan TENGAH MALAM UTC —
+// transaksi 00:00–07:00 WIB (mis. 05T17Z–06T00Z) tidak masuk hitungan "hari ini",
+// laporan omzet kurang. wib.ts memakai offset UTC+7 tetap (Indonesia tanpa DST).
+import { toWibKey, wibDayStart } from "../lib/wib";
+
 export async function getTodaySummary() {
-  const now = new Date();
-  const wib = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Jakarta" }));
-  const start = new Date(Date.UTC(wib.getFullYear(), wib.getMonth(), wib.getDate()));
+  const start = wibDayStart();
   const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
 
   const rows = await prisma.transaction.findMany({
@@ -156,9 +160,8 @@ export async function getTodaySummary() {
     byMethod[r.paymentMethod as keyof typeof byMethod] = (byMethod[r.paymentMethod as keyof typeof byMethod] ?? 0) + Number(r.grandTotal);
   }
 
-  const pad = (n: number) => String(n).padStart(2, "0");
   return {
-    date: `${wib.getFullYear()}-${pad(wib.getMonth() + 1)}-${pad(wib.getDate())}`,
+    date: toWibKey(start),
     totalTransactions: rows.length,
     totalRevenue,
     byMethod,

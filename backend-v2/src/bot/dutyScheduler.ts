@@ -4,6 +4,7 @@
 import cron from "node-cron";
 import { prisma } from "../db";
 import { sendMessage } from "../services/waService";
+import { wibDayIndex } from "../lib/wib";
 
 let isStarted = false;
 
@@ -20,8 +21,7 @@ export async function sendDutyReminder(type: "pre" | "now"): Promise<{ sent: num
   let sent = 0;
   let skipped = 0;
   try {
-    const wib = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Jakarta" }));
-    const day = DAY_BY_INDEX[wib.getDay()];
+    const day = DAY_BY_INDEX[wibDayIndex()];
     if (!day) {
       console.log("[DutyReminder] Akhir pekan — tidak ada piket.");
       return { sent, skipped };
