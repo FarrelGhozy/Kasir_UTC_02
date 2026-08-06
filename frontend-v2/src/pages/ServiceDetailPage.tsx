@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import api from "../lib/api";
 import { Button, Card, Spinner, Alert } from "../components/ui";
+import { PatternPreview } from "../components/PatternLock";
 import { useAuth } from "../contexts/AuthContext";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -19,7 +20,7 @@ interface Detail {
   id: number;
   ticketNumber: string;
   status: string;
-  device: { brand?: string; model?: string; issue?: string } | null;
+  device: { brand?: string; model?: string; issue?: string; serial?: string; patternLock?: string } | null;
   claim?: unknown;
   estimatedCost?: string | null;
   note?: string | null;
@@ -107,8 +108,19 @@ export function ServiceDetailPage() {
           <h3 className="text-sm font-semibold text-slate-700">Device</h3>
           <p className="mt-2 text-sm text-slate-800">
             {d.device?.brand ? `${d.device.brand} ${d.device.model ?? ""}`.trim() : "—"}
+            {d.device?.serial && <span className="text-slate-400"> · {d.device.serial}</span>}
           </p>
           {d.device?.issue && <p className="mt-1 text-sm text-slate-500">Keluhan: {d.device.issue}</p>}
+          {/* #114: pola kunci perangkat (opsional) */}
+          {d.device?.patternLock ? (
+            <div className="mt-3 rounded-lg border border-brand-100 bg-brand-50 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-brand-700">Pola kunci perangkat</p>
+              <PatternPreview pattern={d.device.patternLock} />
+              <p className="mt-1 font-mono text-xs text-slate-500">{d.device.patternLock}</p>
+            </div>
+          ) : (
+            <p className="mt-2 text-xs text-slate-400">Tidak ada pola kunci.</p>
+          )}
           <p className="mt-2 text-xs text-slate-400">Teknisi: {d.technician?.name ?? "Belum ditugaskan"}</p>
         </Card>
       </div>

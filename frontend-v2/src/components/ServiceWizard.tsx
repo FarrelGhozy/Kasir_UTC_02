@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import api from "../lib/api";
 import { Button, Alert } from "../components/ui";
+import PatternLock from "./PatternLock";
 
 const STEPS = ["Pelanggan", "Unit & Foto", "Masalah & Keamanan", "Ringkasan"];
 const DRAFT_KEY = "utc_draft_tiket";
@@ -16,6 +17,7 @@ interface Draft {
   serial: string;
   issue: string;
   securityCode: string;
+  patternLock: string; // #114: pola 9-titik (opsional, "1-3-5-7-9")
   notes: string;
   photos: string[]; // dataURL kecil
 }
@@ -28,6 +30,7 @@ const EMPTY: Draft = {
   serial: "",
   issue: "",
   securityCode: "",
+  patternLock: "",
   notes: "",
   photos: [],
 };
@@ -61,6 +64,8 @@ export function ServiceWizard({ onDone }: { onDone: () => void }) {
     if (step === 0) return f.customerName.trim().length > 0;
     if (step === 1) return f.brand.trim().length > 0;
     if (step === 2) return f.issue.trim().length > 0;
+    // #114: pola boleh kosong, tapi kalau diisi harus >= 4 titik
+    if (step === 3 && f.patternLock && f.patternLock.split("-").length < 4) return false;
     return true;
   }
 
@@ -78,6 +83,7 @@ export function ServiceWizard({ onDone }: { onDone: () => void }) {
           serial: f.serial || undefined,
           issue: f.issue,
           securityCode: f.securityCode || undefined,
+          patternLock: f.patternLock || undefined,
           photos: f.photos.length ? f.photos : undefined,
         },
         notes: f.notes || undefined,
@@ -259,6 +265,19 @@ export function ServiceWizard({ onDone }: { onDone: () => void }) {
               />
             </label>
           </div>
+          {/* #114: pola kunci perangkat — opsional, min 4 titik */}
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <PatternLock
+              value={f.patternLock}
+              onChange={(v) => {
+                setF((prev) => ({ ...prev, patternLock: v }));
+                if (!canNext()) setError("");
+              }}
+            />
+            <p className="mt-2 text-xs text-slate-400">
+              Teknisi akan melihat pola ini di detail tiket untuk membuka unit pelanggan.
+            </p>
+          </div>
         </div>
       )}
 
@@ -270,6 +289,7 @@ export function ServiceWizard({ onDone }: { onDone: () => void }) {
             <div><dt className="text-slate-400">Unit</dt><dd className="font-medium text-slate-800">{f.brand} {f.model} {f.serial && <span className="text-slate-500">· {f.serial}</span>}</dd></div>
             <div><dt className="text-slate-400">Keluhan</dt><dd className="font-medium text-slate-800">{f.issue}</dd></div>
             <div><dt className="text-slate-400">Foto</dt><dd className="font-medium text-slate-800">{f.photos.length ? `${f.photos.length} foto` : "—"}</dd></div>
+            <div><dt className="text-slate-400">Pola kunci</dt><dd className="font-medium text-slate-800">{f.patternLock ? `${f.patternLock.split("-").length} titik (${f.patternLock})` : "—"}</dd></div>
             {(f.securityCode || f.notes) && (
               <div className="md:col-span-2"><dt className="text-slate-400">Ekstra</dt><dd className="font-medium text-slate-800">{f.securityCode && `Kode keamanan: ${f.securityCode}`}{f.securityCode && f.notes ? " · " : ""}{f.notes}</dd></div>
             )}
