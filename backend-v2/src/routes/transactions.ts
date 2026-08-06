@@ -1,6 +1,6 @@
 // Route transaksi POS v2 — C1/H15 fix (atomic, anti-kembar) + #95 (RBAC)
 import { Elysia, t } from "elysia";
-import { createTransaction, listTransactions } from "../services/transactionService";
+import { createTransaction, listTransactions, getTodaySummary, getTransactionByInvoice } from "../services/transactionService";
 import { requireAuth } from "../middleware/auth";
 import { mapError } from "../middleware/error";
 
@@ -45,6 +45,26 @@ export const transactionRouter = new Elysia({ prefix: "/api/v2/transactions" })
     }
   )
   // read-only: semua role ter-login bisa lihat
+  .get("/summary/today", async ({ headers, set }) => {
+    try {
+      await requireAuth(headers);
+      return { success: true, data: await getTodaySummary() };
+    } catch (e) {
+      const r = mapError(e);
+      set.status = r.status;
+      return { success: false, error: r.body.error };
+    }
+  }, { tags: ["Transactions"] })
+  .get("/invoice/:no", async ({ params, headers, set }) => {
+    try {
+      await requireAuth(headers);
+      return { success: true, data: await getTransactionByInvoice(params.no) };
+    } catch (e) {
+      const r = mapError(e);
+      set.status = r.status;
+      return { success: false, error: r.body.error };
+    }
+  }, { tags: ["Transactions"] })
   .get("/", async ({ query, headers, set }) => {
     try {
       await requireAuth(headers);

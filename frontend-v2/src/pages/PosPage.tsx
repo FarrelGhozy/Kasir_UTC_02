@@ -26,6 +26,27 @@ export function PosPage() {
   const [method, setMethod] = useState("Cash");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  // #112: ringkasan transaksi hari ini (WIB) dari backend
+  const [today, setToday] = useState<{ date: string; totalTransactions: number; totalRevenue: number; byMethod: Record<string, number> } | null>(null);
+
+  // #112: quick-amount — nominal cepat tambah ke uang dibayar
+  const QUICK_AMOUNTS = [10000, 20000, 50000, 100000];
+  function addQuick(amount: number) {
+    setPaid(String((Number(paid) || 0) + amount));
+  }
+
+  const loadToday = useCallback(async () => {
+    try {
+      const { data } = await api.get("/v2/transactions/summary/today");
+      setToday(data?.data ?? null);
+    } catch {
+      // ringkasan opsional — jangan ganggu POS kalau gagal
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadToday();
+  }, [loadToday]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -45,6 +66,9 @@ export function PosPage() {
   }, [load]);
 
   const cartTotal = cart.reduce((s, l) => s + Number(l.item.sellingPrice) * l.qty, 0);
+  // #112: kembalian dihitung live sebelum transaksi disimpan
+  const paidAmount = Number(paid) || cartTotal;
+  const change = paidAmount - cartTotal;
 
   function addToCart(item: Item) {
     setCart((c) => {
@@ -72,6 +96,7 @@ export function PosPage() {
       setCart([]);
       setPaid("");
       load();
+      loadToday();
     } catch (e: any) {
       setError(e?.response?.data?.error || "Transaksi gagal.");
     }
@@ -86,6 +111,14 @@ export function PosPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-800">POS — Kasir</h1>
           <p className="text-sm text-slate-500">Klik produk untuk menambah ke keranjang.</p>
+          {/* #112: ringkasan transaksi hari ini */}
+          {today && (
+            <div className="mt-2 inline-flex flex-wrap items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 text-xs">
+              <span className="font-semibold text-slate-700">Hari ini ({today.date})</span>
+              <span className="rounded-full bg-white px-2 py-0.5 font-medium text-slate-600">{today.totalTransactions} transaksi</span>
+              <span className="rounded-full bg-emerald-100 px-2 py-0.5 font-bold text-emerald-700">Rp{today.totalRevenue.toLocaleString("id-ID")}</span>
+            </div>
+          )}
         </div>
         <input
           value={search}
@@ -165,6 +198,27 @@ export function PosPage() {
           type="number"
           className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
         />
+        {/* #112: quick-amount — tambah nominal cepat */}
+        <div className="grid grid-cols-4 gap-1.5">
+          {QUICK_AMOUNTS.map((q) => (
+            <button
+              key={q}
+              onClick={() => addQuick(q)}
+              type="button"
+              className="rounded-lg border border-brand-200 bg-brand-50 px-1 py-1.5 text-xs font-bold text-brand-700 transition hover:bg-brand-100"
+            >
+              +{q >= 1000 ? `${q / 1000}rb` : q}
+            </button>
+          ))}
+        </div>
+        {/* #112: kembalian live sebelum disimpan */}
+        <div
+          className={`rounded-lg px-3 py-2 text-sm font-semibold ${
+            change >= 0 ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"
+          }`}
+        >
+          {change >= 0 ? `Kembalian: Rp${change.toLocaleString("id-ID")}` : `Kurang: Rp${Math.abs(change).toLocaleString("id-ID")}`}
+        </div>
         <Button onClick={checkout} disabled={!cart.length}>
           Bayar Rp{cartTotal.toLocaleString("id-ID")}
         </Button>

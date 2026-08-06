@@ -128,3 +128,46 @@ export async function listTransactions(params: { page?: number; limit?: number; 
   ]);
   return { rows, total, page, limit };
 }
+
+// ── Ringkasan transaksi hari ini (WIB) — paritas main: getTodaySummary ───────
+// #112: total transaksi + omzet + breakdown metode bayar untuk tanggal WIB hari ini.
+export async function getTodaySummary() {
+  const now = new Date();
+  const wib = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Jakarta" }));
+  const start = new Date(Date.UTC(wib.getFullYear(), wib.getMonth(), wib.getDate()));
+  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+
+  const rows = await prisma.transaction.findMany({
+    where: { date: { gte: start, lt: end } },
+    select: { grandTotal: true, paymentMethod: true },
+  });
+
+  const byMethod: { Cash: number; QRIS: number; Card: number; Transfer: number } = { Cash: 0, QRIS: 0, Card: 0, Transfer: 0 };
+  let totalRevenue = 0;
+  for (const r of rows) {
+    totalRevenue += Number(r.grandTotal);
+    byMethod[r.paymentMethod as keyof typeof byMethod] = (byMethod[r.paymentMethod as keyof typeof byMethod] ?? 0) + Number(r.grandTotal);
+  }
+
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return {
+    date: `${wib.getFullYear()}-${pad(wib.getMonth() + 1)}-${pad(wib.getDate())}`,
+    totalTransactions: rows.length,
+    totalRevenue,
+    byMethod,
+  };
+}
+
+// ── Lookup transaksi by invoice — paritas main: getTransactionByInvoice ─────
+// #112: cek ulang transaksi dari nomor invoice (case-insensitive, disimpan uppercase).
+export async function getTransactionByInvoice(invoiceNo: string) {
+  const transaction = await prisma.transaction.findUnique({
+    where: { invoiceNo: invoiceNo.trim().toUpperCase() },
+    include: {
+      cashier: { select: { id: true, name: true, username: true, role: true } },
+      items: { include: { item: { select: { id: true, name: true, sku: true } } } },
+    },
+  });
+  if (!transaction) throw new Error("[BIZ] Transaksi tidak ditemukan");
+  return transaction;
+}
