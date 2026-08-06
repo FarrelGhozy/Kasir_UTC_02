@@ -39,11 +39,17 @@ export function validatePatternLock(pattern: unknown): string | undefined {
   return pattern;
 }
 
-/** Sanitasi device JSON saat create/update tiket — #114: sisipkan patternLock valid. */
+/** Sanitasi device JSON saat create/update tiket — #114: sisipkan patternLock valid; #109: filter foto dataURL. */
 export function sanitizeDevice(device: unknown): object {
   const base: Record<string, unknown> =
     device && typeof device === "object" ? { ...(device as Record<string, unknown>) } : {};
   base.patternLock = validatePatternLock(base.patternLock);
+  // #109: foto hasil kompresi browser (dataURL ≤ ~2MB base64)
+  if (Array.isArray(base.photos)) {
+    base.photos = (base.photos as unknown[]).filter(
+      (p) => typeof p === "string" && p.startsWith("data:image/") && p.length <= MAX_DEVICE_PHOTO_CHARS
+    );
+  }
   return base;
 }
 
@@ -116,15 +122,6 @@ export async function getTechnicianWorkload(technicianId: number) {
 // ── CRUD tiket ──────────────────────────────────────────────────────────────
 // #109: validasi foto di device.photos (dataURL hasil kompresi browser).
 const MAX_DEVICE_PHOTO_CHARS = 2_800_000; // ~2MB binary base64
-
-function sanitizeDevice(device: unknown): object {
-  if (!device || typeof device !== "object") return {};
-  const d = device as Record<string, unknown>;
-  if (Array.isArray(d.photos)) {
-    d.photos = d.photos.filter((p) => typeof p === "string" && p.startsWith("data:image/") && p.length <= MAX_DEVICE_PHOTO_CHARS);
-  }
-  return d;
-}
 
 export async function createServiceTicket(input: {
   customerName?: string;
