@@ -9,6 +9,9 @@ import {
   adjustStock,
   inventorySummary,
   deleteItem,
+  importItemsCsv,
+  exportItemsCsv,
+  csvTemplate,
 } from "../services/inventoryService";
 import { requireAuth } from "../middleware/auth";
 import { mapError } from "../middleware/error";
@@ -136,4 +139,52 @@ export const inventoryRouter = new Elysia({ prefix: "/api/v2/inventory" })
       }),
       tags: ["Inventory"],
     }
-  );
+  )
+  // ── #108: import/export CSV ────────────────────────────────────────────────
+  // POST /api/v2/inventory/import → import massal dari raw CSV — kasir/teknisi/admin
+  .post(
+    "/import",
+    async ({ body, headers, set }) => {
+      try {
+        const user = await requireAuth(headers, ["kasir", "teknisi", "admin"]);
+        const result = await importItemsCsv(body.csv, user.id);
+        return { success: true, ...result };
+      } catch (e) {
+        const r = mapError(e);
+        set.status = r.status;
+        return { success: false, error: r.body.error };
+      }
+    },
+    {
+      body: t.Object({ csv: t.String() }),
+      tags: ["Inventory"],
+    }
+  )
+  // GET /api/v2/inventory/export → CSV semua item aktif (BOM UTF-8) — semua role baca
+  .get("/export", async ({ headers, set }) => {
+    try {
+      await requireAuth(headers);
+      const csv = await exportItemsCsv();
+      set.headers["Content-Type"] = "text/csv; charset=utf-8";
+      set.headers["Content-Disposition"] = `attachment; filename="inventory-${new Date().toISOString().slice(0, 10)}.csv"`;
+      return csv;
+    } catch (e) {
+      const r = mapError(e);
+      set.status = r.status;
+      return { success: false, error: r.body.error };
+    }
+  }, { tags: ["Inventory"] })
+  // GET /api/v2/inventory/template → template CSV (header + contoh) — semua role
+  .get("/template", async ({ headers, set }) => {
+    try {
+      await requireAuth(headers);
+      const csv = csvTemplate();
+      set.headers["Content-Type"] = "text/csv; charset=utf-8";
+      set.headers["Content-Disposition"] = 'attachment; filename="inventory-template.csv"';
+      return csv;
+    } catch (e) {
+      const r = mapError(e);
+      set.status = r.status;
+      return { success: false, error: r.body.error };
+    }
+  }, { tags: ["Inventory"] });
