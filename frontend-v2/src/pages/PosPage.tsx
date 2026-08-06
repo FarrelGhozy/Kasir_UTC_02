@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import api from "../lib/api";
+import { openNotaPdf } from "../lib/notaPdf";
 import { useAuth } from "../contexts/AuthContext";
 import { Button, Card, Spinner, Alert, Badge } from "../components/ui";
 
@@ -48,6 +49,8 @@ export function PosPage() {
     void loadToday();
   }, [loadToday]);
 
+  const [lastTx, setLastTx] = useState<{ id: number; invoiceNo: string } | null>(null);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -93,6 +96,10 @@ export function PosPage() {
         amountPaid: paid || String(cartTotal),
       });
       setSuccess(`Transaksi ${data?.transaction?.invoiceNo ?? ""} berhasil!`);
+      setLastTx({
+        id: data?.transaction?.id,
+        invoiceNo: data?.transaction?.invoiceNo ?? "",
+      });
       setCart([]);
       setPaid("");
       load();
@@ -128,6 +135,17 @@ export function PosPage() {
         />
         {error && <Alert tone="error">{error}</Alert>}
         {success && <Alert tone="success">{success}</Alert>}
+        {lastTx && success && (
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-brand-100 bg-brand-50 px-3 py-2 text-sm">
+            <span className="text-brand-800">Struk #{lastTx.invoiceNo} siap dicetak:</span>
+            <button
+              onClick={() => openNotaPdf("pos", lastTx.id)}
+              className="rounded-lg bg-brand-600 px-3 py-1 text-xs font-semibold text-white hover:bg-brand-700"
+            >
+              🖨️ Cetak Struk PDF
+            </button>
+          </div>
+        )}
         {items.length === 0 ? (
           <Card className="p-8 text-center text-sm text-slate-400">Tidak ada produk ditemukan.</Card>
         ) : (

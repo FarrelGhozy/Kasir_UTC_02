@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import api from "../lib/api";
+import { openNotaPdf } from "../lib/notaPdf";
 import { Spinner, Alert, Badge } from "../components/ui";
 
 interface Row {
@@ -108,12 +109,13 @@ export function NotaPage() {
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Tanggal</th>
               <th className="px-4 py-3 text-right">Total</th>
+              <th className="px-4 py-3 text-right">Aksi</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {shown.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-sm text-slate-400">
+                <td colSpan={7} className="px-4 py-8 text-center text-sm text-slate-400">
                   Tidak ada nota ditemukan.
                 </td>
               </tr>
@@ -131,6 +133,14 @@ export function NotaPage() {
                   </td>
                   <td className="px-4 py-3 text-right font-semibold text-slate-800">
                     Rp{Number(r.grandTotal ?? r.total ?? 0).toLocaleString("id-ID")}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      onClick={() => openNotaPdf(r.type === "pos" ? "pos" : "servis", r.id)}
+                      className="rounded-md border border-brand-200 px-2 py-1 text-xs font-medium text-brand-700 hover:bg-brand-50"
+                    >
+                      🖨️ PDF
+                    </button>
                   </td>
                 </tr>
               ))

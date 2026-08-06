@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import api from "../lib/api";
+import { openNotaPdf } from "../lib/notaPdf";
 import { Button, Card, Spinner, Alert } from "../components/ui";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -23,6 +24,7 @@ const NEXT: Record<string, string[]> = {
 const PAY_METHODS = ["Cash", "Transfer", "QRIS", "Card"];
 
 interface Detail {
+  id: number; // #104: untuk cetak PDF nota
   estimatedPrice: string;
   paidAmount: string;
   remaining: string;
@@ -103,13 +105,18 @@ export function OrderDetailPage() {
             Pesanan <span className="font-mono text-brand-700">{d.orderNumber}</span>
           </h1>
         </div>
-        <span
-          className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-            d.paymentStatus === "Lunas" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
-          }`}
-        >
-          {d.paymentStatus === "Lunas" ? "Lunas" : "Belum Lunas"}
-        </span>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => openNotaPdf("order", d.id)}>
+            🖨️ Cetak Nota PDF
+          </Button>
+          <span
+            className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
+              d.paymentStatus === "Lunas" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+            }`}
+          >
+            {d.paymentStatus === "Lunas" ? "Lunas" : "Belum Lunas"}
+          </span>
+        </div>
       </div>
 
       {error && <Alert tone="error">{error}</Alert>}
