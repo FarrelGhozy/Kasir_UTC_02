@@ -22,6 +22,31 @@ export const SERVICE_TRANSITIONS: Record<ServiceStatus, ServiceStatus[]> = {
   Cancelled: [],
 };
 
+// ── #114: Pattern lock 9-titik perangkat ────────────────────────────────────
+// Pola opsional; disimpan di device.patternLock sebagai string "1-3-5-7-9".
+// Aturan: 4–9 titik, hanya digit 1–9, unik, dipisah "-".
+export const PATTERN_LOCK_RE = /^[1-9](-[1-9]){3,8}$/;
+
+export function validatePatternLock(pattern: unknown): string | undefined {
+  if (pattern === undefined || pattern === null || pattern === "") return undefined;
+  if (typeof pattern !== "string" || !PATTERN_LOCK_RE.test(pattern)) {
+    throw biz("Pola kunci tidak valid — butuh 4–9 titik unik (contoh: 1-3-5-7-9)");
+  }
+  const points = pattern.split("-");
+  if (new Set(points).size !== points.length) {
+    throw biz("Pola kunci tidak valid — titik tidak boleh berulang");
+  }
+  return pattern;
+}
+
+/** Sanitasi device JSON saat create/update tiket — #114: sisipkan patternLock valid. */
+export function sanitizeDevice(device: unknown): object {
+  const base: Record<string, unknown> =
+    device && typeof device === "object" ? { ...(device as Record<string, unknown>) } : {};
+  base.patternLock = validatePatternLock(base.patternLock);
+  return base;
+}
+
 export function assertServiceTransition(from: ServiceStatus, to: ServiceStatus) {
   if (from === to) return;
   if (!SERVICE_TRANSITIONS[from]?.includes(to)) {
