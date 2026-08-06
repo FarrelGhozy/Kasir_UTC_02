@@ -101,6 +101,7 @@ export async function orderFinancials(orderId: number, client: Pick<typeof prism
     paymentStatus,
     status: order.status,
     paymentCount: order.payments.length,
+    photo: order.photo ?? null,
     payments: order.payments.map((p) => ({
       id: p.id,
       amount: p.amount.toString(),
@@ -111,6 +112,16 @@ export async function orderFinancials(orderId: number, client: Pick<typeof prism
 }
 
 // ── Core: buat order baru ───────────────────────────────────────────────────
+// #109: + foto barang (dataURL hasil kompresi browser) + validasi ukuran/tipe.
+export const MAX_PHOTO_CHARS = 2_800_000; // ~2MB binary base64
+
+export function validatePhoto(photo?: string | null): string | undefined {
+  if (!photo) return undefined;
+  if (photo.length > MAX_PHOTO_CHARS) throw new Error("[BIZ] Foto terlalu besar (maks ~2MB)");
+  if (!photo.startsWith("data:image/")) throw new Error("[BIZ] Foto harus berupa data URL gambar");
+  return photo;
+}
+
 export async function createOrder(input: {
   customerId?: number;
   itemName: string;
@@ -119,6 +130,7 @@ export async function createOrder(input: {
   downPayment?: number;
   handledById?: number;
   notes?: string;
+  photo?: string;
 }) {
   const orderNumber = await nextOrderNo();
   const order = await prisma.specialOrder.create({
@@ -127,6 +139,7 @@ export async function createOrder(input: {
       customerId: input.customerId,
       itemName: input.itemName,
       itemDescription: input.itemDescription,
+      photo: validatePhoto(input.photo),
       estimatedPrice: input.estimatedPrice,
       downPayment: input.downPayment ?? 0,
       handledById: input.handledById,

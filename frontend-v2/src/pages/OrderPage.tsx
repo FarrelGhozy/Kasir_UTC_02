@@ -1,8 +1,9 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Link } from "react-router-dom";
 import api from "../lib/api";
 import { Button, Card, Spinner, Alert } from "../components/ui";
 import { useAuth } from "../contexts/AuthContext";
+import { compressToDataUrl } from "../lib/photoCompress";
 
 interface Order {
   id: number;
@@ -38,6 +39,10 @@ export function OrderPage() {
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ itemName: "", itemDescription: "", estimatedPrice: "", downPayment: "", notes: "" });
+  // #109: foto barang (dataURL hasil kompresi browser)
+  const [photo, setPhoto] = useState<string | null>(null);
+  const [compressMsg, setCompressMsg] = useState("");
+  const photoRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -68,13 +73,33 @@ export function OrderPage() {
         estimatedPrice: Number(form.estimatedPrice),
         downPayment: form.downPayment ? Number(form.downPayment) : undefined,
         notes: form.notes || undefined,
+        photo: photo ?? undefined, // #109
       });
       setShowForm(false);
       setForm({ itemName: "", itemDescription: "", estimatedPrice: "", downPayment: "", notes: "" });
+      setPhoto(null);
+      setCompressMsg("");
       setError("");
       load();
     } catch (e: any) {
       setError(e?.response?.data?.error || "Gagal membuat pesanan.");
+    }
+  }
+
+  // #109: pilih foto → kompres di browser → dataURL
+  async function onPhotoPicked(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setCompressMsg("Mengompresi foto…");
+    setError("");
+    try {
+      const url = await compressToDataUrl(file);
+      setPhoto(url);
+      setCompressMsg(`Foto siap (${Math.round(url.length / 1024)} KB).`);
+    } catch {
+      setCompressMsg("");
+      setError("Gagal mengompresi foto. Coba gambar lain.");
     }
   }
 
@@ -131,6 +156,24 @@ export function OrderPage() {
             rows={2}
             className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none md:col-span-2"
           />
+          {/* #109: foto barang */}
+          <div className="md:col-span-2">
+            <input ref={photoRef} type="file" accept="image/*" className="hidden" onChange={onPhotoPicked} />
+            <div className="flex items-center gap-3">
+              <Button variant="outline" onClick={() => photoRef.current?.click()}>
+                📷 Foto Barang
+              </Button>
+              {compressMsg && <span className="text-xs text-slate-500">{compressMsg}</span>}
+              {photo && (
+                <>
+                  <img src={photo} alt="Foto barang" className="h-14 w-14 rounded-lg border border-slate-200 object-cover" />
+                  <button type="button" onClick={() => { setPhoto(null); setCompressMsg(""); }} className="text-xs text-red-500 hover:underline">
+                    Hapus foto
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
           <div className="md:col-span-2">
             <Button onClick={createOrder}>Simpan Pesanan</Button>
           </div>

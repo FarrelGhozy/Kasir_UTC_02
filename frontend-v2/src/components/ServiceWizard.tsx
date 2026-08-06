@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import api from "../lib/api";
 import { Button, Alert } from "../components/ui";
+import { compressToDataUrl } from "../lib/photoCompress";
 
 const STEPS = ["Pelanggan", "Unit & Foto", "Masalah & Keamanan", "Ringkasan"];
 const DRAFT_KEY = "utc_draft_tiket";
@@ -93,16 +94,17 @@ export function ServiceWizard({ onDone }: { onDone: () => void }) {
     }
   }
 
-  function addPhotos(files: FileList | null) {
+  async function addPhotos(files: FileList | null) {
     if (!files) return;
     const list = Array.from(files).slice(0, 4);
     for (const file of list) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const url = String(reader.result);
+      try {
+        // #109: kompres dulu di browser (target ≤ ~300KB) sebelum disimpan
+        const url = await compressToDataUrl(file);
         if (url.length < 400_000) setF((p) => ({ ...p, photos: [...p.photos, url].slice(0, 4) }));
-      };
-      reader.readAsDataURL(file);
+      } catch {
+        setError("Gagal mengompresi foto. Coba foto lain.");
+      }
     }
   }
 

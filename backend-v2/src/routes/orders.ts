@@ -47,6 +47,7 @@ export const orderRouter = new Elysia({ prefix: "/api/v2/orders" })
         downPayment: t.Optional(t.Number()),
         handledById: t.Optional(t.Number()),
         notes: t.Optional(t.String()),
+        photo: t.Optional(t.String()), // #109: dataURL hasil kompresi browser
       }),
       tags: ["Orders"],
     }

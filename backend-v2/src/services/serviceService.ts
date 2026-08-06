@@ -89,6 +89,18 @@ export async function getTechnicianWorkload(technicianId: number) {
 }
 
 // ── CRUD tiket ──────────────────────────────────────────────────────────────
+// #109: validasi foto di device.photos (dataURL hasil kompresi browser).
+const MAX_DEVICE_PHOTO_CHARS = 2_800_000; // ~2MB binary base64
+
+function sanitizeDevice(device: unknown): object {
+  if (!device || typeof device !== "object") return {};
+  const d = device as Record<string, unknown>;
+  if (Array.isArray(d.photos)) {
+    d.photos = d.photos.filter((p) => typeof p === "string" && p.startsWith("data:image/") && p.length <= MAX_DEVICE_PHOTO_CHARS);
+  }
+  return d;
+}
+
 export async function createServiceTicket(input: {
   customerName?: string;
   customerPhone?: string;
@@ -133,7 +145,7 @@ export async function createServiceTicket(input: {
     data: {
       ticketNumber,
       customerId,
-      device: input.device && typeof input.device === "object" ? (input.device as object) : {},
+      device: sanitizeDevice(input.device),
       technicianId: input.technicianId,
       technicianName: input.technicianName,
       notes: input.notes,
@@ -219,7 +231,7 @@ export async function updateServiceTicket(
     throw biz(`Tiket ${existing.status} tidak bisa diubah`);
   }
   const data: Record<string, unknown> = {};
-  if (input.device !== undefined) data.device = input.device;
+  if (input.device !== undefined) data.device = sanitizeDevice(input.device);
   if (input.technicianId !== undefined) data.technicianId = input.technicianId;
   if (input.technicianName !== undefined) data.technicianName = input.technicianName;
   if (input.notes !== undefined) data.notes = input.notes;
