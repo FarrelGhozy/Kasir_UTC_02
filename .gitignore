@@ -51,6 +51,7 @@ Thumbs.db
 
 # Backup files
 backend/backups/
+backend-v2/backups/
 
 #pembantu 
 CLAUDE.md

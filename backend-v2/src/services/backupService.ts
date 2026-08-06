@@ -110,3 +110,123 @@ export function backupSummary(raw: string): Record<string, number> {
   for (const t of TABLES) summary[t.table] = (tables[t.table] as unknown[]).length;
   return summary;
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// #107 — Backup file server-side: simpan/daftar/unduh/restore/hapus + retensi.
+// Folder: backend-v2/backups/ (paritas main: backend/backups/). Format .json.gz.
+// Keamanan: filename di-sanitasi (path traversal ditolak).
+// ═══════════════════════════════════════════════════════════════════════════
+import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync, unlinkSync, existsSync } from "node:fs";
+import { join, resolve, basename } from "node:path";
+
+export const BACKUP_DIR = resolve(process.cwd(), "backups");
+const RETENTION_DAYS = 30;
+const SAFE_NAME = /^[a-zA-Z0-9._-]+\.json(\.gz)?$/;
+
+function ensureDir() {
+  if (!existsSync(BACKUP_DIR)) mkdirSync(BACKUP_DIR, { recursive: true });
+}
+
+/** Sanitasi nama file — null kalau mencurigakan (path traversal / ekstensi aneh). */
+export function sanitizeBackupFilename(name: string): string | null {
+  const base = basename(name);
+  return SAFE_NAME.test(base) ? base : null;
+}
+
+export interface BackupFileInfo {
+  name: string;
+  size: number;
+  mtime: string; // ISO
+  sizeHuman: string;
+}
+
+function humanSize(bytes: number): string {
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${bytes} B`;
+}
+
+/** Simpan backup sekarang ke file `backup_<timestamp>.json.gz` → info file. */
+export async function saveBackupToFile(): Promise<BackupFileInfo> {
+  ensureDir();
+  const { json } = await createBackup();
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+  const filename = `backup_${timestamp}.json.gz`;
+  const gz = Bun.gzipSync(Buffer.from(json, "utf8"));
+  const filePath = join(BACKUP_DIR, filename);
+  writeFileSync(filePath, gz);
+  await cleanupOldBackups();
+  return {
+    name: filename,
+    size: gz.byteLength,
+    mtime: new Date().toISOString(),
+    sizeHuman: humanSize(gz.byteLength),
+  };
+}
+
+/** Daftar file backup di server (terbaru dulu). */
+export function listBackupFiles(): BackupFileInfo[] {
+  ensureDir();
+  return readdirSync(BACKUP_DIR)
+    .filter((f) => SAFE_NAME.test(f))
+    .map((f) => {
+      const st = statSync(join(BACKUP_DIR, f));
+      return {
+        name: f,
+        size: st.size,
+        mtime: st.mtime.toISOString(),
+        sizeHuman: humanSize(st.size),
+      };
+    })
+    .sort((a, b) => b.mtime.localeCompare(a.mtime));
+}
+
+/** Path file backup yang aman — null kalau tidak ada/ilegal. */
+export function getBackupFilePath(name: string): string | null {
+  const safe = sanitizeBackupFilename(name);
+  if (!safe) return null;
+  const p = join(BACKUP_DIR, safe);
+  return existsSync(p) ? p : null;
+}
+
+/** Isi file backup (decompressed → string JSON) — throw kalau tidak ada. */
+export function readBackupFile(name: string): string {
+  const p = getBackupFilePath(name);
+  if (!p) throw new Error("[404] File backup tidak ditemukan");
+  const raw = readFileSync(p);
+  const buf = name.endsWith(".gz") ? Bun.gunzipSync(raw) : raw;
+  return Buffer.from(buf).toString("utf8");
+}
+
+/** Restore dari file tersimpan — validasi + transaksi aman (sama dgn restoreBackup). */
+export async function restoreFromFile(name: string): Promise<{ restoredRows: number }> {
+  const raw = readBackupFile(name);
+  return restoreBackup(raw);
+}
+
+/** Hapus file backup — throw kalau tidak ada. */
+export function deleteBackupFile(name: string): void {
+  const p = getBackupFilePath(name);
+  if (!p) throw new Error("[404] File backup tidak ditemukan");
+  unlinkSync(p);
+}
+
+/** Retensi otomatis: sisakan backup 30 hari terakhir; safety-net minimal 1 file. */
+export function cleanupOldBackups(): { kept: number; deleted: string[] } {
+  ensureDir();
+  const files = listBackupFiles();
+  if (files.length <= 1) return { kept: files.length, deleted: [] };
+  const cutoff = Date.now() - RETENTION_DAYS * 24 * 60 * 60 * 1000;
+  const deleted: string[] = [];
+  for (const f of files) {
+    if (new Date(f.mtime).getTime() < cutoff && files.length - deleted.length > 1) {
+      try {
+        unlinkSync(join(BACKUP_DIR, f.name));
+        deleted.push(f.name);
+      } catch {
+        // abaikan — file mungkin sudah hilang
+      }
+    }
+  }
+  return { kept: files.length - deleted.length, deleted };
+}
