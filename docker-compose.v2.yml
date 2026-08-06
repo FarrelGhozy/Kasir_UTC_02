@@ -32,6 +32,7 @@ services:
       DATABASE_URL: postgresql://utc:${POSTGRES_PASSWORD}@db_v2:5432/utc_v2?schema=public
       NODE_ENV: production
       RATE_LIMIT_MAX: 100
+      RATE_LIMIT_ADMIN_MAX: 100
     ports:
       - "5300:5300"
     depends_on:
