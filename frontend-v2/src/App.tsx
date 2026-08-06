@@ -1,47 +1,59 @@
+import { lazy, Suspense } from "react";
+import type { ReactElement } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AppLayout } from "./routes/AppLayout";
-import { LoginPage } from "./pages/LoginPage";
-import { DashboardPage } from "./pages/DashboardPage";
-import { DutySchedulePage } from "./pages/DutySchedulePage";
-import { PosPage } from "./pages/PosPage";
-import { PelayananPage } from "./pages/PelayananPage";
-import { GudangPage } from "./pages/GudangPage";
-import { LaporanPage } from "./pages/LaporanPage";
-import { NotaPage } from "./pages/NotaPage";
-import { SettingsPage } from "./pages/SettingsPage";
-import { ProfilePage } from "./pages/ProfilePage";
-import { OrderPage } from "./pages/OrderPage";
-import { OrderDetailPage } from "./pages/OrderDetailPage";
-import { ServiceDetailPage } from "./pages/ServiceDetailPage";
-import { UserManagementPage } from "./pages/UserManagementPage";
-import { TechnicianManagementPage } from "./pages/TechnicianManagementPage";
-import { BackupPage } from "./pages/BackupPage";
-import { ForbiddenPage, NotFoundPage, ServerErrorPage } from "./pages/ErrorPages";
 import { RequireAuth } from "./components/RequireAuth";
+import { ForbiddenPage, NotFoundPage, ServerErrorPage } from "./pages/ErrorPages";
+import { PageLoader } from "./components/PageLoader";
+
+// #startup-ux: lazy per-halaman → tiap route jadi chunk sendiri.
+// recharts (Dashboard), browser-image-compression (Pelayanan/Order), ServiceWizard
+// hanya di-download saat halaman itu dibuka — dulu SEMUA ikut di bundle 795KB
+// sehingga buka halaman apa pun terasa berat (terutama di HP).
+const LoginPage = lazy(() => import("./pages/LoginPage").then((m) => ({ default: m.LoginPage })));
+const DashboardPage = lazy(() => import("./pages/DashboardPage").then((m) => ({ default: m.DashboardPage })));
+const PosPage = lazy(() => import("./pages/PosPage").then((m) => ({ default: m.PosPage })));
+const PelayananPage = lazy(() => import("./pages/PelayananPage").then((m) => ({ default: m.PelayananPage })));
+const ServiceDetailPage = lazy(() => import("./pages/ServiceDetailPage").then((m) => ({ default: m.ServiceDetailPage })));
+const OrderPage = lazy(() => import("./pages/OrderPage").then((m) => ({ default: m.OrderPage })));
+const OrderDetailPage = lazy(() => import("./pages/OrderDetailPage").then((m) => ({ default: m.OrderDetailPage })));
+const GudangPage = lazy(() => import("./pages/GudangPage").then((m) => ({ default: m.GudangPage })));
+const LaporanPage = lazy(() => import("./pages/LaporanPage").then((m) => ({ default: m.LaporanPage })));
+const NotaPage = lazy(() => import("./pages/NotaPage").then((m) => ({ default: m.NotaPage })));
+const SettingsPage = lazy(() => import("./pages/SettingsPage").then((m) => ({ default: m.SettingsPage })));
+const ProfilePage = lazy(() => import("./pages/ProfilePage").then((m) => ({ default: m.ProfilePage })));
+const DutySchedulePage = lazy(() => import("./pages/DutySchedulePage").then((m) => ({ default: m.DutySchedulePage })));
+const UserManagementPage = lazy(() => import("./pages/UserManagementPage").then((m) => ({ default: m.UserManagementPage })));
+const TechnicianManagementPage = lazy(() => import("./pages/TechnicianManagementPage").then((m) => ({ default: m.TechnicianManagementPage })));
+const BackupPage = lazy(() => import("./pages/BackupPage").then((m) => ({ default: m.BackupPage })));
+
+// Fallback Suspense: feedback instan saat chunk route sedang dimuat
+// (chunk kecil → tampil sekejap, bukan layar kosong).
+const withLoader = (el: ReactElement) => <Suspense fallback={<PageLoader />}>{el}</Suspense>;
 
 export default function App() {
   return (
     <Routes>
-      <Route path="/login" element={<LoginPage />} />
+      <Route path="/login" element={withLoader(<LoginPage />)} />
 
       <Route element={<RequireAuth />}>
         <Route element={<AppLayout />}>
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/pos" element={<PosPage />} />
-          <Route path="/pelayanan" element={<PelayananPage />} />
+          <Route path="/" element={withLoader(<DashboardPage />)} />
+          <Route path="/pos" element={withLoader(<PosPage />)} />
+          <Route path="/pelayanan" element={withLoader(<PelayananPage />)} />
           <Route path="/pelayanan/servis" element={<Navigate to="/pelayanan" replace />} />
-          <Route path="/pelayanan/servis/:id" element={<ServiceDetailPage />} />
-          <Route path="/pelayanan/pesanan" element={<OrderPage />} />
-          <Route path="/pelayanan/pesanan/:id" element={<OrderDetailPage />} />
-          <Route path="/gudang" element={<GudangPage />} />
-          <Route path="/laporan" element={<LaporanPage />} />
-          <Route path="/nota" element={<NotaPage />} />
-          <Route path="/pengaturan" element={<SettingsPage />} />
-          <Route path="/profil" element={<ProfilePage />} />
-          <Route path="/pengaturan/piket" element={<DutySchedulePage />} />
-          <Route path="/pengaturan/pengguna" element={<UserManagementPage />} />
-          <Route path="/pengaturan/teknisi" element={<TechnicianManagementPage />} />
-          <Route path="/pengaturan/backup" element={<BackupPage />} />
+          <Route path="/pelayanan/servis/:id" element={withLoader(<ServiceDetailPage />)} />
+          <Route path="/pelayanan/pesanan" element={withLoader(<OrderPage />)} />
+          <Route path="/pelayanan/pesanan/:id" element={withLoader(<OrderDetailPage />)} />
+          <Route path="/gudang" element={withLoader(<GudangPage />)} />
+          <Route path="/laporan" element={withLoader(<LaporanPage />)} />
+          <Route path="/nota" element={withLoader(<NotaPage />)} />
+          <Route path="/pengaturan" element={withLoader(<SettingsPage />)} />
+          <Route path="/profil" element={withLoader(<ProfilePage />)} />
+          <Route path="/pengaturan/piket" element={withLoader(<DutySchedulePage />)} />
+          <Route path="/pengaturan/pengguna" element={withLoader(<UserManagementPage />)} />
+          <Route path="/pengaturan/teknisi" element={withLoader(<TechnicianManagementPage />)} />
+          <Route path="/pengaturan/backup" element={withLoader(<BackupPage />)} />
         </Route>
       </Route>
 

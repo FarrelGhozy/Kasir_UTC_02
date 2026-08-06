@@ -8,7 +8,15 @@ import "./index.css";
 
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { retry: 1, refetchOnWindowFocus: false },
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+      // #startup-ux: data 30 detik masih dianggap fresh → tidak refetch ulang
+      // setiap kali pindah halaman (sebelumnya staleTime 0 = selalu refetch,
+      // itulah delay "loading terus" saat buka halaman baru).
+      staleTime: 30_000,
+      gcTime: 10 * 60_000,
+    },
   },
 });
 
