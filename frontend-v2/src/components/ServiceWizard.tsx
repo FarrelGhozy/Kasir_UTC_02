@@ -11,6 +11,7 @@ const DRAFT_KEY = "utc_draft_tiket";
 interface Draft {
   customerName: string;
   customerPhone: string;
+  customerEmail: string; // #103: email utk nota digital
   brand: string;
   model: string;
   serial: string;
@@ -23,6 +24,7 @@ interface Draft {
 const EMPTY: Draft = {
   customerName: "",
   customerPhone: "",
+  customerEmail: "",
   brand: "",
   model: "",
   serial: "",
@@ -72,6 +74,7 @@ export function ServiceWizard({ onDone }: { onDone: () => void }) {
       await api.post("/v2/services", {
         customerName: f.customerName,
         customerPhone: f.customerPhone || undefined,
+        customerEmail: f.customerEmail.trim() || undefined, // #103
         device: {
           brand: f.brand,
           model: f.model || undefined,
@@ -149,6 +152,16 @@ export function ServiceWizard({ onDone }: { onDone: () => void }) {
               value={f.customerPhone}
               onChange={(e) => set("customerPhone", e.target.value)}
               placeholder="08xxxxxxxxxx"
+              className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
+            />
+          </label>
+          <label className="text-sm md:col-span-2">
+            Email pelanggan <span className="text-slate-400">(untuk nota digital)</span>
+            <input
+              type="email"
+              value={f.customerEmail}
+              onChange={(e) => set("customerEmail", e.target.value)}
+              placeholder="cth: budi@email.com"
               className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
             />
           </label>

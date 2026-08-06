@@ -8,6 +8,9 @@ export const config = {
   NODE_ENV: process.env.NODE_ENV || "development",
   WAHA_URL: process.env.WAHA_URL || "http://localhost:8000",
   WAHA_API_KEY: process.env.WAHA_API_KEY || "",
+  // Email nota (#103) — opsional: bila kosong, email di-skip + log WARN.
+  EMAIL_USER: process.env.EMAIL_USER || "",
+  EMAIL_PASS: process.env.EMAIL_PASS || "",
 };
 
 // SEC-1 fix: reject placeholder/empty JWT secret — jangan dikompromi

@@ -37,6 +37,7 @@ export const serviceRouter = new Elysia({ prefix: "/api/v2/services" })
       body: t.Object({
         customerName: t.Optional(t.String()),
         customerPhone: t.Optional(t.String()),
+        customerEmail: t.Optional(t.String()), // #103: email utk nota digital
         device: t.Optional(t.Any()),
         technicianId: t.Optional(t.Number()),
         technicianName: t.Optional(t.String()),
@@ -111,6 +112,7 @@ export const serviceRouter = new Elysia({ prefix: "/api/v2/services" })
         technicianId: t.Optional(t.Number()),
         technicianName: t.Optional(t.String()),
         notes: t.Optional(t.String()),
+        customerEmail: t.Optional(t.String()), // #103: update email pelanggan
         paymentMethod: t.Optional(
           t.Enum({ Cash: "Cash", Transfer: "Transfer", QRIS: "QRIS", Card: "Card" })
         ),
