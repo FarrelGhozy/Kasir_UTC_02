@@ -77,19 +77,28 @@ export async function listItems(params: {
     ];
   }
   if (category) where.category = parseCategory(category);
+  // #startup-audit R6: stok menipis = stock <= minStockAlert per item
+  // (sebelumnya hanya stok 0 — threshold alert tidak pernah terpakai).
+  // Prisma tidak mendukung column-compare di findMany → resolusi id via fetch
+  // ringan (skala bengkel: puluhan–ratusan item), lalu filter in-query.
   if (lowStockOnly) {
-    where.stock = { lte: prisma.item.fields.minStockAlert } as never;
-    // pakai raw filter karena lte harus angka; fallback: where raw
+    const lowStockIds = await prisma.item.findMany({
+      select: { id: true, stock: true, minStockAlert: true },
+    }).then((rows) =>
+      rows.filter((r) => r.stock <= r.minStockAlert).map((r) => r.id)
+    );
+    if (lowStockIds.length === 0) return { rows: [], total: 0, page, limit };
+    where.id = { in: lowStockIds };
   }
 
   const [rows, total] = await Promise.all([
     prisma.item.findMany({
-      where: lowStockOnly ? { ...where, stock: { lte: 0 } } : where,
+      where,
       orderBy: [{ isActive: "desc" }, { name: "asc" }],
       skip: (page - 1) * limit,
       take: limit,
     }),
-    prisma.item.count({ where: lowStockOnly ? { ...where, stock: { lte: 0 } } : where }),
+    prisma.item.count({ where }),
   ]);
   return { rows, total, page, limit };
 }
@@ -143,18 +152,22 @@ export async function adjustStock(input: {
   if (input.delta === 0) throw biz("Delta stok tidak boleh 0");
   if (!input.reason?.trim()) throw biz("Alasan penyesuaian wajib diisi");
 
-  const item = await prisma.item.findUnique({ where: { id: input.itemId } });
-  if (!item) throw biz("Item tidak ditemukan");
-
-  if (item.stock + input.delta < 0) {
-    throw biz(`Stok tidak boleh negatif: sisa ${item.stock}, delta ${input.delta}`);
-  }
-
+  // Validasi atomik DI DALAM transaksi: updateMany conditional (stock >= |delta|)
+  // hanya sukses bila stok masih cukup SAAT WRITE — dua penyesuaian paralel
+  // (opname vs pemakaian part) tidak bisa sama-sama lolos (#startup-audit R2).
   return prisma.$transaction(async (tx) => {
-    const updated = await tx.item.update({
-      where: { id: input.itemId },
+    const updated = await tx.item.updateMany({
+      where: {
+        id: input.itemId,
+        ...(input.delta < 0 ? { stock: { gte: -input.delta } } : {}),
+      },
       data: { stock: { increment: input.delta } },
     });
+    if (updated.count !== 1) {
+      const item = await tx.item.findUnique({ where: { id: input.itemId } });
+      if (!item) throw biz("Item tidak ditemukan");
+      throw biz(`Stok tidak boleh negatif: sisa ${item.stock}, delta ${input.delta}`);
+    }
     await tx.stockAudit.create({
       data: {
         itemId: input.itemId,
@@ -164,7 +177,8 @@ export async function adjustStock(input: {
         createdById: input.createdById,
       },
     });
-    return updated;
+    const fresh = await tx.item.findUniqueOrThrow({ where: { id: input.itemId } });
+    return fresh;
   });
 }
 

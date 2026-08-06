@@ -47,9 +47,9 @@ function getRefreshToken(headers: Record<string, string | undefined>): string {
 export const authRouter = new Elysia({ prefix: "/api/v2/auth" })
   .post(
     "/login",
-    async ({ body, set, request }) => {
+    async ({ body, set, request, server }) => {
       // SEC-6: rate limit per IP+username — cek SEBELUM bcrypt (hemat CPU & blokir brute)
-      const rl = checkLoginRateLimit(request, body.username);
+      const rl = checkLoginRateLimit(request, body.username, server);
       if (!rl.allowed) {
         set.status = 429;
         set.headers["Retry-After"] = String(rl.retryAfterSec);
@@ -138,7 +138,7 @@ export const authRouter = new Elysia({ prefix: "/api/v2/auth" })
     {
       body: t.Object({
         oldPassword: t.String({ minLength: 1 }),
-        newPassword: t.String({ minLength: 6 }),
+        newPassword: t.String({ minLength: 8 }),
       }),
       tags: ["Auth"],
     }

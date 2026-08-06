@@ -70,7 +70,7 @@ export async function createUser(input: {
 }) {
   if (!input.name?.trim()) throw biz("Nama wajib diisi");
   if (!input.username?.trim()) throw biz("Username wajib diisi");
-  if (!input.password || input.password.length < 6) throw biz("Password minimal 6 karakter");
+  if (!input.password || input.password.length < 8) throw biz("Password minimal 8 karakter");
   const exists = await prisma.user.findUnique({ where: { username: input.username.trim() } });
   if (exists) throw biz("Username sudah dipakai", 409);
   const hash = await bcrypt.hash(input.password, 10);
@@ -109,11 +109,19 @@ export async function updateUser(
 }
 
 export async function resetPassword(id: number, newPassword: string) {
-  if (!newPassword || newPassword.length < 6) throw biz("Password minimal 6 karakter");
+  if (!newPassword || newPassword.length < 8) throw biz("Password minimal 8 karakter");
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) throw biz("User tidak ditemukan", 404);
   const hash = await bcrypt.hash(newPassword, 10);
-  await prisma.user.update({ where: { id }, data: { passwordHash: hash } });
+  await prisma.$transaction([
+    prisma.user.update({ where: { id }, data: { passwordHash: hash } }),
+    // #startup-audit R4: reset password harus mematikan semua sesi lama
+    // (revoke refresh token) — kalau tidak, token curian tetap valid.
+    prisma.refreshToken.updateMany({
+      where: { userId: id, revokedAt: null },
+      data: { revokedAt: new Date() },
+    }),
+  ]);
   return { success: true, message: "Password berhasil di-reset" };
 }
 

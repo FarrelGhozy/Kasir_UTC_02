@@ -40,15 +40,25 @@ export function validatePatternLock(pattern: unknown): string | undefined {
 }
 
 /** Sanitasi device JSON saat create/update tiket — #114: sisipkan patternLock valid; #109: filter foto dataURL. */
+// #startup-audit R10: whitelist MIME (png/jpeg/webp/gif — TOLAK svg yang bisa
+// bawa script) + cap jumlah foto (6) + cap chars per foto.
+const PHOTO_MIME = /^data:image\/(png|jpe?g|webp|gif);base64,/;
+const MAX_DEVICE_PHOTOS = 6;
+
 export function sanitizeDevice(device: unknown): object {
   const base: Record<string, unknown> =
     device && typeof device === "object" ? { ...(device as Record<string, unknown>) } : {};
   base.patternLock = validatePatternLock(base.patternLock);
   // #109: foto hasil kompresi browser (dataURL ≤ ~2MB base64)
   if (Array.isArray(base.photos)) {
-    base.photos = (base.photos as unknown[]).filter(
-      (p) => typeof p === "string" && p.startsWith("data:image/") && p.length <= MAX_DEVICE_PHOTO_CHARS
-    );
+    base.photos = (base.photos as unknown[])
+      .filter(
+        (p) =>
+          typeof p === "string" &&
+          PHOTO_MIME.test(p) &&
+          p.length <= MAX_DEVICE_PHOTO_CHARS
+      )
+      .slice(0, MAX_DEVICE_PHOTOS);
   }
   return base;
 }
@@ -360,10 +370,15 @@ export async function addServicePart(input: {
         subtotal: (Number(item.sellingPrice) * input.qty).toFixed(2),
       },
     });
-    await tx.item.update({
-      where: { id: input.itemId },
+    // Potong stok ATOMIK — updateMany conditional: dua pemakaian part paralel
+    // tidak bisa sama-sama lolos (#startup-audit R2, pola sama dgn checkout).
+    const cut = await tx.item.updateMany({
+      where: { id: input.itemId, stock: { gte: input.qty } },
       data: { stock: { decrement: input.qty } },
     });
+    if (cut.count !== 1) {
+      throw biz(`Stok ${item.name} kurang (sisa ${item.stock}, butuh ${input.qty})`);
+    }
     await tx.stockAudit.create({
       data: {
         itemId: input.itemId,

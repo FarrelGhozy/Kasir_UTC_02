@@ -58,32 +58,45 @@ setInterval(() => {
   }
 }, LOCKOUT_MS).unref?.();
 
+/** Tipe minimal Bun.Server untuk requestIP (socket IP asli). */
+export type ServerLike = {
+  requestIP?: (request: Request) => { address?: string } | null;
+} | null | undefined;
+
+/**
+ * IP client anti-spoof: prioritaskan IP socket TCP dari server (tidak bisa
+ * dipalsukan client), fallback ke header proxy tepercaya (nginx x-real-ip).
+ * Header x-real-ip/cf-connecting-ip TANPA socket IP bisa diisi bebas attacker
+ * yang konek langsung ke :5300 — jangan pernah jadi sumber utama.
+ */
+export function clientIp(request: Request, server?: ServerLike): string {
+  const socketIp = server?.requestIP?.(request)?.address;
+  if (socketIp) return socketIp;
+  return (
+    request.headers.get("x-real-ip") ||
+    request.headers.get("cf-connecting-ip") ||
+    "unknown"
+  );
+}
+
 /**
  * Rate limit generik #113 — untuk endpoint sensitif non-login (backup ops, import).
- * key = prefix namespace + IP; IP diambil dari x-real-ip / cf-connecting-ip
- * (trust proxy dimatikan — spoof X-Forwarded-For tidak efektif).
+ * key = prefix namespace + IP (socket; fallback header proxy).
  */
 export function checkRateLimit(
   request: Request,
   namespace: string,
-  max = ADMIN_OPS_MAX
+  max = ADMIN_OPS_MAX,
+  server?: ServerLike
 ): { allowed: boolean; retryAfterSec: number } {
-  const ip =
-    request.headers.get("x-real-ip") ||
-    request.headers.get("cf-connecting-ip") ||
-    "unknown";
-  return hit(`${namespace}:${ip}`, max);
+  return hit(`${namespace}:${clientIp(request, server)}`, max);
 }
 
-/** Rate limit untuk login: key = IP + username (spoof X-Forwarded-For tidak efektif) */
+/** Rate limit untuk login: key = IP (socket) + username. */
 export function checkLoginRateLimit(
   request: Request,
-  username: string
+  username: string,
+  server?: ServerLike
 ): { allowed: boolean; retryAfterSec: number } {
-  // IP dari socket langsung (trust proxy dimatikan — SEC-6); x-real-ip di-set nginx
-  const ip =
-    request.headers.get("x-real-ip") ||
-    request.headers.get("cf-connecting-ip") ||
-    "unknown";
-  return hit(`${ip}:${username}`);
+  return hit(`${clientIp(request, server)}:${username}`);
 }

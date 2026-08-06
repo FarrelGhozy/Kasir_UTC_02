@@ -46,11 +46,11 @@ export const backupRouter = new Elysia({ prefix: "/api/v2/backup" })
   // POST /api/v2/backup/restore → restore AMAN (validasi dulu, lalu transaksi) — ADMIN ONLY
   .post(
     "/restore",
-    async ({ body, headers, set, request }) => {
+    async ({ body, headers, set, request, server }) => {
       try {
         await requireAuth(headers, ["admin"]);
-        // #113: restore = operasi destruktif — rate limit per-IP
-        const rl = checkRateLimit(request, "backup-restore");
+        // #113: restore = operasi destruktif — rate limit per-IP (socket)
+        const rl = checkRateLimit(request, "backup-restore", undefined, server);
         if (!rl.allowed) {
           set.status = 429;
           return { success: false, error: `Terlalu banyak permintaan — coba lagi dalam ${rl.retryAfterSec} detik` };

@@ -13,7 +13,9 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD di root .env — lihat .env.example}
       POSTGRES_DB: utc_v2
     ports:
-      - "27019:5432"
+      # #startup-audit S4: bind localhost saja — DB tidak boleh terekspos ke
+      # jaringan luar; akses eksternal via service backend (dalam network).
+      - "127.0.0.1:27019:5432"
     volumes:
       - pg_v2_data:/var/lib/postgresql/data
     healthcheck:

@@ -1,10 +1,9 @@
 // Nota service v2 — #101: riwayat nota/struk dari sumber yang sudah ada
 // (Transaction + ServiceTicket). Tanpa model baru (reuse) — keputusan desain.
 // #104: + generate PDF nota (POS/servis/order) via pdfService.
-import { PrismaClient } from "@prisma/client";
+// #startup-audit R14: pakai PrismaClient singleton dari ../db (bukan instance baru).
+import { prisma } from "../db";
 import { generateNotaPdf, notaPdfMeta, rupiah, formatDate, type PdfLine } from "./pdfService";
-
-const prisma = new PrismaClient();
 
 function biz(msg: string, status = 400): Error {
   const e = new Error(`[BIZ] ${msg}`) as Error & { status: number };
@@ -173,7 +172,9 @@ export async function getNotaPdf(source: string, id: number): Promise<Buffer> {
         subtotal: Number(i.subtotal),
       })),
       totals: [
-        { label: "Subtotal", value: rupiah(Number(t.grandTotal)) },
+        // #startup-audit R9: Subtotal = grandTotal - pajak (grandTotal sudah
+        // termasuk tax — sebelumnya pajak dihitung dua kali di struk).
+        { label: "Subtotal", value: rupiah(Number(t.grandTotal) - Number(t.tax ?? 0)) },
         { label: "Pajak", value: rupiah(Number(t.tax ?? 0)) },
         { label: "Grand Total", value: rupiah(Number(t.grandTotal)) },
         { label: "Dibayar", value: rupiah(Number(t.amountPaid ?? 0)) },

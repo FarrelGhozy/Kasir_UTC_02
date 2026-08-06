@@ -85,8 +85,14 @@ export async function rotateRefreshToken(refreshToken: string): Promise<RefreshR
   const user = await prisma.user.findUnique({ where: { id: stored.userId } });
   if (!user || !user.isActive) throw new Error("[AUTH] User tidak aktif");
 
-  // revoke token lama (rotation — reuse detection)
-  await prisma.refreshToken.update({ where: { id: stored.id }, data: { revokedAt: new Date() } });
+  // revoke token lama (rotation — reuse detection). Atomic: updateMany dengan
+  // kondisi revokedAt null — hanya SATU request yang menang; request kedua
+  // dengan token sama = reuse attack → ditolak (#startup-audit R7).
+  const revoked = await prisma.refreshToken.updateMany({
+    where: { id: stored.id, revokedAt: null },
+    data: { revokedAt: new Date() },
+  });
+  if (revoked.count !== 1) throw new Error("[AUTH] Refresh token sudah dipakai");
   const tokens = await issueTokens(user);
   return {
     user: { id: user.id, name: user.name, username: user.username, role: user.role },
@@ -130,8 +136,8 @@ export async function changePassword(
   oldPassword: string,
   newPassword: string
 ): Promise<void> {
-  if (!newPassword || newPassword.length < 6) {
-    throw new Error("[BIZ] Password baru minimal 6 karakter");
+  if (!newPassword || newPassword.length < 8) {
+    throw new Error("[BIZ] Password baru minimal 8 karakter");
   }
   if (oldPassword === newPassword) {
     throw new Error("[BIZ] Password baru harus berbeda dari yang lama");

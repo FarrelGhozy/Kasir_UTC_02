@@ -55,6 +55,7 @@ export async function createTransaction(input: CheckoutInput) {
     }
 
     const taxBig = BigInt(Math.round(Number(tax) * 100));
+    if (taxBig < 0n) throw new Error("[BIZ] Pajak tidak boleh negatif");
     const grandTotalCents = grandTotal + taxBig;
 
     // 3. Validasi pembayaran (pakai sen untuk hindari floating point)
@@ -65,12 +66,18 @@ export async function createTransaction(input: CheckoutInput) {
       );
     const changeCents = paidCents - grandTotalCents;
 
-    // 4. Potong stok (semua item) + catat audit
+    // 4. Potong stok ATOMIK (semua item) + catat audit.
+    //    updateMany conditional (stock >= qty) → hanya sukses bila stok masih
+    //    cukup SAAT WRITE — dua checkout paralel item terakhir tidak bisa
+    //    sama-sama lolos (read-modify-write race, #startup-audit R1).
     for (const d of detailItems) {
-      await tx.item.update({
-        where: { id: d.item.id },
+      const cut = await tx.item.updateMany({
+        where: { id: d.item.id, stock: { gte: d.qty } },
         data: { stock: { decrement: d.qty } },
       });
+      if (cut.count !== 1) {
+        throw new Error(`[BIZ] Stok ${d.item.name} kurang (sisa ${d.item.stock}, butuh ${d.qty})`);
+      }
       await tx.stockAudit.create({
         data: {
           itemId: d.item.id,

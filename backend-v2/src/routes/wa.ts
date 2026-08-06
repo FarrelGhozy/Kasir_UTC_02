@@ -1,7 +1,8 @@
 // Route WhatsApp (WAHA) v2 — #102: status session, check nomor, notify/resend teknisi,
 // validate WA. Prefix /api/v2/wa + RBAC. Secret WAHA hanya dari env (config).
+// #startup-audit R14: pakai PrismaClient singleton dari ../db.
 import { Elysia, t } from "elysia";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "../db";
 import { requireAuth } from "../middleware/auth";
 import { mapError } from "../middleware/error";
 import {
@@ -10,8 +11,6 @@ import {
   notifyServiceStatus,
   normalizePhone,
 } from "../services/waService";
-
-const prisma = new PrismaClient();
 
 export const waRouter = new Elysia({ prefix: "/api/v2/wa" })
   // GET /api/v2/wa/status — status session WAHA (semua role ter-login)

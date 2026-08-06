@@ -21,11 +21,11 @@ export const inventoryRouter = new Elysia({ prefix: "/api/v2/inventory" })
   // ── CRUD ──────────────────────────────────────────────────────────────────
   .post(
     "/",
-    async ({ body, headers, set, request }) => {
+    async ({ body, headers, set, request, server }) => {
       try {
         const user = await requireAuth(headers, ["kasir", "teknisi", "admin"]);
         // #113: limit write inventory per-IP (anti brute/spam massal)
-        const rl = checkRateLimit(request, "inventory-write");
+        const rl = checkRateLimit(request, "inventory-write", undefined, server);
         if (!rl.allowed) {
           set.status = 429;
           return { success: false, error: `Terlalu banyak permintaan — coba lagi dalam ${rl.retryAfterSec} detik` };
@@ -114,11 +114,11 @@ export const inventoryRouter = new Elysia({ prefix: "/api/v2/inventory" })
       tags: ["Inventory"],
     }
   )
-  .delete("/:id", async ({ params, headers, set, request }) => {
+  .delete("/:id", async ({ params, headers, set, request, server }) => {
     try {
       await requireAuth(headers, ["kasir", "teknisi", "admin"]);
-      // #113: limit delete per-IP (anti penghapusan massal otomatis)
-      const rl = checkRateLimit(request, "inventory-write");
+      // #113: limit delete per-IP (anti penghapusan massal)
+      const rl = checkRateLimit(request, "inventory-write", undefined, server);
       if (!rl.allowed) {
         set.status = 429;
         return { success: false, error: `Terlalu banyak permintaan — coba lagi dalam ${rl.retryAfterSec} detik` };
@@ -157,9 +157,19 @@ export const inventoryRouter = new Elysia({ prefix: "/api/v2/inventory" })
   // POST /api/v2/inventory/import → import massal dari raw CSV — kasir/teknisi/admin
   .post(
     "/import",
-    async ({ body, headers, set }) => {
+    async ({ body, headers, set, request, server }) => {
       try {
         const user = await requireAuth(headers, ["kasir", "teknisi", "admin"]);
+        // #113: import = operasi massal — rate limit per-IP + cap ukuran body
+        const rl = checkRateLimit(request, "inventory-import", 10, server);
+        if (!rl.allowed) {
+          set.status = 429;
+          return { success: false, error: `Terlalu banyak permintaan — coba lagi dalam ${rl.retryAfterSec} detik` };
+        }
+        if (body.csv.length > 5_000_000) {
+          set.status = 413;
+          return { success: false, error: "CSV terlalu besar (maks 5 MB)" };
+        }
         const result = await importItemsCsv(body.csv, user.id);
         return { success: true, ...result };
       } catch (e) {
@@ -169,7 +179,7 @@ export const inventoryRouter = new Elysia({ prefix: "/api/v2/inventory" })
       }
     },
     {
-      body: t.Object({ csv: t.String() }),
+      body: t.Object({ csv: t.String({ maxLength: 5_000_000 }) }),
       tags: ["Inventory"],
     }
   )

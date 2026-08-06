@@ -113,12 +113,14 @@ export async function orderFinancials(orderId: number, client: Pick<typeof prism
 
 // ── Core: buat order baru ───────────────────────────────────────────────────
 // #109: + foto barang (dataURL hasil kompresi browser) + validasi ukuran/tipe.
+// #startup-audit R10: whitelist MIME (png/jpeg/webp/gif — TOLAK svg).
 export const MAX_PHOTO_CHARS = 2_800_000; // ~2MB binary base64
+const PHOTO_MIME = /^data:image\/(png|jpe?g|webp|gif);base64,/;
 
 export function validatePhoto(photo?: string | null): string | undefined {
   if (!photo) return undefined;
   if (photo.length > MAX_PHOTO_CHARS) throw new Error("[BIZ] Foto terlalu besar (maks ~2MB)");
-  if (!photo.startsWith("data:image/")) throw new Error("[BIZ] Foto harus berupa data URL gambar");
+  if (!PHOTO_MIME.test(photo)) throw new Error("[BIZ] Foto harus data URL gambar (png/jpeg/webp/gif)");
   return photo;
 }
 
@@ -190,22 +192,26 @@ export async function addOrderPayment(input: {
   method: PaymentMethod;
   createdById?: number;
 }) {
-  const fin = await orderFinancials(input.orderId);
-  const remainingCents = BigInt(Math.round(Number(fin.remaining) * 100));
+  if (!Number.isFinite(input.amount)) throw biz("Nominal pembayaran tidak valid");
+  // #startup-audit R3: SEMUA baca + validasi DI DALAM transaksi — dua
+  // pembayaran paralel tidak bisa sama-sama lolos cek sisa (sebelumnya
+  // orderFinancials dibaca di luar tx → overpay race).
+  return prisma.$transaction(async (tx) => {
+    const fin = await orderFinancials(input.orderId, tx);
+    const remainingCents = BigInt(Math.round(Number(fin.remaining) * 100));
 
-  if (fin.paymentStatus === "Lunas") {
-    throw biz(`Order ${fin.orderNumber} sudah lunas — tidak bisa bayar lagi`);
-  }
-  const amountCents = BigInt(Math.round(input.amount * 100));
-  if (amountCents > remainingCents) {
-    throw biz(
-      `Pembayaran melebihi sisa: sisa ${fin.remaining}, dibayar ${formatDecimal(amountCents)}`
-    );
-  }
-  if (amountCents <= 0n) throw biz("Nominal pembayaran harus > 0");
+    if (fin.paymentStatus === "Lunas") {
+      throw biz(`Order ${fin.orderNumber} sudah lunas — tidak bisa bayar lagi`);
+    }
+    const amountCents = BigInt(Math.round(input.amount * 100));
+    if (amountCents > remainingCents) {
+      throw biz(
+        `Pembayaran melebihi sisa: sisa ${fin.remaining}, dibayar ${formatDecimal(amountCents)}`
+      );
+    }
+    if (amountCents <= 0n) throw biz("Nominal pembayaran harus > 0");
 
-  // catat payment (H2) — dalam transaksi biar konsisten dengan update status (H1)
-  const updated = await prisma.$transaction(async (tx) => {
+    // catat payment (H2) — dalam transaksi biar konsisten dengan update status (H1)
     await tx.specialOrderPayment.create({
       data: {
         orderId: input.orderId,
@@ -221,6 +227,4 @@ export async function addOrderPayment(input: {
     });
     return fin2;
   });
-
-  return updated;
 }
