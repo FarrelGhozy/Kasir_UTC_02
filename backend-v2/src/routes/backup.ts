@@ -13,6 +13,7 @@ import {
 } from "../services/backupService";
 import { requireAuth } from "../middleware/auth";
 import { mapError } from "../middleware/error";
+import { checkRateLimit } from "../middleware/security";
 
 export const backupRouter = new Elysia({ prefix: "/api/v2/backup" })
   // GET /api/v2/backup → unduh backup JSON (dengan checksum) — ADMIN ONLY
@@ -45,9 +46,15 @@ export const backupRouter = new Elysia({ prefix: "/api/v2/backup" })
   // POST /api/v2/backup/restore → restore AMAN (validasi dulu, lalu transaksi) — ADMIN ONLY
   .post(
     "/restore",
-    async ({ body, headers, set }) => {
+    async ({ body, headers, set, request }) => {
       try {
         await requireAuth(headers, ["admin"]);
+        // #113: restore = operasi destruktif — rate limit per-IP
+        const rl = checkRateLimit(request, "backup-restore");
+        if (!rl.allowed) {
+          set.status = 429;
+          return { success: false, error: `Terlalu banyak permintaan — coba lagi dalam ${rl.retryAfterSec} detik` };
+        }
         const { restoredRows } = await restoreBackup(body.backup);
         return { success: true, restoredRows };
       } catch (e) {

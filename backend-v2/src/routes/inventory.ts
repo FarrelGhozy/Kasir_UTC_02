@@ -15,14 +15,21 @@ import {
 } from "../services/inventoryService";
 import { requireAuth } from "../middleware/auth";
 import { mapError } from "../middleware/error";
+import { checkRateLimit } from "../middleware/security";
 
 export const inventoryRouter = new Elysia({ prefix: "/api/v2/inventory" })
   // ── CRUD ──────────────────────────────────────────────────────────────────
   .post(
     "/",
-    async ({ body, headers, set }) => {
+    async ({ body, headers, set, request }) => {
       try {
         const user = await requireAuth(headers, ["kasir", "teknisi", "admin"]);
+        // #113: limit write inventory per-IP (anti brute/spam massal)
+        const rl = checkRateLimit(request, "inventory-write");
+        if (!rl.allowed) {
+          set.status = 429;
+          return { success: false, error: `Terlalu banyak permintaan — coba lagi dalam ${rl.retryAfterSec} detik` };
+        }
         const item = await createItem({ ...body, createdById: user.id });
         set.status = 201;
         return { success: true, data: item };
@@ -107,9 +114,15 @@ export const inventoryRouter = new Elysia({ prefix: "/api/v2/inventory" })
       tags: ["Inventory"],
     }
   )
-  .delete("/:id", async ({ params, headers, set }) => {
+  .delete("/:id", async ({ params, headers, set, request }) => {
     try {
       await requireAuth(headers, ["kasir", "teknisi", "admin"]);
+      // #113: limit delete per-IP (anti penghapusan massal otomatis)
+      const rl = checkRateLimit(request, "inventory-write");
+      if (!rl.allowed) {
+        set.status = 429;
+        return { success: false, error: `Terlalu banyak permintaan — coba lagi dalam ${rl.retryAfterSec} detik` };
+      }
       return { success: true, data: await deleteItem(Number(params.id)) };
     } catch (e) {
       const r = mapError(e);

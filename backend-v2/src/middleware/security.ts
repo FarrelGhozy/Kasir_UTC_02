@@ -30,10 +30,13 @@ const WINDOW_MS = 15 * 60 * 1000; // 15 menit
 // regresi paralel; produksi default 20 tetap ketat — SEC-6)
 const MAX_REQUESTS = Number(process.env.RATE_LIMIT_MAX ?? 20);
 const LOCKOUT_MS = 30 * 60 * 1000; // lockout 30 menit setelah limit
+// #113: limit operasi admin sensitif (backup save/restore/delete, import CSV)
+// per-IP per window — default 30; produksi via compose diset 100.
+const ADMIN_OPS_MAX = Number(process.env.RATE_LIMIT_ADMIN_MAX ?? 30);
 
 const buckets = new Map<string, Bucket>();
 
-function hit(key: string): { allowed: boolean; retryAfterSec: number } {
+function hit(key: string, max: number = MAX_REQUESTS): { allowed: boolean; retryAfterSec: number } {
   const now = Date.now();
   let b = buckets.get(key);
   if (!b || b.resetAt < now) {
@@ -41,7 +44,7 @@ function hit(key: string): { allowed: boolean; retryAfterSec: number } {
     buckets.set(key, b);
   }
   b.count++;
-  if (b.count > MAX_REQUESTS) {
+  if (b.count > max) {
     return { allowed: false, retryAfterSec: Math.ceil((b.resetAt - now) / 1000) };
   }
   return { allowed: true, retryAfterSec: 0 };
@@ -54,6 +57,23 @@ setInterval(() => {
     if (v.resetAt < now) buckets.delete(k);
   }
 }, LOCKOUT_MS).unref?.();
+
+/**
+ * Rate limit generik #113 — untuk endpoint sensitif non-login (backup ops, import).
+ * key = prefix namespace + IP; IP diambil dari x-real-ip / cf-connecting-ip
+ * (trust proxy dimatikan — spoof X-Forwarded-For tidak efektif).
+ */
+export function checkRateLimit(
+  request: Request,
+  namespace: string,
+  max = ADMIN_OPS_MAX
+): { allowed: boolean; retryAfterSec: number } {
+  const ip =
+    request.headers.get("x-real-ip") ||
+    request.headers.get("cf-connecting-ip") ||
+    "unknown";
+  return hit(`${namespace}:${ip}`, max);
+}
 
 /** Rate limit untuk login: key = IP + username (spoof X-Forwarded-For tidak efektif) */
 export function checkLoginRateLimit(
