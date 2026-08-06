@@ -1,9 +1,10 @@
 // Route webhook WAHA v2 — #102: terima event masuk dari WAHA (NOWEB engine).
-// Divalidasi header X-Api-Key (secret dari env config). Event disimpan ringan
-// (tanpa model baru — console + response OK), karena v1 hanya butuh jejak "message".
+// Divalidasi header X-Api-Key (secret dari env config). #110: event message
+// diteruskan ke WA bot auto-reply (botService) — aman saat WAHA offline.
 import { Elysia } from "elysia";
 import { config } from "../config/env";
 import { mapError } from "../middleware/error";
+import { handleIncomingMessage } from "../bot/botService";
 
 export const webhookRouter = new Elysia()
   // POST /api/v2/waha-webhook — event dari WAHA (message dll.)
@@ -15,8 +16,11 @@ export const webhookRouter = new Elysia()
         return { success: false, error: "Unauthorized" };
       }
       const event = (body as any)?.event ?? "message";
-      // Jejak ringan — WAHA NOWEB kirim event; tidak ada aksi bisnis otomatis di v2
       console.log(`[WAHA-webhook] event=${event} payload_keys=${Object.keys((body as any) ?? {}).join(",")}`);
+      // #110: proses pesan masuk → auto-reply bot (fire-and-forget, tidak memblokir webhook)
+      if (event === "message" || event === "messages.upsert") {
+        void handleIncomingMessage((body as any)?.payload ?? (body as any)?.data ?? body);
+      }
       return { success: true, received: true };
     } catch (e) {
       const r = mapError(e);
