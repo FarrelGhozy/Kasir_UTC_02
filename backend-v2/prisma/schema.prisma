@@ -1,0 +1,385 @@
+// Prisma schema — Kasir UTC v2 (PostgreSQL)
+// Mengikuti mapping di docs/v2-audit/02-logic-audit.md (PETA MODEL DATA)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// Enum
+// ============================================================
+enum Role {
+  admin
+  teknisi
+  kasir
+}
+
+enum ItemCategory {
+  Sparepart
+  Accessory
+  Software
+  Service
+  Other
+}
+
+enum ServiceStatus {
+  Queue
+  Diagnosing
+  In_Progress
+  Waiting_Part
+  Completed
+  Ready_For_Pickup
+  Picked_Up
+  Cancelled
+}
+
+enum PaymentMethod {
+  Cash
+  Transfer
+  QRIS
+  Card
+}
+
+enum OrderStatus {
+  Pending
+  Searching
+  Ordered
+  Arrived
+  Picked_Up
+  Cancelled
+}
+
+enum PaymentStatus {
+  Belum_Lunas
+  Lunas
+}
+
+enum Day {
+  senin
+  selasa
+  rabu
+  kamis
+  jumat
+}
+
+enum LogLevel {
+  INFO
+  WARN
+  ERROR
+}
+
+// ============================================================
+// Number sequence — fix C1/H15 (nomor anti-kembar, atomik)
+// key contoh: "invoice:2026-08-03" / "ticket" / "order"
+// ============================================================
+model NumberSequence {
+  key       String   @id @db.VarChar(60)
+  value     Int      @default(0)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("number_sequences")
+}
+
+// ============================================================
+// Users
+// ============================================================
+model User {
+  id           Int      @id @default(autoincrement())
+  name         String   @db.VarChar(100)
+  username     String   @unique @db.VarChar(50)
+  passwordHash String   @map("password_hash") @db.VarChar(255)
+  role         Role     @default(kasir)
+  phone        String   @default("") @db.VarChar(20)
+  isActive     Boolean  @default(true) @map("is_active")
+  jabatan      String?  @db.VarChar(100)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  serviceTickets   ServiceTicket[] @relation("TechnicianTickets")
+  dutySchedules    DutySchedule[]
+  transactions     Transaction[]
+  specialOrders    SpecialOrder[]
+  orderPayments    SpecialOrderPayment[]
+  stockAudits      StockAudit[]
+  refreshTokens    RefreshToken[]
+
+  @@index([isActive])
+  @@map("users")
+}
+
+// ============================================================
+// Refresh tokens (JWT rotation — #96)
+// ============================================================
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
+  tokenHash String   @unique @map("token_hash") @db.VarChar(64)
+  userId    Int      @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+// ============================================================
+// Items (inventory)
+// ============================================================
+model Item {
+  id              Int          @id @default(autoincrement())
+  sku             String       @unique @db.VarChar(50)
+  name            String       @db.VarChar(200)
+  category        ItemCategory @default(Other)
+  purchasePrice   Decimal      @default(0) @map("purchase_price") @db.Decimal(14, 2)
+  sellingPrice    Decimal      @map("selling_price") @db.Decimal(14, 2)
+  stock           Int          @default(0)
+  minStockAlert   Int          @default(5) @map("min_stock_alert")
+  description     String?
+  isActive        Boolean      @default(true) @map("is_active")
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  transactionItems TransactionItem[]
+  ticketParts      ServiceTicketPart[]
+  stockAudits      StockAudit[]
+
+  @@index([category])
+  @@index([isActive])
+  @@map("items")
+}
+
+// ============================================================
+// Customers (normalisasi dari subdoc ServiceTicket.customer)
+// ============================================================
+model Customer {
+  id         Int       @id @default(autoincrement())
+  name       String    @db.VarChar(100)
+  phone      String?   @db.VarChar(20)
+  isWaValid  Boolean   @default(false) @map("is_wa_valid")
+  email      String?
+  type       String?   @db.VarChar(30)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  serviceTickets ServiceTicket[]
+  specialOrders  SpecialOrder[]
+
+  @@index([phone])
+  @@map("customers")
+}
+
+// ============================================================
+// Service Tickets
+// ============================================================
+model ServiceTicket {
+  id                Int                 @id @default(autoincrement())
+  ticketNumber      String              @unique @map("ticket_number") @db.VarChar(30)
+  customerId        Int?                @map("customer_id")
+  customer          Customer?           @relation(fields: [customerId], references: [id])
+  device            Json                @default("{}")
+  technicianName    String?             @map("technician_name") @db.VarChar(100)
+  technicianId      Int?                @map("technician_id")
+  technician        User?               @relation("TechnicianTickets", fields: [technicianId], references: [id])
+  status            ServiceStatus       @default(Queue)
+  parts             ServiceTicketPart[]
+  serviceFee        Decimal             @default(0) @map("service_fee") @db.Decimal(14, 2)
+  paymentMethod     PaymentMethod?
+  paymentProof      String?             @map("payment_proof")
+  totalCost         Decimal             @default(0) @map("total_cost") @db.Decimal(14, 2)
+  notes             String?
+  warrantyExpiresAt DateTime?           @map("warranty_expires_at") @db.Timestamptz(6)
+  warrantyClaimed   Boolean             @default(false) @map("warranty_claimed")
+  claimFromId         Int?                @map("claim_from_id")
+    claimFrom           ServiceTicket?      @relation("WarrantyClaims", fields: [claimFromId], references: [id])
+    claims              ServiceTicket[]     @relation("WarrantyClaims")
+  logs              ServiceLog[]
+  createdAt         DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  diagnosedAt       DateTime?           @map("diagnosed_at") @db.Timestamptz(6)
+  completedAt       DateTime?           @map("completed_at") @db.Timestamptz(6)
+  pickedUpAt        DateTime?           @map("picked_up_at") @db.Timestamptz(6)
+  updatedAt         DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([status])
+  @@index([technicianId])
+  // M8: max 1 klaim garansi per tiket sumber (NULL gak kena unique — aman)
+  @@unique([claimFromId])
+  @@map("service_tickets")
+}
+
+model ServiceTicketPart {
+  id              Int           @id @default(autoincrement())
+  serviceTicketId Int           @map("service_ticket_id")
+  serviceTicket   ServiceTicket @relation(fields: [serviceTicketId], references: [id])
+  itemId          Int           @map("item_id")
+  item            Item          @relation(fields: [itemId], references: [id])
+  name            String?       @db.VarChar(200)
+  qty             Int
+  priceAtTime     Decimal       @map("price_at_time") @db.Decimal(14, 2)
+  subtotal        Decimal       @db.Decimal(14, 2)
+
+  @@index([serviceTicketId])
+  @@map("service_ticket_parts")
+}
+
+model ServiceLog {
+  id              Int           @id @default(autoincrement())
+  serviceTicketId Int           @map("service_ticket_id")
+  serviceTicket   ServiceTicket @relation(fields: [serviceTicketId], references: [id])
+  fromStatus      String?       @map("from_status") @db.VarChar(20)
+  toStatus        String        @map("to_status") @db.VarChar(20)
+  note            String?
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy       String?       @map("created_by")
+
+  @@index([serviceTicketId])
+  @@map("service_logs")
+}
+
+// ============================================================
+// Transactions (POS)
+// ============================================================
+model Transaction {
+  id            Int                @id @default(autoincrement())
+  invoiceNo     String             @unique @map("invoice_no") @db.VarChar(30)
+  cashierId     Int                @map("cashier_id")
+  cashier       User               @relation(fields: [cashierId], references: [id])
+  items         TransactionItem[]
+  grandTotal    Decimal            @map("grand_total") @db.Decimal(14, 2)
+  paymentMethod PaymentMethod
+  amountPaid    Decimal            @map("amount_paid") @db.Decimal(14, 2)
+  change        Decimal            @default(0) @db.Decimal(14, 2)
+  tax           Decimal            @default(0) @db.Decimal(14, 2)
+  notes         String?
+  date          DateTime           @default(now()) @db.Timestamptz(6)
+
+  @@index([date])
+  @@index([cashierId])
+  @@map("transactions")
+}
+
+model TransactionItem {
+  id            Int         @id @default(autoincrement())
+  transactionId Int         @map("transaction_id")
+  transaction   Transaction @relation(fields: [transactionId], references: [id])
+  itemId        Int?        @map("item_id")
+  item          Item?       @relation(fields: [itemId], references: [id])
+  name          String      @db.VarChar(200)
+  qty           Int
+  price         Decimal     @db.Decimal(14, 2)
+  subtotal      Decimal     @db.Decimal(14, 2)
+
+  @@index([transactionId])
+  @@map("transaction_items")
+}
+
+// ============================================================
+// Special Orders
+// ============================================================
+model SpecialOrder {
+  id              Int            @id @default(autoincrement())
+  orderNumber     String         @unique @map("order_number") @db.VarChar(30)
+  customerId      Int?           @map("customer_id")
+  customer        Customer?      @relation(fields: [customerId], references: [id])
+  itemName        String         @map("item_name") @db.VarChar(255)
+  itemDescription String?        @map("item_description")
+  estimatedPrice  Decimal        @map("estimated_price") @db.Decimal(14, 2)
+  downPayment     Decimal        @default(0) @map("down_payment") @db.Decimal(14, 2)
+  status          OrderStatus    @default(Pending)
+  paymentStatus   PaymentStatus  @default(Belum_Lunas) @map("payment_status")
+  handledById     Int?           @map("handled_by_id")
+  handledBy       User?          @relation(fields: [handledById], references: [id])
+  handledByName   String?        @map("handled_by_name") @db.VarChar(100)
+  photo           String?
+  serviceTicketId Int?           @map("service_ticket_id")
+  notes           String?
+  createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  orderedAt       DateTime?      @map("ordered_at") @db.Timestamptz(6)
+  arrivedAt       DateTime?      @map("arrived_at") @db.Timestamptz(6)
+  pickedUpAt      DateTime?      @map("picked_up_at") @db.Timestamptz(6)
+
+  payments SpecialOrderPayment[]
+
+  @@index([status])
+  @@map("special_orders")
+}
+
+// Order payments — fix H1/H2 (uang order tersinkron)
+model SpecialOrderPayment {
+  id          Int          @id @default(autoincrement())
+  orderId     Int          @map("order_id")
+  order       SpecialOrder @relation(fields: [orderId], references: [id])
+  amount      Decimal      @db.Decimal(14, 2)
+  method      PaymentMethod
+  paidAt      DateTime     @default(now()) @map("paid_at") @db.Timestamptz(6)
+  createdById Int?         @map("created_by")
+  createdBy   User?        @relation(fields: [createdById], references: [id])
+
+  @@index([orderId])
+  @@map("order_payments")
+}
+
+// ============================================================
+// Duty schedules
+// ============================================================
+model DutySchedule {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  user      User     @relation(fields: [userId], references: [id])
+  day       Day
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([userId, day])
+  @@map("duty_schedules")
+}
+
+// ============================================================
+// Stock audit — fix H17/C1 (rekonstruksi stok)
+// ============================================================
+model StockAudit {
+  id        Int        @id @default(autoincrement())
+  itemId    Int        @map("item_id")
+  item      Item       @relation(fields: [itemId], references: [id])
+  delta     Int
+  reason    String     @db.VarChar(100)
+  refType   String?    @map("ref_type") @db.VarChar(30)
+  refId     Int?       @map("ref_id")
+  createdById Int?     @map("created_by")
+  createdBy User?      @relation(fields: [createdById], references: [id])
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([itemId])
+  @@map("stock_audit")
+}
+
+// ============================================================
+// System logs
+// ============================================================
+model SystemLog {
+  id        Int      @id @default(autoincrement())
+  level     LogLevel
+  source    String?  @db.VarChar(50)
+  message   String
+  details   Json?
+  timestamp DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([timestamp])
+  @@map("system_logs")
+}
+
+// ============================================================
+// Migration helper — #86: peta ObjectId lama → id baru PG
+// ============================================================
+model MigrationIdMap {
+  entity    String @db.VarChar(40) // users | items | customers | service_tickets | ...
+  oldId     String @db.VarChar(40) // ObjectId asli di MongoDB
+  newId     Int
+
+  @@id([entity, oldId])
+  @@index([entity, newId])
+  @@map("migration_id_map")
+}
