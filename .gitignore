@@ -2,8 +2,13 @@
 node_modules/
 backend/node_modules/
 frontend/node_modules/
+backend-v2/node_modules/
+frontend-v2/node_modules/
 .pnp
 .pnp.js
+
+# Artifact agent/editor
+.agents/
 
 # Environment Variables
 .env
@@ -46,6 +51,7 @@ Thumbs.db
 
 # Backup files
 backend/backups/
+backend-v2/backups/
 
 #pembantu 
 CLAUDE.md
@@ -53,3 +59,4 @@ AGENTS.md
 
 # Seed data asli (berisi data real, digantikan seed.dummy.js)
 backend/seed.js
+docker-compose.yml.backup
