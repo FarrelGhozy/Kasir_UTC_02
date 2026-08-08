@@ -32,10 +32,12 @@ services:
     environment:
       - PORT=5000
       - MONGODB_URI=mongodb://mongo_db:27017/bengkel_utc
-      - JWT_SECRET=${JWT_SECRET:-change_this_in_production}
+      # #startup-audit S1: secret WAJIB dari env — nilai hardcoded (adminutc28)
+      # sudah bocor di git history, jangan dipakai lagi. Set di root .env.
+      - JWT_SECRET=${JWT_SECRET:?set JWT_SECRET di root .env — lihat .env.example}
       - NODE_ENV=production
       - WAHA_URL=http://waha:8000
-      - WAHA_API_KEY=adminutc28
+      - WAHA_API_KEY=${WAHA_API_KEY:?set WAHA_API_KEY di root .env — lihat .env.example}
       - BACKEND_URL=http://backend:5000
       - IS_CAMPUS_EVENT=false
       - CORS_ORIGIN=*
@@ -92,11 +94,12 @@ services:
       - WHATSAPP_HOOK_URL=http://backend:5000/api/waha-webhook
       - WHATSAPP_HOOK_EVENTS=message
       - WAHA_PRINT_QR=true
-      - WAHA_API_KEY=adminutc28
-      - WHATSAPP_SWAGGER_USERNAME=admin-utc01
-      - WHATSAPP_SWAGGER_PASSWORD=adminutc28
-      - WAHA_DASHBOARD_USERNAME=admin-utc01
-      - WAHA_DASHBOARD_PASSWORD=adminutc28
+      # #startup-audit S1: semua secret dari root .env (lihat .env.example).
+      - WAHA_API_KEY=${WAHA_API_KEY:?set WAHA_API_KEY di root .env — lihat .env.example}
+      - WHATSAPP_SWAGGER_USERNAME=${WAHA_SWAGGER_USERNAME:-admin-utc01}
+      - WHATSAPP_SWAGGER_PASSWORD=${WAHA_SWAGGER_PASSWORD:?set WAHA_SWAGGER_PASSWORD di root .env — lihat .env.example}
+      - WAHA_DASHBOARD_USERNAME=${WAHA_DASHBOARD_USERNAME:-admin-utc01}
+      - WAHA_DASHBOARD_PASSWORD=${WAHA_DASHBOARD_PASSWORD:?set WAHA_DASHBOARD_PASSWORD di root .env — lihat .env.example}
     networks:
       - utc_network
     mem_limit: 1024m
