@@ -10,7 +10,7 @@
     "@types/nodemailer": "^8.0.1",
     "@types/papaparse": "^5.5.2",
     "@types/pdfkit": "^0.17.6",
-    "prisma": "6"
+    "prisma": "7"
   },
   "peerDependencies": {
     "typescript": "^5"
