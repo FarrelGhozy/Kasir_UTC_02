@@ -1,0 +1,63 @@
+# Compose v2 — Kasir UTC (port terpisah, produksi v1 tidak tersentuh)
+# Run: docker compose -f docker-compose.v2.yml up -d
+
+name: utc-v2
+
+services:
+  db_v2:
+    image: postgres:16-alpine
+    container_name: utc_pg_v2
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: utc
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD di root .env — lihat .env.example}
+      POSTGRES_DB: utc_v2
+    ports:
+      # #startup-audit S4: bind localhost saja — DB tidak boleh terekspos ke
+      # jaringan luar; akses eksternal via service backend (dalam network).
+      - "127.0.0.1:27019:5432"
+    volumes:
+      - pg_v2_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U utc -d utc_v2"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend_v2:
+    build: ./backend-v2
+    container_name: utc_backend_v2
+    restart: unless-stopped
+    env_file:
+      - ./backend-v2/.env
+    environment:
+      DATABASE_URL: postgresql://utc:${POSTGRES_PASSWORD}@db_v2:5432/utc_v2?schema=public
+      NODE_ENV: production
+      RATE_LIMIT_MAX: 100
+      RATE_LIMIT_ADMIN_MAX: 100
+    ports:
+      - "5300:5300"
+    depends_on:
+      db_v2:
+        condition: service_healthy
+    healthcheck:
+      # Image bun tidak punya curl — pakai bun fetch langsung
+      test: ["CMD", "bun", "-e", "fetch('http://localhost:5300/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  frontend_v2:
+    build: ./frontend-v2
+    container_name: utc_frontend_v2
+    restart: unless-stopped
+    ports:
+      - "8090:80"
+    depends_on:
+      - backend_v2
+
+volumes:
+  pg_v2_data:
+    external: true
+    name: pg_v2_data
