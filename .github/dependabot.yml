@@ -1,0 +1,27 @@
+# Dependabot — auto-update dependencies (DoD #91)
+# Cek harian: npm (backend-v2 & frontend-v2) + docker (compose v2)
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/backend-v2"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+
+  - package-ecosystem: "npm"
+    directory: "/frontend-v2"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"

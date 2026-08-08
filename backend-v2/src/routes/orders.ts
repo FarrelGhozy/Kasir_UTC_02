@@ -1,0 +1,143 @@
+// Route Special Order v2 — FSM ketat + payment sinkron (H1/H2/H13/H14) + #95 (RBAC)
+import { Elysia, t } from "elysia";
+import {
+  createOrder,
+  transitionOrderStatus,
+  addOrderPayment,
+  orderFinancials,
+  listOrders,
+} from "../services/orderService";
+import { claimWarranty } from "../services/warrantyService";
+import { requireAuth } from "../middleware/auth";
+import { mapError } from "../middleware/error";
+
+export const orderRouter = new Elysia({ prefix: "/api/v2/orders" })
+  // list order (monitoring) — semua role ter-login
+  .get("/", async ({ query, headers, set }) => {
+    try {
+      await requireAuth(headers);
+      return { success: true, data: await listOrders(query.q) };
+    } catch (e) {
+      const r = mapError(e);
+      set.status = r.status;
+      return { success: false, error: r.body.error };
+    }
+  })
+  // buat order baru (DP otomatis tercatat sebagai payment) — kasir/teknisi/admin
+  .post(
+    "/",
+    async ({ body, headers, set }) => {
+      try {
+        const user = await requireAuth(headers, ["kasir", "teknisi", "admin"]);
+        // #startup-audit R15: atribusi SELALU dari token — body handledById
+        // dihapus (sebelumnya client bisa mengaku sebagai user lain).
+        const order = await createOrder({ ...body, handledById: user.id });
+        set.status = 201;
+        return { success: true, data: order };
+      } catch (e) {
+        const r = mapError(e);
+        set.status = r.status;
+        return { success: false, error: r.body.error };
+      }
+    },
+    {
+      body: t.Object({
+        customerId: t.Optional(t.Number()),
+        itemName: t.String(),
+        itemDescription: t.Optional(t.String()),
+        estimatedPrice: t.Number(),
+        downPayment: t.Optional(t.Number()),
+        notes: t.Optional(t.String()),
+        photo: t.Optional(t.String()), // #109: dataURL hasil kompresi browser
+      }),
+      tags: ["Orders"],
+    }
+  )
+  // detail keuangan order — semua role ter-login
+  .get("/:id", async ({ params, headers, set }) => {
+    try {
+      await requireAuth(headers);
+      return { success: true, data: await orderFinancials(Number(params.id)) };
+    } catch (e) {
+      const r = mapError(e);
+      set.status = r.status;
+      return { success: false, error: r.body.error };
+    }
+  })
+  // transisi status — FSM ketat (Picked_Up hanya dari Arrived) — kasir/teknisi/admin
+  .patch(
+    "/:id/status",
+    async ({ params, body, headers, set }) => {
+      try {
+        await requireAuth(headers, ["kasir", "teknisi", "admin"]);
+        const data = await transitionOrderStatus(Number(params.id), body.status);
+        return { success: true, data };
+      } catch (e) {
+        const r = mapError(e);
+        set.status = r.status;
+        return { success: false, error: r.body.error };
+      }
+    },
+    {
+      body: t.Object({
+        status: t.Enum({ Pending: "Pending", Searching: "Searching", Ordered: "Ordered", Arrived: "Arrived", Picked_Up: "Picked_Up", Cancelled: "Cancelled" }),
+      }),
+      tags: ["Orders"],
+    }
+  )
+  // catat pembayaran → status otomatis Lunas kalau lunas — kasir/teknisi/admin
+  .post(
+    "/:id/payments",
+    async ({ params, body, headers, set }) => {
+      try {
+        const user = await requireAuth(headers, ["kasir", "teknisi", "admin"]);
+        // #startup-audit R15: createdById selalu dari token (bukan body).
+        const data = await addOrderPayment({
+          orderId: Number(params.id),
+          amount: body.amount,
+          method: body.method,
+          createdById: user.id,
+        });
+        return { success: true, data };
+      } catch (e) {
+        const r = mapError(e);
+        set.status = r.status;
+        return { success: false, error: r.body.error };
+      }
+    },
+    {
+      body: t.Object({
+        amount: t.Number(),
+        method: t.Enum({ Cash: "Cash", Transfer: "Transfer", QRIS: "QRIS", Card: "Card" }),
+      }),
+      tags: ["Orders"],
+    }
+  );
+
+// ── Warranty claim (M8) — teknisi/kasir/admin ────────────────────────────────
+export const warrantyRouter = new Elysia({ prefix: "/api/v2/warranty" })
+  .post(
+    "/claim",
+    async ({ body, headers, set }) => {
+      try {
+        await requireAuth(headers, ["teknisi", "kasir", "admin"]);
+        const ticket = await claimWarranty({ ...body, device: body.device ?? {} });
+        set.status = 201;
+        return { success: true, data: ticket };
+      } catch (e) {
+        const r = mapError(e);
+        set.status = r.status;
+        return { success: false, error: r.body.error };
+      }
+    },
+    {
+      body: t.Object({
+        sourceTicketId: t.Number(),
+        customerId: t.Optional(t.Number()),
+        device: t.Optional(t.Any()),
+        technicianId: t.Optional(t.Number()),
+        notes: t.Optional(t.String()),
+      }),
+      tags: ["Warranty"],
+    }
+  );
