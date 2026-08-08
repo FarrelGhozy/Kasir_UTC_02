@@ -1,0 +1,107 @@
+import { Elysia } from "elysia";
+import { cors } from "@elysiajs/cors";
+import { swagger } from "@elysiajs/swagger";
+import { config, assertSecureConfig } from "./config/env";
+import { authRouter } from "./routes/auth";
+import { transactionRouter } from "./routes/transactions";
+import { backupRouter } from "./routes/backup";
+import { orderRouter, warrantyRouter } from "./routes/orders";
+import { reportRouter } from "./routes/reports";
+import { inventoryRouter } from "./routes/inventory";
+import { serviceRouter } from "./routes/services";
+import { dashboardRouter } from "./routes/dashboard";
+import { dutyScheduleRouter } from "./routes/dutySchedule";
+import { notaRouter } from "./routes/notas";
+import { waRouter } from "./routes/wa";
+import { webhookRouter } from "./routes/webhook";
+import { startSchedulers } from "./bot";
+import { userRouter } from "./routes/users";
+import { SECURITY_HEADERS } from "./middleware/security";
+import { mapError } from "./middleware/error";
+
+// SEC-1: validasi config wajib sebelum server jalan
+assertSecureConfig();
+
+const app = new Elysia()
+  .onAfterHandle(({ set }) => {
+    // M6: Security headers global
+    for (const [k, v] of Object.entries(SECURITY_HEADERS)) set.headers[k] = v;
+  })
+  .use(
+    cors({
+      origin: config.CORS_ORIGIN.split(",").map((o: string) => o.trim()),
+      credentials: true,
+    })
+  )
+  .use(
+    // Swagger hanya di development — jangan expose schema API ke production
+    config.NODE_ENV === "production"
+      ? new Elysia()
+      : swagger({
+          path: "/docs",
+          documentation: {
+            info: { title: "Kasir UTC v2 API", version: "2.0.0" },
+            tags: [
+              { name: "Health" },
+              { name: "Auth" },
+              { name: "Transactions" },
+              { name: "Backup" },
+              { name: "Orders" },
+              { name: "Warranty" },
+              { name: "Reports" },
+              { name: "Inventory" },
+              { name: "Services" },
+              { name: "Dashboard" },
+            ],
+          },
+        })
+  )
+  .onError(({ code, error, set, request }) => {
+    // #99: satu sumber error (mapError). VALIDATION/NOT_FOUND dari Elysia langsung di-map.
+    if (code === "VALIDATION") {
+      set.status = 400;
+      return { error: "Validasi gagal", message: error?.message };
+    }
+    if (code === "NOT_FOUND") {
+      set.status = 404;
+      return { error: "Not Found" };
+    }
+    const r = mapError(error);
+    set.status = r.status;
+    return r.body;
+  })
+  .get("/health", () => ({
+    status: "ok",
+    service: "kasir-utc-v2-backend",
+    time: new Date().toISOString(),
+  }))
+  // Alias untuk konsistensi via Vite proxy (/api → 5300)
+  .get("/api/health", ({ set }) => {
+    return { status: "ok", service: "kasir-utc-v2-backend" };
+  })
+  .use(authRouter)
+  .use(transactionRouter)
+  .use(backupRouter)
+  .use(orderRouter)
+  .use(warrantyRouter)
+  .use(reportRouter)
+  .use(inventoryRouter)
+  .use(serviceRouter)
+  .use(dashboardRouter)
+  .use(dutyScheduleRouter)
+  .use(notaRouter)
+  .use(waRouter)
+  .use(webhookRouter)
+  .use(userRouter)
+  .listen(config.PORT);
+
+// #110: start scheduler WA reminder (duty + weekly) — guard internal, tidak crash saat gagal
+startSchedulers();
+
+console.log(
+  `\n🟢 Kasir UTC v2 backend jalan di http://localhost:${config.PORT}\n` +
+    `   Swagger : http://localhost:${config.PORT}/docs\n` +
+    `   Env     : ${config.NODE_ENV}\n`
+);
+
+export type App = typeof app;
