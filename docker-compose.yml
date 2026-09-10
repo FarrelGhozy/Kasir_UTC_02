@@ -89,7 +89,7 @@ services:
       - PORT=8000
       - WAHA_WHATSAPP_DEFAULT_SESSION=default
       - WHATSAPP_START_SESSION=default
-      - WAHA_WHATSAPP_ENGINE=GOWS
+      - WHATSAPP_DEFAULT_ENGINE=GOWS
       - WHATSAPP_HOOK_URL=http://backend:5000/api/waha-webhook
       - WHATSAPP_HOOK_EVENTS=message
       - WAHA_PRINT_QR=true
