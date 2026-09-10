@@ -1,4 +1,6 @@
-require('dotenv').config();
+// Memuat environment terpusat dari file .env di ROOT project
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 const mongoose = require('mongoose');
 const User = require('./models/User');
 const Item = require('./models/Item');

@@ -56,14 +56,17 @@ npm install
 
 ### 2. Environment Configuration
 
-Create `.env` file in root directory:
+Environment terpusat di **satu file `.env` di ROOT project** (sejajar `docker-compose.yml`). Backend, seeder, dan Docker Compose semuanya membaca file yang sama.
 
-```env
-PORT=5000
-MONGODB_URI=mongodb://localhost:27017/bengkel_utc
-JWT_SECRET=your_super_secret_jwt_key_change_in_production
-NODE_ENV=development
+```bash
+# Dari ROOT project:
+cp .env.example .env
+# Lalu edit .env dan isi semua variabel [WAJIB]
 ```
+
+Template lengkap dengan penjelasan tiap variabel ada di [`/.env.example`](../.env.example), referensi tabel di [`/DOKUMENTASI.md`](../DOKUMENTASI.md#️-2-konfigurasi-variabel-lingkungan-env).
+
+> Backend lokal (`npm run dev`): gunakan nilai `MONGODB_URI=mongodb://localhost:27018/bengkel_utc` dan `WAHA_URL=http://localhost:8000` di `.env` (contoh tersedia sebagai komentar di `.env.example`).
 
 ### 3. Seed Database
 
@@ -72,10 +75,10 @@ npm run seed
 ```
 
 This will create:
-- **7 Technicians**: Farrel, Wildan, Kaukab, Rasya, Tamam, Noer Syamsi, Baso
-- **Default Admin**: `admin / admin123`
-- **Default Kasir**: `kasir1 / kasir123`
-- **10 Sample Items** for testing
+- **11 Technicians**: `farrel_utc`, `kaukab_utc`, `rasya_utc`, dll (password: `Teknisiutc26`)
+- **Default Admin**: `admin-utc01 / adminrahasia26`
+- **Default Kasir**: `kasir1 / kasirutc0326`
+- **Sample Items** for testing
 
 ### 4. Start Server
 
@@ -106,8 +109,8 @@ POST /api/auth/login
 Content-Type: application/json
 
 {
-  "username": "admin",
-  "password": "admin123"
+  "username": "admin-utc01",
+  "password": "adminrahasia26"
 }
 ```
 
@@ -455,7 +458,7 @@ Authorization: Bearer <token>
 ```bash
 curl -X POST http://localhost:5000/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username":"kasir1","password":"kasir123"}'
+  -d '{"username":"kasir1","password":"kasirutc0326"}'
 ```
 
 2. **Check Low Stock**

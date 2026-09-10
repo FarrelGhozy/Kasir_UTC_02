@@ -5,7 +5,7 @@ services:
     restart: always
     container_name: utc_mongo
     ports:
-      - "27018:27017"
+      - "${HOST_MONGO_PORT:-27018}:27017"
     volumes:
       - mongo_data:/data/db
     networks:
@@ -28,18 +28,25 @@ services:
     container_name: utc_backend
     restart: always
     ports:
-      - "5200:5000"
+      - "${HOST_BACKEND_PORT:-5200}:5000"
+    # Seluruh konfigurasi dibaca dari file .env di ROOT project (single source of truth)
+    env_file:
+      - .env
     environment:
-      - PORT=5000
-      - MONGODB_URI=mongodb://mongo_db:27017/bengkel_utc
-      - JWT_SECRET=${JWT_SECRET:-change_this_in_production}
-      - NODE_ENV=production
-      - WAHA_URL=http://waha:8000
-      - WAHA_API_KEY=adminutc28
-      - BACKEND_URL=http://backend:5000
-      - IS_CAMPUS_EVENT=false
-      - NOTA_VERIFY_URL=https://kasir.utc.web.id/verify.html
-      - CORS_ORIGIN=*
+      - PORT=${PORT:-5000}
+      - NODE_ENV=${NODE_ENV:-production}
+      - MONGODB_URI=${MONGODB_URI:?Isi MONGODB_URI di file .env (lihat .env.example)}
+      - JWT_SECRET=${JWT_SECRET:?Isi JWT_SECRET di file .env (lihat .env.example)}
+      - WAHA_URL=${WAHA_URL:?Isi WAHA_URL di file .env (lihat .env.example)}
+      - WAHA_SESSION=${WAHA_SESSION:-default}
+      - WAHA_API_KEY=${WAHA_API_KEY:?Isi WAHA_API_KEY di file .env (lihat .env.example)}
+      - WAHA_WEBHOOK_SECRET=${WAHA_WEBHOOK_SECRET:-}
+      - BACKEND_URL=${BACKEND_URL:-http://backend:5000}
+      - EMAIL_USER=${EMAIL_USER:-}
+      - EMAIL_PASS=${EMAIL_PASS:-}
+      - CORS_ORIGIN=${CORS_ORIGIN:-*}
+      - IS_CAMPUS_EVENT=${IS_CAMPUS_EVENT:-false}
+      - NOTA_VERIFY_URL=${NOTA_VERIFY_URL:-https://kasir.utc.web.id/verify.html}
     depends_on:
       - mongo_db
     volumes:
@@ -60,11 +67,14 @@ services:
 
   # 3. Frontend (Web Interface)
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        API_PROXY_PASS: http://backend:5000
     container_name: utc_frontend
     restart: always
     ports:
-      - "8080:80"
+      - "${HOST_FRONTEND_PORT:-8080}:80"
     networks:
       - utc_network
     mem_limit: 128m
@@ -84,20 +94,20 @@ services:
     container_name: utc_waha
     restart: always
     ports:
-      - "8000:8000"
+      - "${HOST_WAHA_PORT:-8000}:8000"
     environment:
       - PORT=8000
-      - WAHA_WHATSAPP_DEFAULT_SESSION=default
-      - WHATSAPP_START_SESSION=default
-      - WHATSAPP_DEFAULT_ENGINE=GOWS
+      - WAHA_WHATSAPP_DEFAULT_SESSION=${WAHA_SESSION:-default}
+      - WHATSAPP_START_SESSION=${WAHA_SESSION:-default}
+      - WAHA_WHATSAPP_ENGINE=GOWS
       - WHATSAPP_HOOK_URL=http://backend:5000/api/waha-webhook
       - WHATSAPP_HOOK_EVENTS=message
       - WAHA_PRINT_QR=true
-      - WAHA_API_KEY=adminutc28
-      - WHATSAPP_SWAGGER_USERNAME=admin-utc01
-      - WHATSAPP_SWAGGER_PASSWORD=adminutc28
-      - WAHA_DASHBOARD_USERNAME=admin-utc01
-      - WAHA_DASHBOARD_PASSWORD=adminutc28
+      - WAHA_API_KEY=${WAHA_API_KEY:?Isi WAHA_API_KEY di file .env (lihat .env.example)}
+      - WHATSAPP_SWAGGER_USERNAME=${WHATSAPP_SWAGGER_USERNAME:-admin-utc01}
+      - WHATSAPP_SWAGGER_PASSWORD=${WHATSAPP_SWAGGER_PASSWORD:?Isi WHATSAPP_SWAGGER_PASSWORD di file .env}
+      - WAHA_DASHBOARD_USERNAME=${WAHA_DASHBOARD_USERNAME:-admin-utc01}
+      - WAHA_DASHBOARD_PASSWORD=${WAHA_DASHBOARD_PASSWORD:?Isi WAHA_DASHBOARD_PASSWORD di file .env}
     volumes:
       # Persistensi session WhatsApp agar tidak hilang saat container di-recreate
       - ./waha-sessions:/app/.sessions

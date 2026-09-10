@@ -21,21 +21,45 @@ Sebelum memulai instalasi, pastikan software berikut sudah terinstal di komputer
 
 ## ⚙️ 2. Konfigurasi Variabel Lingkungan (.env)
 
-Sistem membutuhkan file `.env` di dalam folder `backend/` untuk mengatur koneksi dan kredensial pihak ketiga.
+Seluruh konfigurasi terpusat di **satu file `.env` di ROOT project** (sejajar `docker-compose.yml`). Backend, seeder, dan Docker Compose semuanya membaca dari file yang sama — tidak ada lagi `backend/.env` terpisah.
+
+### **Cara membuat .env**
+```bash
+cp .env.example .env
+# Lalu edit .env dan isi semua variabel bertanda [WAJIB]
+```
+Template lengkap dengan penjelasan tiap variabel ada di [`.env.example`](./.env.example).
 
 ### **Tabel Referensi .env**
 
-| Nama Variabel | Nilai Default / Contoh | Deskripsi Fungsi |
+| Nama Variabel | Wajib? | Nilai Contoh | Deskripsi Fungsi |
+| :--- | :---: | :--- | :--- |
+| `PORT` | – | `5000` | Port internal backend (Express.js) |
+| `NODE_ENV` | – | `production` | Mode aplikasi (`development` atau `production`) |
+| `MONGODB_URI` | ✅ | `mongodb://mongo_db:27017/bengkel_utc` | URL koneksi MongoDB (lihat matriks konteks di bawah) |
+| `JWT_SECRET` | ✅ | *(32+ karakter acak, `openssl rand -hex 32`)* | Kunci rahasia token login; backend menolak start jika kosong/lemah |
+| `WAHA_URL` | ✅ | `http://waha:8000` | URL layanan WhatsApp Gateway (lihat matriks konteks) |
+| `WAHA_SESSION` | – | `default` | Nama session WhatsApp yang dijalankan |
+| `WAHA_API_KEY` | ✅ | *(tanpa default — wajib diisi)* | API Key WAHA; harus sama dengan yang dipakai service `waha` |
+| `WAHA_WEBHOOK_SECRET` | – | *(kosong)* | Token pengaman webhook; jika kosong, webhook menerima semua request |
+| `BACKEND_URL` | – | `http://backend:5000` | URL internal backend untuk membangun link file nota di pesan WA |
+| `WHATSAPP_SWAGGER_USERNAME` / `WHATSAPP_SWAGGER_PASSWORD` | ✅ | `admin-utc01` / *(wajib diisi)* | Login dokumentasi API WAHA (`/swagger`) |
+| `WAHA_DASHBOARD_USERNAME` / `WAHA_DASHBOARD_PASSWORD` | ✅ | `admin-utc01` / *(wajib diisi)* | Login dashboard WAHA |
+| `EMAIL_USER` | opsional | `bengkelutc@gmail.com` | Alamat Gmail pengirim nota (kosong = fitur email nonaktif) |
+| `EMAIL_PASS` | opsional | `abcd efgh ijkl mnop` | **App Password** 16 digit dari Google |
+| `CORS_ORIGIN` | – | `*` | Origin frontend yang diizinkan; isi CSV domain untuk production |
+| `IS_CAMPUS_EVENT` | – | `false` | `true` = bot WA menjawab sedang tutup acara kampus |
+| `NOTA_VERIFY_URL` | – | `https://kasir.utc.web.id/verify.html` | URL publik halaman verifikasi QR nota |
+| `HOST_BACKEND_PORT` / `HOST_FRONTEND_PORT` / `HOST_MONGO_PORT` / `HOST_WAHA_PORT` | – | `5200` / `8080` / `27018` / `8000` | Mapping port laptop → container |
+
+### **⚠️ Matriks konteks: Docker vs Lokal**
+
+| Variabel | Docker Compose (antar-container) | Backend lokal (`npm run dev`) |
 | :--- | :--- | :--- |
-| `PORT` | `5000` | Port internal backend (Express.js) |
-| `NODE_ENV` | `development` | Mode aplikasi (`development` atau `production`) |
-| `MONGODB_URI` | `mongodb://mongo_db:27017/bengkel_utc` | URL koneksi ke database MongoDB |
-| `JWT_SECRET` | `(isi_string_bebas_minimal_32_karakter)` | Kunci rahasia untuk enkripsi token login |
-| `WAHA_URL` | `http://waha:8000` | URL layanan WhatsApp Gateway (WAHA) |
-| `WAHA_SESSION` | `default` | Nama session WhatsApp yang akan diputar |
-| `WAHA_API_KEY` | `adminutc28` | API Key untuk keamanan akses ke WAHA |
-| `EMAIL_USER` | `bengkelutc@gmail.com` | Alamat Gmail pengirim nota |
-| `EMAIL_PASS` | `abcd efgh ijkl mnop` | **App Password** 16 digit dari Google |
+| `MONGODB_URI` | `mongodb://mongo_db:27017/bengkel_utc` | `mongodb://localhost:27018/bengkel_utc` |
+| `WAHA_URL` | `http://waha:8000` | `http://localhost:8000` |
+
+Hostname `mongo_db`, `backend`, dan `waha` hanya dikenal di dalam network Docker. Jika backend dijalankan langsung di laptop, ganti kedua variabel di atas ke `localhost` (contoh sudah tersedia sebagai komentar di `.env.example`).
 
 ### **💡 Cara Mendapatkan App Password Gmail (EMAIL_PASS):**
 1.  Buka [Akun Google](https://myaccount.google.com/) Anda.
@@ -57,11 +81,11 @@ Ikuti urutan perintah berikut di terminal Anda:
     ```
 
 2.  **Siapkan Konfigurasi:**
-    Salin file contoh ke file aktif:
+    Salin file contoh ke file aktif (di ROOT project):
     ```bash
-    cp backend/.env.example backend/.env
+    cp .env.example .env
     ```
-    *Lalu edit file `backend/.env` sesuai dengan panduan pada Bagian 2 di atas.*
+    *Lalu edit file `.env` dan isi semua variabel [WAJIB] sesuai panduan pada Bagian 2 di atas, terutama `JWT_SECRET`, `WAHA_API_KEY`, `WAHA_DASHBOARD_PASSWORD`, dan `WHATSAPP_SWAGGER_PASSWORD`.*
 
 3.  **Jalankan Layanan (Docker):**
     ```bash
@@ -82,7 +106,7 @@ Ikuti urutan perintah berikut di terminal Anda:
 Sistem notifikasi otomatis tidak akan berjalan sebelum langkah-langkah ini selesai:
 
 1.  **Akses Dashboard WAHA:** Buka `http://localhost:8000` di browser.
-2.  **Login WAHA:** Gunakan Username: `admin-utc01` dan Password: `adminutc28`.
+2.  **Login WAHA:** Gunakan `WAHA_DASHBOARD_USERNAME` / `WAHA_DASHBOARD_PASSWORD` yang Anda isi di root `.env`.
 3.  **Mulai Session:** Klik pada session bernama `default`, lalu klik tombol **Start**.
 4.  **Scan QR Code:** Munculkan kode QR di dashboard, lalu scan menggunakan menu "Perangkat Tertaut" di aplikasi WhatsApp HP Anda.
 5.  **Konfigurasi Webhook:**
@@ -129,7 +153,9 @@ Setelah proses *seeding*, gunakan data berikut untuk masuk ke sistem:
 | **Bot WA Tidak Membalas** | Webhook belum diset, salah URL, atau payload WAHA Plus tidak cocok dengan format yang diharapkan backend. | Pastikan URL Webhook di WAHA menunjuk ke `http://backend:5000/api/waha-webhook`. Cek log backend dengan `docker compose logs backend -f` setelah kirim pesan WA. Pastikan ada log `[WAHA Webhook] Pesan dari: ...`. |
 | **Bot WA Tidak Membalas (no hp tidak terbaca)** | WAHA Plus mengirim format Baileys (`key.remoteJid`) — backend versi lama hanya membaca `from`. | **Update backend** — webhook.js sekarang sudah punya `normalizeWAHA()` yang handle kedua format. Pastikan container di-rebuild: `docker compose up -d --build backend`. |
 | **Session WAHA tidak WORKING** | Belum scan QR, atau sesi expired. | Buka dashboard WAHA, klik session `default`, scan ulang QR. Jika sering disconnect, kurangi beban RAM WAHA (image WAHA butuh ~1.5GB). |
-| **WAHA error 401 saat kirim pesan** | API Key mismatch. | Pastikan `WAHA_API_KEY` di `.env` backend cocok dengan `WAHA_API_KEY` di `docker-compose.yml` (default: `adminutc28`). |
+| **WAHA error 401 saat kirim pesan** | API Key mismatch. | Pastikan `WAHA_API_KEY` di `.env` sudah terisi — backend dan service `waha` membaca dari file yang sama, jadi cukup isi sekali di root `.env` lalu `docker compose up -d --build`. |
+| **Compose gagal start: "required variable ... is missing"** | File `.env` belum dibuat atau variabel [WAJIB] masih kosong. | Jalankan `cp .env.example .env`, isi variabel yang disebut di pesan error, lalu ulangi `docker compose up -d`. |
+| **Backend langsung exit: "[STARTUP ERROR]"** | `MONGODB_URI` kosong atau `JWT_SECRET` kosong/lemah. | Isi `MONGODB_URI` dan `JWT_SECRET` (minimal 32 karakter acak, `openssl rand -hex 32`) di root `.env`. |
 | **Email Nota Gagal Kirim** | App Password salah atau 2-FA mati. | Cek kembali `EMAIL_PASS` dan pastikan Verifikasi 2 Langkah Google aktif. |
 | **Gagal Build Container** | Bentrok port (8080/8000/27018). | Pastikan tidak ada aplikasi lain (XAMPP/Mongo Lokal) yang memakai port tersebut. |
 | **Layar Hitam/Stuck Backdrop** | Masalah cache modal Bootstrap. | Lakukan **Hard Refresh** di browser (Ctrl + F5). |

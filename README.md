@@ -46,13 +46,11 @@ docker run -d --name mongo-utc -p 27017:27017 mongo:6
 ```
 
 ### 4. Konfigurasi Environment
-Buat file `backend/.env`:
-```env
-PORT=5000
-MONGODB_URI=mongodb://localhost:27017/bengkel_utc
-JWT_SECRET=rahasia123
-NODE_ENV=development
+Buat file `.env` di **ROOT project** (sejajar `docker-compose.yml`) dari template:
+```bash
+cp .env.example .env
 ```
+Lalu edit `.env` dan isi semua variabel bertanda `[WAJIB]` (`JWT_SECRET`, `WAHA_API_KEY`, `WAHA_DASHBOARD_PASSWORD`, `WHATSAPP_SWAGGER_PASSWORD`). Daftar lengkap tiap variabel ada di [DOKUMENTASI.md](./DOKUMENTASI.md#️-2-konfigurasi-variabel-lingkungan-env).
 
 ### 5. Seed Database (Data Dummy)
 Gunakan seed khusus **dummy** agar tidak tercampur data asli:
@@ -154,21 +152,14 @@ git clone https://github.com/username/Kasir_UTC_02.git
 cd Kasir_UTC_02
 ```
 
-#### B. Konfigurasi Environment (File `.env`)
-Buat file baru bernama `.env` di dalam folder `backend/` atau edit langsung di `docker-compose.yml`. 
-
-**Isi file `backend/.env`:**
-```env
-PORT=5000
-MONGODB_URI=mongodb://localhost:27018/bengkel_utc
-JWT_SECRET=GantiDenganStringRahasiaApapun
-WAHA_URL=http://localhost:8000
-WAHA_SESSION=default
-WAHA_API_KEY=adminutc28
-EMAIL_USER=email-anda@gmail.com
-EMAIL_PASS=kode-app-password-16-digit
-NODE_ENV=production
+#### B. Konfigurasi Environment (File `.env` di ROOT)
+Buat file baru bernama `.env` di **ROOT project** (sejajar `docker-compose.yml`):
+```bash
+cp .env.example .env
 ```
+Lalu edit `.env` dan isi semua variabel bertanda `[WAJIB]` — terutama `JWT_SECRET` (minimal 32 karakter acak, generate: `openssl rand -hex 32`), `WAHA_API_KEY`, `WAHA_DASHBOARD_PASSWORD`, dan `WHATSAPP_SWAGGER_PASSWORD`. Backend menolak start jika `JWT_SECRET` kosong/lemah.
+
+> Detail tiap variabel + matriks nilai Docker vs lokal: [DOKUMENTASI.md §2](./DOKUMENTASI.md#️-2-konfigurasi-variabel-lingkungan-env).
 
 #### C. Menjalankan Server
 Jalankan seluruh sistem (Database, Backend, Frontend, WA Bot) dalam satu perintah:
@@ -200,7 +191,7 @@ docker compose exec backend npm run seed
 
 ### 📱 Menghubungkan WhatsApp & Webhook
 1. Buka `http://localhost:8000` di browser.
-2. Login dengan username/password di atas.
+2. Login dengan `WAHA_DASHBOARD_USERNAME` / `WAHA_DASHBOARD_PASSWORD` yang Anda isi di root `.env`.
 3. Klik pada session `default`.
 4. Pilih tab **Screenshot** atau **QR Code** dan scan menggunakan WhatsApp HP Anda.
 5. **PENTING: Pengaturan Webhook** agar Bot Balas Otomatis bekerja:

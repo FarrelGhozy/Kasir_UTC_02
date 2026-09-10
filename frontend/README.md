@@ -59,27 +59,20 @@ http-server -p 8080
 
 ## ⚙️ Configuration
 
-Edit `public/js/api.js` to configure your backend URL:
-
-```javascript
-const API_BASE_URL = 'http://localhost:5000/api';
-```
+Frontend tidak memakai file `.env` — backend URL bersifat relatif (`window.location.origin + '/api'`) dan di-reverse-proxy oleh Nginx ke `http://backend:5000` (lihat `frontend/Dockerfile`, `ARG API_PROXY_PASS`). Tidak ada konfigurasi yang perlu diubah untuk setup standar.
 
 ## 🔐 Authentication
 
-### Login Credentials
+### Login Credentials (setelah seeding)
 
-**Admin:**
-- Username: `admin`
-- Password: `admin123`
+**Seed asli (`backend/seed.js`):**
+- Admin: `admin-utc01` / `adminrahasia26`
+- Kasir: `kasir1` / `kasirutc0326`
+- Teknisi: `farrel_utc`, `kaukab_utc`, dll / `Teknisiutc26`
 
-**Kasir (Cashier):**
-- Username: `kasir1`
-- Password: `kasir123`
-
-**Teknisi (Technician):**
-- Username: `farrel` (or wildan, kaukab, rasya, tamam, noer_syamsi, baso)
-- Password: `password123`
+**Seed dummy (`backend/seed.dummy.js`):**
+- Admin: `admin_dummy` / `DummyAdmin456`
+- Kasir: `kasir_dummy` / `DummyKasir456`
 
 ### How It Works
 

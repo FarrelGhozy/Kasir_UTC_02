@@ -1,9 +1,10 @@
 // server.js - Entry Point Utama Backend
-require('dotenv').config();
+// Memuat environment terpusat dari file .env di ROOT project (sejajar docker-compose.yml)
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 const express = require('express');
 const cors = require('cors');
 const compression = require('compression');
-const path = require('path');
 const rateLimit = require('express-rate-limit');
 const connectDB = require('./config/db');
 const apiRoutes = require('./routes/api');
@@ -14,21 +15,29 @@ const { startDutyReminderCron } = require('./bot/dutyScheduler');
 const { startWeekendReminderCron } = require('./bot/weeklyScheduler');
 const errorHandler = require('./middleware/errorHandler');
 
-// Validasi environment variables kritis saat startup
-const criticalEnvVars = [
-  { name: 'MONGODB_URI', message: 'MONGODB_URI wajib diisi untuk koneksi database' },
-  { name: 'JWT_SECRET', message: 'JWT_SECRET wajib diisi. Generate: openssl rand -hex 32' },
-];
+// Validasi environment variables kritis saat startup (fail-fast)
+const startupErrors = [];
 
-for (const env of criticalEnvVars) {
-  if (!process.env[env.name]) {
-    console.error(`[STARTUP ERROR] ${env.message}`);
-    process.exit(1);
-  }
+if (!process.env.MONGODB_URI) {
+  startupErrors.push('MONGODB_URI wajib diisi untuk koneksi database (lihat .env.example)');
+}
+
+const jwtSecret = process.env.JWT_SECRET || '';
+if (!jwtSecret) {
+  startupErrors.push('JWT_SECRET wajib diisi. Generate: openssl rand -hex 32');
+} else if (jwtSecret.length < 32 || jwtSecret.includes('change_this_in_production')) {
+  startupErrors.push('JWT_SECRET tidak aman (minimal 32 karakter acak, jangan pakai nilai default)');
+}
+
+if (startupErrors.length > 0) {
+  console.error('[STARTUP ERROR] Konfigurasi environment tidak valid:');
+  startupErrors.forEach((msg) => console.error(`  - ${msg}`));
+  process.exit(1);
 }
 
 if (!process.env.WAHA_URL) console.warn('[WARN] WAHA_URL tidak di-set — fitur WhatsApp tidak akan berfungsi');
 if (!process.env.WAHA_API_KEY) console.warn('[WARN] WAHA_API_KEY tidak di-set — fitur WhatsApp tidak akan berfungsi');
+if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) console.warn('[WARN] EMAIL_USER/EMAIL_PASS tidak di-set — nota email tidak akan terkirim');
 
 const app = express();
 app.set('trust proxy', true);
