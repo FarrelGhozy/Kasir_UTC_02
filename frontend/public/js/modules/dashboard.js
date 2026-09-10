@@ -7,6 +7,9 @@ class Dashboard {
         this.stats = null;
         this.customerChart = null;
         this.incomeChart = null;
+        this.technicianChart = null;
+        this.serviceStatusChart = null;
+        this.servicePeriod = '30';
     }
 
     async render() {
@@ -105,6 +108,53 @@ class Dashboard {
                 </div>
             </div>
 
+            <div class="row g-4 mb-4">
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header bg-white py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                            <h5 class="mb-0 fw-bold"><i class="bi bi-tools me-2"></i>Informasi Pelayanan <small class="text-muted fw-normal" id="service-period-label"></small></h5>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle d-none" id="service-top-badge"></span>
+                                <select class="form-select form-select-sm w-auto" id="service-period-filter" aria-label="Periode pelayanan">
+                                    <option value="7">7 hari terakhir</option>
+                                    <option value="30" selected>30 hari terakhir</option>
+                                    <option value="90">90 hari terakhir</option>
+                                    <option value="month">Bulan ini</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-warning d-none py-2 small mb-3" id="service-truncated-warning" role="alert"></div>
+                            <div class="row g-4">
+                                <div class="col-lg-6">
+                                    <h6 class="fw-bold mb-1"><i class="bi bi-bar-chart-fill me-2 text-primary"></i>Performa Teknisi <small class="text-muted fw-normal">(tiket ditangani)</small></h6>
+                                    <p class="text-muted small mb-2">Jumlah tiket yang dibuat pada periode ini per teknisi (di luar yang dibatalkan).</p>
+                                    <div style="position: relative; min-height: 260px;">
+                                        <canvas id="technician-count-chart" height="220"></canvas>
+                                    </div>
+                                </div>
+                                <div class="col-lg-6">
+                                    <h6 class="fw-bold mb-1"><i class="bi bi-pie-chart-fill me-2 text-success"></i>Status Servis <small class="text-muted fw-normal">(bottleneck)</small></h6>
+                                    <p class="text-muted small mb-2">Proporsi status tiket yang dibuat pada periode ini.</p>
+                                    <div style="position: relative; min-height: 260px;">
+                                        <canvas id="service-status-chart" height="220"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-4">
+                                <h6 class="fw-bold mb-1"><i class="bi bi-trophy-fill me-2 text-warning"></i>Ranking Penghasilan per Teknisi</h6>
+                                <p class="text-muted small mb-2">Diurutkan dari penghasilan terbesar. Pendapatan hanya dari tiket <span class="badge bg-success-subtle text-success border border-success-subtle">Selesai</span> / <span class="badge bg-success-subtle text-success border border-success-subtle">Diambil</span> yang dibuat pada periode ini.</p>
+                                <div class="table-responsive" id="technician-ranking-container" style="max-height: 320px; overflow-y: auto;">
+                                    <div class="text-center py-4">
+                                        <div class="spinner-border text-primary"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="row g-4">
                 <div class="col-lg-6">
                     <div class="card border-0 shadow-sm h-100">
@@ -159,10 +209,12 @@ class Dashboard {
             svcEl.textContent = activeServices.length;
 
             // 2. Load Tabel — parallel
+            this.setupServiceFilterListener();
             await Promise.all([
                 this.loadLowStock(),
                 this.loadRecentActivity(),
-                this.loadMonthlyCharts()
+                this.loadMonthlyCharts(),
+                this.loadServiceInsights()
             ]);
 
         } catch (error) {
@@ -423,6 +475,277 @@ class Dashboard {
             }
 
             console.error('Gagal memuat grafik bulanan:', error);
+        }
+    }
+
+    // --- INFORMASI PELAYANAN (Performa Teknisi + Status + Ranking) ---
+    setupServiceFilterListener() {
+        const select = document.getElementById('service-period-filter');
+        if (select) {
+            select.value = this.servicePeriod;
+            select.addEventListener('change', (e) => {
+                this.servicePeriod = e.target.value;
+                this.loadServiceInsights();
+            });
+        }
+    }
+
+    getServiceRange() {
+        const end = new Date();
+        end.setHours(23, 59, 59, 999);
+        let start;
+        let label;
+
+        if (this.servicePeriod === 'month') {
+            start = new Date(end.getFullYear(), end.getMonth(), 1);
+            start.setHours(0, 0, 0, 0);
+            label = start.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+        } else {
+            const days = parseInt(this.servicePeriod, 10) || 30;
+            start = new Date(end);
+            start.setDate(end.getDate() - (days - 1));
+            start.setHours(0, 0, 0, 0);
+            label = `${days} hari terakhir`;
+        }
+
+        return {
+            startLocal: toLocalDateString(start),
+            endLocal: toLocalDateString(end),
+            label
+        };
+    }
+
+    renderTechnicianCountChart(names, handledValues, finishedValues) {
+        const canvas = document.getElementById('technician-count-chart');
+        if (!canvas || typeof Chart === 'undefined') return;
+
+        if (this.technicianChart) {
+            this.technicianChart.destroy();
+            this.technicianChart = null;
+        }
+        if (names.length === 0) return;
+
+        this.technicianChart = new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: names,
+                datasets: [
+                    {
+                        label: 'Ditangani',
+                        data: handledValues,
+                        backgroundColor: 'rgba(13, 110, 253, 0.75)',
+                        borderColor: 'rgba(13, 110, 253, 1)',
+                        borderWidth: 1,
+                        borderRadius: 6,
+                        maxBarThickness: 22
+                    },
+                    {
+                        label: 'Selesai/Diambil',
+                        data: finishedValues,
+                        backgroundColor: 'rgba(25, 135, 84, 0.75)',
+                        borderColor: 'rgba(25, 135, 84, 1)',
+                        borderWidth: 1,
+                        borderRadius: 6,
+                        maxBarThickness: 22
+                    }
+                ]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: true, position: 'bottom' }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        ticks: { precision: 0, stepSize: 1 }
+                    },
+                    y: {
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+    }
+
+    renderServiceStatusChart(statusCounts) {
+        const canvas = document.getElementById('service-status-chart');
+        if (!canvas || typeof Chart === 'undefined') return;
+
+        if (this.serviceStatusChart) {
+            this.serviceStatusChart.destroy();
+            this.serviceStatusChart = null;
+        }
+
+        const order = ['Queue', 'Diagnosing', 'Waiting_Part', 'In_Progress', 'Completed', 'Picked_Up', 'Cancelled'];
+        const meta = {
+            Queue: { label: 'Antre', color: '#6c757d' },
+            Diagnosing: { label: 'Diagnosis', color: '#0d6efd' },
+            Waiting_Part: { label: 'Tunggu Part', color: '#fd7e14' },
+            In_Progress: { label: 'Dikerjakan', color: '#ffc107' },
+            Completed: { label: 'Selesai', color: '#198754' },
+            Picked_Up: { label: 'Diambil', color: '#20c997' },
+            Cancelled: { label: 'Batal', color: '#dc3545' }
+        };
+
+        const labels = [];
+        const values = [];
+        const colors = [];
+        order.forEach((key) => {
+            const count = statusCounts[key] || 0;
+            if (count > 0) {
+                labels.push(`${meta[key].label} (${count})`);
+                values.push(count);
+                colors.push(meta[key].color);
+            }
+        });
+
+        if (values.length === 0) return;
+
+        this.serviceStatusChart = new Chart(canvas, {
+            type: 'doughnut',
+            data: {
+                labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: colors,
+                    borderWidth: 2,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '55%',
+                plugins: {
+                    legend: { display: true, position: 'bottom' }
+                }
+            }
+        });
+    }
+
+    renderTechnicianRanking(rows) {
+        const container = document.getElementById('technician-ranking-container');
+        if (!container) return;
+
+        if (rows.length === 0) {
+            container.innerHTML = `<div class="text-center text-muted py-4"><i class="bi bi-inbox fs-1 opacity-50"></i><p class="mt-2 mb-0 fw-semibold">Belum ada tiket servis pada periode ini</p></div>`;
+            return;
+        }
+
+        const medals = ['🥇', '🥈', '🥉'];
+        const maxRevenue = Math.max(...rows.map(r => r.revenue), 0);
+
+        container.innerHTML = `
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light sticky-top">
+                    <tr>
+                        <th class="text-center" style="width: 56px;">#</th>
+                        <th>Teknisi</th>
+                        <th class="text-center">Ditangani</th>
+                        <th class="text-center">Selesai</th>
+                        <th class="text-end">Pendapatan</th>
+                        <th class="text-end d-none d-md-table-cell">Rata-rata/Tiket</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rows.map((row, index) => {
+                        const isTop = index === 0;
+                        const isBottom = rows.length > 1 && index === rows.length - 1;
+                        const barWidth = maxRevenue > 0 ? Math.max(4, Math.round((row.revenue / maxRevenue) * 100)) : 0;
+                        return `
+                        <tr class="${isTop ? 'table-warning' : ''}">
+                            <td class="text-center fs-5">${medals[index] || `<span class="text-muted fw-bold">${index + 1}</span>`}</td>
+                            <td>
+                                <div class="fw-bold text-dark">${escapeHTML(row.name)} ${isTop ? '<span class="badge bg-warning text-dark ms-1">Top</span>' : ''} ${isBottom ? '<span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle ms-1">Perlu perhatian</span>' : ''}</div>
+                                <div class="progress mt-1" style="height: 5px; max-width: 180px;">
+                                    <div class="progress-bar ${isTop ? 'bg-warning' : 'bg-success'}" style="width: ${barWidth}%"></div>
+                                </div>
+                            </td>
+                            <td class="text-center"><span class="badge bg-primary rounded-pill">${row.handled}</span></td>
+                            <td class="text-center"><span class="badge bg-success rounded-pill">${row.finished}</span></td>
+                            <td class="text-end fw-bold">${formatCurrency(row.revenue)}</td>
+                            <td class="text-end small text-muted d-none d-md-table-cell">${formatCurrency(row.finished > 0 ? Math.round(row.revenue / row.finished) : 0)}</td>
+                        </tr>`;
+                    }).join('')}
+                </tbody>
+            </table>
+        `;
+    }
+
+    async loadServiceInsights() {
+        const labelEl = document.getElementById('service-period-label');
+        const badgeEl = document.getElementById('service-top-badge');
+        const warningEl = document.getElementById('service-truncated-warning');
+
+        if (typeof Chart === 'undefined') {
+            try {
+                await loadScript('https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js');
+            } catch (err) {
+                console.error('Chart.js gagal dimuat untuk grafik pelayanan:', err);
+            }
+        }
+        if (typeof Chart === 'undefined') return;
+
+        const { startLocal, endLocal, label } = this.getServiceRange();
+        if (labelEl) labelEl.textContent = `(${label})`;
+        if (badgeEl) badgeEl.classList.add('d-none');
+        if (warningEl) warningEl.classList.add('d-none');
+
+        try {
+            const response = await api.getServiceTickets({ start_date: startLocal, end_date: endLocal, limit: 1000 });
+            const tickets = Array.isArray(response?.data) ? response.data : [];
+            const totalRecords = response?.pagination?.total_records ?? tickets.length;
+            if (warningEl && totalRecords > tickets.length) {
+                warningEl.textContent = `Menampilkan ${tickets.length} dari ${totalRecords} tiket pada periode ini — persempit periode untuk hasil lebih akurat.`;
+                warningEl.classList.remove('d-none');
+            }
+
+            // Agregasi per teknisi + status (satu loop, satu request)
+            const perTech = new Map();
+            const statusCounts = {};
+            tickets.forEach((ticket) => {
+                const status = ticket?.status || 'Queue';
+                statusCounts[status] = (statusCounts[status] || 0) + 1;
+
+                const name = (ticket?.technician?.name || 'Tanpa Teknisi').trim() || 'Tanpa Teknisi';
+                if (!perTech.has(name)) perTech.set(name, { name, handled: 0, finished: 0, revenue: 0 });
+                const row = perTech.get(name);
+
+                if (status !== 'Cancelled') row.handled += 1;
+                if (status === 'Completed' || status === 'Picked_Up') {
+                    row.finished += 1;
+                    row.revenue += Number(ticket?.total_cost || 0);
+                }
+            });
+
+            const sortedByHandled = [...perTech.values()]
+                .filter(r => r.handled > 0)
+                .sort((a, b) => b.handled - a.handled || b.revenue - a.revenue)
+                .slice(0, 10);
+            const sortedByRevenue = [...perTech.values()]
+                .filter(r => r.handled > 0 || r.finished > 0)
+                .sort((a, b) => b.revenue - a.revenue || b.finished - a.finished)
+                .slice(0, 10);
+
+            this.renderTechnicianCountChart(
+                sortedByHandled.map(r => r.name),
+                sortedByHandled.map(r => r.handled),
+                sortedByHandled.map(r => r.finished)
+            );
+            this.renderServiceStatusChart(statusCounts);
+            this.renderTechnicianRanking(sortedByRevenue);
+
+            if (badgeEl && sortedByRevenue.length > 0) {
+                badgeEl.textContent = `Top: ${sortedByRevenue[0].name} (${formatCurrency(sortedByRevenue[0].revenue)})`;
+                badgeEl.classList.remove('d-none');
+            }
+        } catch (error) {
+            console.error('Gagal memuat informasi pelayanan:', error);
+            const container = document.getElementById('technician-ranking-container');
+            if (container) container.innerHTML = `<div class="alert alert-danger mb-0">Gagal memuat data pelayanan: ${escapeHTML(error.message)}</div>`;
         }
     }
 
