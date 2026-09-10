@@ -125,6 +125,8 @@ const SpecialOrder = require('./models/SpecialOrder');
 
 app.get('/api/verify-nota/:model/:id', async (req, res) => {
   try {
+    // Status nota harus selalu fresh — jangan di-cache browser/proxy
+    res.set('Cache-Control', 'no-store');
     const { model, id } = req.params;
     let doc;
     if (model === 'ServiceTicket') {

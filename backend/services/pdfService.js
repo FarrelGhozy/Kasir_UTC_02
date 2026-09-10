@@ -11,6 +11,21 @@ const {
 
 const LOGO_PATH = path.join(__dirname, '..', 'assets', 'logo.png');
 
+// URL publik halaman verifikasi nota (di-scan customer via QR Code)
+const NOTA_VERIFY_URL = process.env.NOTA_VERIFY_URL || 'https://kasir.utc.web.id/verify.html';
+
+/**
+ * Membangun konten QR Code berupa URL halaman verifikasi nota.
+ * QR harus berupa URL agar bisa langsung dibuka kamera HP customer.
+ * @param {string} model - Nama model ('ServiceTicket' | 'SpecialOrder')
+ * @param {object} doc - Dokumen nota (ticket/order)
+ * @param {string} numberField - Nama field nomor nota ('ticket_number' | 'order_number')
+ * @returns {string} URL verifikasi lengkap dengan parameter model, id, dan no
+ */
+function buildVerifyContent(model, doc, numberField) {
+  return `${NOTA_VERIFY_URL}?model=${model}&id=${doc._id}&no=${encodeURIComponent(doc[numberField] || '')}`;
+}
+
 const COLORS = {
   primary: [41, 65, 133],
   accent: [52, 73, 94],
@@ -58,7 +73,7 @@ async function generateServiceNota(ticket) {
       doc.on('end', () => resolve(Buffer.concat(buffers)));
       doc.on('error', reject);
 
-      const qrContent = `UTC-VERIFY:ServiceTicket:${ticket._id}:${ticket.ticket_number}`;
+      const qrContent = buildVerifyContent('ServiceTicket', ticket, 'ticket_number');
       const qrBuffer = await QRCode.toBuffer(qrContent, {
         type: 'png',
         width: 200,
@@ -103,7 +118,7 @@ async function generateOrderNota(order) {
       doc.on('end', () => resolve(Buffer.concat(buffers)));
       doc.on('error', reject);
 
-      const qrContent = `UTC-VERIFY:SpecialOrder:${order._id}:${order.order_number}`;
+      const qrContent = buildVerifyContent('SpecialOrder', order, 'order_number');
       const qrBuffer = await QRCode.toBuffer(qrContent, {
         type: 'png',
         width: 200,
@@ -484,7 +499,7 @@ async function generateServiceEntryNota(ticket) {
       doc.on('end', () => resolve(Buffer.concat(buffers)));
       doc.on('error', reject);
 
-      const qrContent = `UTC-VERIFY:ServiceTicket:${ticket._id}:${ticket.ticket_number}`;
+      const qrContent = buildVerifyContent('ServiceTicket', ticket, 'ticket_number');
       const qrBuffer = await QRCode.toBuffer(qrContent, {
         type: 'png', width: 200, margin: 1,
         color: { dark: '#293e85', light: '#ffffff00' },
@@ -525,7 +540,7 @@ async function generateOrderEntryNota(order) {
       doc.on('end', () => resolve(Buffer.concat(buffers)));
       doc.on('error', reject);
 
-      const qrContent = `UTC-VERIFY:SpecialOrder:${order._id}:${order.order_number}`;
+      const qrContent = buildVerifyContent('SpecialOrder', order, 'order_number');
       const qrBuffer = await QRCode.toBuffer(qrContent, {
         type: 'png', width: 200, margin: 1,
         color: { dark: '#293e85', light: '#ffffff00' },

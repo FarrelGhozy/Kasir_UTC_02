@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Verifikasi Nota — Unida Technology Centre</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <style>
+    :root {
+      --utc-primary: #29417d;
+      --utc-muted: #7f8c8d;
+      --utc-success: #27ae60;
+      --utc-danger: #e74c3c;
+      --utc-warning: #f39c12;
+    }
+    body {
+      background: linear-gradient(160deg, #eef2f9 0%, #dde5f2 100%);
+      min-height: 100vh;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+    .verify-card {
+      max-width: 420px;
+      margin: 2.5rem auto 3rem;
+      border: none;
+      border-radius: 1rem;
+      box-shadow: 0 10px 40px rgba(41, 65, 133, 0.15);
+      overflow: hidden;
+    }
+    .verify-header {
+      background: var(--utc-primary);
+      color: #fff;
+      padding: 1.5rem 1.25rem 1.25rem;
+      text-align: center;
+    }
+    .verify-header img {
+      width: 56px;
+      height: 56px;
+      object-fit: contain;
+      border-radius: 12px;
+      background: #fff;
+      padding: 4px;
+      margin-bottom: 0.5rem;
+    }
+    .verify-body { padding: 1.5rem 1.25rem; }
+    .status-banner {
+      border-radius: 0.75rem;
+      padding: 1rem;
+      text-align: center;
+      margin-bottom: 1.25rem;
+    }
+    .status-valid { background: rgba(39, 174, 96, 0.12); color: var(--utc-success); }
+    .status-invalid { background: rgba(231, 76, 60, 0.12); color: var(--utc-danger); }
+    .status-banner i { font-size: 2.25rem; }
+    .status-banner .title { font-size: 1.1rem; font-weight: 700; margin-top: 0.35rem; }
+    .status-banner .subtitle { font-size: 0.85rem; opacity: 0.85; }
+    .detail-list .row-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.55rem 0;
+      border-bottom: 1px dashed #e3e8f0;
+      font-size: 0.9rem;
+    }
+    .detail-list .row-line:last-child { border-bottom: none; }
+    .detail-list .label { color: var(--utc-muted); white-space: nowrap; }
+    .detail-list .value { font-weight: 600; text-align: right; word-break: break-word; }
+    .badge-utc { font-size: 0.75rem; padding: 0.4em 0.7em; }
+    .verify-footer {
+      text-align: center;
+      font-size: 0.78rem;
+      color: var(--utc-muted);
+      padding: 0 1.25rem 1.25rem;
+    }
+    .spinner-utc { color: var(--utc-primary); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card verify-card">
+      <div class="verify-header">
+        <img src="assets/logo.webp" alt="Logo UTC" onerror="this.style.display='none'">
+        <h1 class="h5 mb-0">Unida Technology Centre</h1>
+        <div class="small opacity-75">Gedung Zubair Ruangan 205, Ponorogo</div>
+      </div>
+
+      <div class="verify-body" id="content">
+        <div class="text-center py-4">
+          <div class="spinner-border spinner-utc" role="status">
+            <span class="visually-hidden">Memuat...</span>
+          </div>
+          <p class="mt-3 mb-0 text-muted">Memverifikasi keaslian nota...</p>
+        </div>
+      </div>
+
+      <div class="verify-footer">
+        Halaman verifikasi resmi — tidak memerlukan login.<br>
+        &copy; Unida Technology Centre
+      </div>
+    </div>
+  </div>
+
+  <script>
+    'use strict';
+
+    // ==========================================
+    // Utilitas
+    // ==========================================
+
+    // Escape HTML untuk mencegah XSS dari data API
+    function escapeHTML(str) {
+      if (str === null || str === undefined || str === '') return '-';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function maskPhone(phone) {
+      if (!phone) return '-';
+      const s = String(phone);
+      if (s.length <= 5) return s;
+      return s.slice(0, 4) + '*'.repeat(Math.max(s.length - 7, 3)) + s.slice(-3);
+    }
+
+    function formatCurrency(amount) {
+      if (amount === null || amount === undefined || isNaN(Number(amount))) return '-';
+      return new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      }).format(Number(amount));
+    }
+
+    function formatDate(dateStr) {
+      if (!dateStr) return '-';
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return '-';
+      return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+    }
+
+    function paymentBadge(status) {
+      const s = String(status || '').toLowerCase();
+      if (s === 'lunas' || s === 'paid') {
+        return '<span class="badge bg-success badge-utc"><i class="bi bi-check-circle"></i> Lunas</span>';
+      }
+      if (s.includes('belum')) {
+        return '<span class="badge bg-warning text-dark badge-utc"><i class="bi bi-hourglass-split"></i> Belum Lunas</span>';
+      }
+      return escapeHTML(status || '-');
+    }
+
+    // Terjemahan status tiket/order ke Bahasa Indonesia
+    const STATUS_MAP = {
+      'Received': 'Diterima',
+      'In_Diagnosis': 'Proses Diagnosa',
+      'In_Repair': 'Sedang Perbaikan',
+      'Waiting_Parts': 'Menunggu Sparepart',
+      'Waiting_Approval': 'Menunggu Persetujuan',
+      'Completed': 'Selesai',
+      'Ready': 'Siap Diambil',
+      'Picked_Up': 'Sudah Diambil',
+      'Cancelled': 'Dibatalkan',
+      'Pending': 'Menunggu',
+      'In_Progress': 'Sedang Dikerjakan',
+      'Ordered': 'Sedang Dipesan'
+    };
+    function translateStatus(status) {
+      if (!status) return '-';
+      return STATUS_MAP[status] || String(status).replace(/_/g, ' ');
+    }
+
+    function renderError(title, subtitle) {
+      return `
+        <div class="status-banner status-invalid">
+          <i class="bi bi-x-octagon"></i>
+          <div class="title">${escapeHTML(title)}</div>
+          <div class="subtitle">${escapeHTML(subtitle)}</div>
+        </div>`;
+    }
+
+    function renderDetailRow(label, valueHtml) {
+      return `<div class="row-line"><span class="label">${escapeHTML(label)}</span><span class="value">${valueHtml}</span></div>`;
+    }
+
+    // ==========================================
+    // Logika Verifikasi
+    // ==========================================
+
+    async function verifyNota() {
+      const contentEl = document.getElementById('content');
+      const params = new URLSearchParams(window.location.search);
+      const model = params.get('model');
+      const id = params.get('id');
+      const noFromQR = params.get('no');
+
+      // Validasi parameter QR — model harus salah satu dari yang diizinkan
+      const VALID_MODELS = ['ServiceTicket', 'SpecialOrder'];
+      if (!model || !id || !VALID_MODELS.includes(model) || !/^[a-f\d]{24}$/i.test(id)) {
+        contentEl.innerHTML = renderError('QR Code Tidak Valid', 'Kode verifikasi pada nota tidak dikenali.');
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/verify-nota/${encodeURIComponent(model)}/${encodeURIComponent(id)}`, {
+          headers: { 'Accept': 'application/json' }
+        });
+
+        if (res.status === 404) {
+          contentEl.innerHTML = renderError('Nota Tidak Ditemukan', 'Periksa kembali QR code atau hubungi petugas UTC.');
+          return;
+        }
+        if (!res.ok) {
+          throw new Error('HTTP ' + res.status);
+        }
+
+        const json = await res.json();
+        if (!json.success || !json.data) {
+          throw new Error('Format respons tidak valid');
+        }
+
+        const doc = json.data;
+
+        // Validasi ganda: nomor nota di QR harus cocok dengan data di server
+        const serverNumber = doc.ticket_number || doc.order_number || '';
+        if (noFromQR && serverNumber && noFromQR !== serverNumber) {
+          contentEl.innerHTML = renderError('Nomor Nota Tidak Cocok', 'Terdeteksi perbedaan nomor nota. Harap hubungi petugas UTC.');
+          return;
+        }
+
+        // Susun detail sesuai jenis nota
+        let rows = '';
+        if (model === 'ServiceTicket') {
+          rows += renderDetailRow('No. Tiket', escapeHTML(doc.ticket_number));
+          let warranty = '-';
+          if (doc.warranty_expires_at) {
+            warranty = 's/d ' + formatDate(doc.warranty_expires_at);
+          }
+          rows += renderDetailRow('Garansi', escapeHTML(warranty));
+          rows += renderDetailRow('Total Biaya', escapeHTML(formatCurrency(doc.total_cost)));
+          rows += renderDetailRow('Metode Bayar', escapeHTML(doc.payment_method || 'Belum dibayar'));
+        } else {
+          rows += renderDetailRow('No. Order', escapeHTML(doc.order_number));
+          rows += renderDetailRow('Estimasi Harga', escapeHTML(formatCurrency(doc.estimated_price)));
+          const dp = Number(doc.down_payment) || 0;
+          rows += renderDetailRow('DP Dibayar', dp > 0 ? escapeHTML(formatCurrency(dp)) : '-');
+        }
+        rows += renderDetailRow('Nama Pelanggan', escapeHTML(doc.customer && doc.customer.name));
+        rows += renderDetailRow('No. HP', escapeHTML(maskPhone(doc.customer && doc.customer.phone)));
+        rows += renderDetailRow('Status', escapeHTML(translateStatus(doc.status)));
+        rows += renderDetailRow('Status Bayar', paymentBadge(doc.payment_status));
+
+        contentEl.innerHTML = `
+          <div class="status-banner status-valid">
+            <i class="bi bi-patch-check-fill"></i>
+            <div class="title">Nota Terverifikasi</div>
+            <div class="subtitle">Nota ini asli diterbitkan oleh Unida Technology Centre</div>
+          </div>
+          <div class="detail-list">${rows}</div>`;
+      } catch (err) {
+        contentEl.innerHTML = renderError('Gagal Memverifikasi', 'Terjadi kesalahan koneksi. Coba refresh halaman.');
+      }
+    }
+
+    verifyNota();
+  </script>
+</body>
+</html>
