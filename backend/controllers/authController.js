@@ -2,10 +2,10 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 
-// Generate JWT Token
+// Generate JWT Token (berisi versi sesi agar bisa dicabut seketika)
 const generateToken = (user) => {
   return jwt.sign(
-    { id: user._id, role: user.role, isActive: user.isActive },
+    { id: user._id, role: user.role, tv: user.tokenVersion || 0 },
     process.env.JWT_SECRET,
     { expiresIn: '7d' }
   );
@@ -195,8 +195,12 @@ exports.updateUser = async (req, res, next) => {
     }
 
     if (name) user.name = name;
+    // Perubahan role/status mencabut semua sesi aktif user tersebut
+    const resetSesi = (role && role !== user.role) ||
+      (isActive !== undefined && isActive !== user.isActive);
     if (role) user.role = role;
     if (isActive !== undefined) user.isActive = isActive;
+    if (resetSesi) user.tokenVersion = (user.tokenVersion || 0) + 1;
 
     await user.save();
 
@@ -237,8 +241,9 @@ exports.changePassword = async (req, res, next) => {
       });
     }
 
-    // Perbarui kata sandi
+    // Perbarui kata sandi + naikkan versi sesi agar token lama langsung hangus
     user.password = new_password;
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
     await user.save();
 
     res.status(200).json({
@@ -266,6 +271,8 @@ exports.deleteUser = async (req, res, next) => {
     }
 
     user.isActive = false;
+    // Cabut semua sesi aktif agar akun yang dinonaktifkan langsung terblokir
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
     await user.save();
 
     res.status(200).json({

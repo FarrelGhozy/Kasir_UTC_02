@@ -1,11 +1,17 @@
 services:
-  # 1. Database MongoDB
+  # 1. Database MongoDB (wajib pakai autentikasi — lihat MONGO_ROOT_USER/PASSWORD di .env)
   mongo_db:
     image: mongo:8.2.11
     restart: always
     container_name: utc_mongo
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USER:?Isi MONGO_ROOT_USER di file .env (lihat .env.example)}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD:?Isi MONGO_ROOT_PASSWORD di file .env (lihat .env.example)}
+      - MONGO_INITDB_DATABASE=${MONGO_INITDB_DATABASE:-bengkel_utc}
     ports:
-      - "${HOST_MONGO_PORT:-27018}:27017"
+      # Bind ke localhost saja — database JANGAN terekspos ke jaringan/VPS publik.
+      # (Akses dev lokal via mongodb://localhost:27018 tetap berfungsi.)
+      - "127.0.0.1:${HOST_MONGO_PORT:-27018}:27017"
     volumes:
       - mongo_data:/data/db
     networks:
@@ -44,7 +50,9 @@ services:
       - BACKEND_URL=${BACKEND_URL:-http://backend:5000}
       - EMAIL_USER=${EMAIL_USER:-}
       - EMAIL_PASS=${EMAIL_PASS:-}
-      - CORS_ORIGIN=${CORS_ORIGIN:-*}
+      # Default dikosongkan agar backend memakai daftar origin aman bawaan.
+      # JANGAN isi '*' di production (ditolak backend bila NODE_ENV=production).
+      - CORS_ORIGIN=${CORS_ORIGIN:-}
       - IS_CAMPUS_EVENT=${IS_CAMPUS_EVENT:-false}
       - NOTA_VERIFY_URL=${NOTA_VERIFY_URL:-https://kasir.utc.web.id/verify.html}
     depends_on:
@@ -94,7 +102,8 @@ services:
     container_name: utc_waha
     restart: always
     ports:
-      - "${HOST_WAHA_PORT:-8000}:8000"
+      # Dashboard WAHA hanya untuk admin — bind ke localhost, akses via SSH tunnel bila perlu.
+      - "127.0.0.1:${HOST_WAHA_PORT:-8000}:8000"
     environment:
       - PORT=8000
       - WAHA_WHATSAPP_DEFAULT_SESSION=${WAHA_SESSION:-default}
@@ -116,17 +125,11 @@ services:
     mem_limit: 1024m
     cpus: 1.0
 
-  # 5. Auto-Restart Scheduler
-  auto_restart:
-    image: docker:cli
-    container_name: utc_auto_restart
-    restart: always
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    # Menjadwalkan restart container backend dan waha setiap 2 hari pukul 00:00
-    entrypoint: ["/bin/sh", "-c", "echo '0 0 */2 * * docker restart utc_backend utc_waha' > /etc/crontabs/root && crond -f -L /dev/stdout"]
-    networks:
-      - utc_network
+  # 5. Restart berkala — JALANKAN DARI HOST, bukan dari container.
+  #    Me-mount /var/run/docker.sock ke container = container yang dibobol bisa
+  #    menguasai seluruh host Docker. Sebagai ganti, pasang cron di HOST/VPS:
+  #      0 0 */2 * * docker restart utc_backend utc_waha
+  #    (Service auto_restart berbasis docker.sock sengaja dihapus demi keamanan.)
 
 networks:
   utc_network:

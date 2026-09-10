@@ -25,54 +25,58 @@ exports.protect = async (req, res, next) => {
       });
     }
 
+    let decoded;
     try {
-      // Verifikasi token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-      // Ambil data user dari JWT payload
-      req.user = {
-        id: decoded.id,
-        role: decoded.role
-      };
-
-      // Fallback: jika role tidak ada di JWT (token lama), ambil dari DB
-      if (!req.user.role) {
-        const user = await User.findById(req.user.id).select('role isActive').lean();
-        if (!user) {
-          return res.status(401).json({
-            success: false,
-            message: 'Pengguna tidak ditemukan'
-          });
-        }
-        req.user.role = user.role;
-        req.user.isActive = user.isActive;
-      } else if (decoded.isActive === false) {
-        return res.status(403).json({
-          success: false,
-          message: 'Akun telah dinonaktifkan'
-        });
-      }
-
-      next();
+      // Verifikasi tanda tangan & kedaluwarsa token
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
     } catch (error) {
       return res.status(401).json({
         success: false,
         message: 'Token tidak valid atau kedaluwarsa'
       });
     }
+
+    if (!decoded || !decoded.id) {
+      return res.status(401).json({
+        success: false,
+        message: 'Token tidak valid atau kedaluwarsa'
+      });
+    }
+
+    // Verifikasi sesi & status akun SELALU ke database (bukan dari payload JWT),
+    // agar penonaktifan akun dan reset sesi berlaku seketika
+    const user = await User.findById(decoded.id).select('role isActive tokenVersion').lean();
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Pengguna tidak ditemukan'
+      });
+    }
+
+    if (!user.isActive) {
+      return res.status(403).json({
+        success: false,
+        message: 'Akun telah dinonaktifkan'
+      });
+    }
+
+    // Token lama (tanpa versi sesi) atau sesi yang sudah di-reset → wajib login ulang
+    if (decoded.tv === undefined || decoded.tv !== user.tokenVersion) {
+      return res.status(401).json({
+        success: false,
+        message: 'Sesi telah berakhir, silakan login kembali'
+      });
+    }
+
+    req.user = {
+      id: decoded.id,
+      role: user.role
+    };
+
+    next();
   } catch (error) {
     next(error);
   }
-};
-
-/**
- * Protect — juga terima token dari query parameter (untuk window.open)
- */
-exports.protectQuery = async (req, res, next) => {
-  if (!req.headers.authorization && req.query.token) {
-    req.headers.authorization = `Bearer ${req.query.token}`;
-  }
-  return exports.protect(req, res, next);
 };
 
 /**

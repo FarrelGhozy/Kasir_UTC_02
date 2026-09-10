@@ -29,7 +29,11 @@ setInterval(() => {
 
 function validateWebhookAuth(req) {
   const secret = process.env.WAHA_WEBHOOK_SECRET;
-  if (!secret) return true; // Jika tidak dikonfigurasi, lewati (backward compat)
+  if (!secret) {
+    // Di production secret wajib diisi — tolak semua request tanpa auth
+    if (process.env.NODE_ENV === 'production') return false;
+    return true; // Mode dev/test: lewati (backward compat)
+  }
   const token = req.query.token || req.headers['x-webhook-token'];
   return token === secret;
 }

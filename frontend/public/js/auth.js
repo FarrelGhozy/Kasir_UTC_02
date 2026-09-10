@@ -1,6 +1,6 @@
 // public/js/auth.js - Autentikasi & Manajemen Token
 
-import api, { showToast } from './api.js';
+import api, { showToast, escapeHTML } from './api.js';
 
 class Auth {
     constructor() {
@@ -159,22 +159,26 @@ class Auth {
 
     showWAHAAlert(status, errorDetail = null) {
         let modalEl = document.getElementById('waha-alert-modal');
-        
+
+        // Escape semua data dinamis sebelum masuk innerHTML (cegah XSS)
+        const safeStatus = escapeHTML(status);
+        const safeDetail = errorDetail ? escapeHTML(errorDetail) : null;
+
         let title, iconColor, desc, extraAlert;
         if (status === 'UNREACHABLE') {
             title = 'Server WhatsApp Tidak Terjangkau';
             iconColor = 'text-secondary';
-            desc = `Backend tidak bisa terhubung ke server WAHA (Status: <strong>${status}</strong>).`;
+            desc = `Backend tidak bisa terhubung ke server WAHA (Status: <strong>${safeStatus}</strong>).`;
             extraAlert = 'Periksa apakah container WAHA berjalan dan dapat dijangkau dari backend. Coba jalankan: <code>docker compose logs backend | grep WAHA</code>';
         } else if (status === 'STARTING') {
             title = 'WhatsApp Belum Siap';
             iconColor = 'text-warning';
-            desc = `Session WhatsApp sedang dalam proses koneksi (Status: <strong>${status}</strong>).`;
+            desc = `Session WhatsApp sedang dalam proses koneksi (Status: <strong>${safeStatus}</strong>).`;
             extraAlert = 'Buka dashboard WAHA di http://localhost:8000 dan scan QR code jika muncul.';
         } else {
             title = 'Layanan WhatsApp Terputus';
             iconColor = 'text-danger';
-            desc = `Layanan Bot WhatsApp (WAHA) saat ini tidak merespon/terputus (Status: <strong>${status}</strong>).`;
+            desc = `Layanan Bot WhatsApp (WAHA) saat ini tidak merespon/terputus (Status: <strong>${safeStatus}</strong>).`;
             extraAlert = 'Fitur notifikasi otomatis pelanggan sedang lumpuh. Harap hubungi Administrator atau cek koneksi server.';
         }
 
@@ -191,7 +195,7 @@ class Auth {
                                 <i class="bi bi-whatsapp ${iconColor} mb-3" style="font-size: 4rem;"></i>
                                 <h4 class="fw-bold">${title}</h4>
                                 <p class="text-muted">${desc}</p>
-                                ${errorDetail ? `<p class="small text-danger">Detail: ${errorDetail}</p>` : ''}
+                                ${safeDetail ? `<p class="small text-danger">Detail: ${safeDetail}</p>` : ''}
                                 <div class="alert alert-warning small text-start">${extraAlert}</div>
                             </div>
                             <div class="modal-footer">

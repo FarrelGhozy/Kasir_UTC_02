@@ -109,8 +109,8 @@ POST /api/auth/login
 Content-Type: application/json
 
 {
-  "username": "admin-utc01",
-  "password": "adminrahasia26"
+  "username": "GANTI_DENGAN_USERNAME_ANDA",
+  "password": "GANTI_DENGAN_PASSWORD_ANDA"
 }
 ```
 

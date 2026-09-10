@@ -1712,9 +1712,22 @@ class Service {
         this.getOrCreateModal('detailModal').show();
     }
 
-    downloadNota(id, type) {
-        const token = localStorage.getItem('token');
-        window.open(`/api/services/${id}/nota?type=${type || 'payment'}&token=${token}`, '_blank');
+    async downloadNota(id, type) {
+        // Unduh via fetch + header Authorization (jangan taruh token di URL —
+        // token di query string bocor ke log server, histori browser, dan proxy)
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`/api/services/${id}/nota?type=${type || 'payment'}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) throw new Error('Gagal mengunduh nota');
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            window.open(url, '_blank');
+            setTimeout(() => URL.revokeObjectURL(url), 60000);
+        } catch (e) {
+            showToast(e.message, 'error');
+        }
     }
 
     handlePhotoInput(input) {

@@ -1,4 +1,5 @@
 const path = require('path');
+const crypto = require('crypto');
 const fs = require('fs').promises;
 
 const NOTA_DIR = path.join(__dirname, '..', 'uploads', 'notas');
@@ -13,7 +14,10 @@ async function saveNota(buffer, type, ticketNumber, customerName, options = {}) 
   const statusTag = kind === 'ENTRY' ? 'ENTRY' : (paid ? 'LUNAS' : 'BELUM');
   const safeTicket = String(ticketNumber || 'UNKNOWN').replace(/[^a-zA-Z0-9-]/g, '');
   const stamp = Date.now().toString().slice(-6);
-  const filename = `NOTA-${type}-${safeTicket}-${kind}-${statusTag}_${safeName}_${date}-${stamp}.pdf`;
+  // Sufiks acak agar URL nota publik tidak bisa ditebak/di-enumerasi
+  // (folder /uploads/notas diserve publik untuk link WhatsApp pelanggan)
+  const rand = crypto.randomBytes(6).toString('hex');
+  const filename = `NOTA-${type}-${safeTicket}-${kind}-${statusTag}_${safeName}_${date}-${stamp}-${rand}.pdf`;
   const filePath = path.join(NOTA_DIR, filename);
 
   await fs.mkdir(NOTA_DIR, { recursive: true });

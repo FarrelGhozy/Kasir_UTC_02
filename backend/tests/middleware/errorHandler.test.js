@@ -149,8 +149,17 @@ describe('errorHandler', () => {
   });
 
   it('should sanitize sensitive fields in log body', async () => {
+    const SystemLog = require('../../models/SystemLog');
+    SystemLog.create.mockClear();
     const req = mockReq({
-      body: { username: 'admin', password: 'supersecret', token: 'abc' }
+      originalUrl: '/api/services/123/nota?token=RAHASIA',
+      body: {
+        username: 'admin',
+        password: 'supersecret',
+        current_password: 'lama123',
+        new_password: 'baru123',
+        token: 'abc'
+      }
     });
     const res = mockRes();
     const next = jest.fn();
@@ -159,6 +168,10 @@ describe('errorHandler', () => {
     await errorHandler(err, req, res, next);
     // Should not crash — SystemLog.create is mocked
     expect(res.status).toHaveBeenCalledWith(500);
+    expect(SystemLog.create).toHaveBeenCalled();
+    const logged = SystemLog.create.mock.calls[0][0];
+    expect(logged.details.body).toEqual({ username: 'admin' });
+    expect(logged.details.path).not.toContain('RAHASIA');
   });
 
   it('should handle error without message', async () => {

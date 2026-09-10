@@ -14,13 +14,18 @@ const errorHandler = async (err, req, res, next) => {
     source: 'GlobalErrorHandler',
     message: err.message || 'Kesalahan Server',
     details: {
-      path: req.originalUrl,
       method: req.method,
       body: req.body ? (() => {
         const sanitized = { ...req.body };
-        ['password', 'password_baru', 'password_lama', 'token', 'accessToken', 'secret'].forEach(k => delete sanitized[k]);
+        // Daftar field sensitif — sinkron dengan nama field di authController
+        // (current_password/new_password) + varian umum lainnya
+        ['password', 'current_password', 'new_password', 'password_baru', 'password_lama', 'currentPassword', 'newPassword', 'password_confirmation', 'token', 'accessToken', 'secret', 'api_key', 'apiKey', 'EMAIL_PASS', 'email_pass'].forEach(k => delete sanitized[k]);
         return sanitized;
       })() : undefined,
+      // Jangan log token unduhan nota yang dikirim via query string
+      path: typeof req.originalUrl === 'string'
+        ? req.originalUrl.replace(/([?&]token=)[^&]*/g, '$1***')
+        : req.originalUrl,
       stack: err.stack,
       user: req.user ? req.user.id : 'Guest'
     }

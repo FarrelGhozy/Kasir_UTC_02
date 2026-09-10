@@ -22,6 +22,8 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Password wajib diisi'],
     minlength: [6, 'Password harus minimal 6 karakter'],
+    // bcrypt diam-diam memotong input > 72 byte — tolak agar tidak ambigu
+    maxlength: [72, 'Password tidak boleh lebih dari 72 karakter'],
     select: false // Jangan kembalikan password secara default dalam query
   },
   role: {
@@ -46,6 +48,12 @@ const userSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
+  },
+  // Versi sesi — dinaikkan setiap ganti password / nonaktif / ubah role,
+  // sehingga semua token lama langsung tidak berlaku (cek di middleware protect)
+  tokenVersion: {
+    type: Number,
+    default: 0
   },
   jabatan: {
     type: String,

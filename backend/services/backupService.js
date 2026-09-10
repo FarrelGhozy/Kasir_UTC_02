@@ -24,8 +24,11 @@ class BackupService {
 
   init() {
     if (!fs.existsSync(this.backupDir)) {
-      fs.mkdirSync(this.backupDir, { recursive: true });
+      // Permission ketat: file backup memuat hash password user
+      fs.mkdirSync(this.backupDir, { recursive: true, mode: 0o700 });
       console.log('[BackupService] Folder backup dibuat:', this.backupDir);
+    } else {
+      try { fs.chmodSync(this.backupDir, 0o700); } catch (_) {}
     }
 
     this.runBackup();
@@ -75,13 +78,14 @@ class BackupService {
 
     const jsonStr = JSON.stringify(data);
     const compressed = await gzip(jsonStr);
-    fs.writeFileSync(filePath, compressed);
+    // File backup memuat hash password — hanya boleh dibaca owner (root/appuser)
+    fs.writeFileSync(filePath, compressed, { mode: 0o600 });
 
     const metaFile = path.join(this.backupDir, 'last-backup.json');
     fs.writeFileSync(metaFile, JSON.stringify({
       last_backup_at: new Date(),
       filename: filename
-    }));
+    }), { mode: 0o600 });
 
     console.log(`[BackupService] Backup berhasil: ${filename} (${this.formatSize(compressed.length)})`);
     await SystemLog.create({
