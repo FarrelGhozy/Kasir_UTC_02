@@ -163,6 +163,11 @@ const serviceTicketSchema = new mongoose.Schema({
   type: String,
   enum: ['QRIS', 'Transfer', 'Cash']
   },
+  payment_status: {
+  type: String,
+  enum: ['Belum Lunas', 'Lunas'],
+  default: 'Belum Lunas'
+  },
   payment_proof: {
   type: String
   },
@@ -225,7 +230,17 @@ serviceTicketSchema.pre('save', async function() {
   }
   this.total_cost = partsTotal + (this.service_fee || 0);
 
-  // 2. Generate Nomor Tiket
+  // 2. Sinkronisasi status pembayaran (sumber tunggal definisi Lunas)
+  // Lunas = total 0 (gratis) ATAU sudah Picked_Up dengan metode bayar terisi
+  if (this.total_cost === 0) {
+    this.payment_status = 'Lunas';
+  } else if (this.status === 'Picked_Up' && this.payment_method) {
+    this.payment_status = 'Lunas';
+  } else if (this.total_cost > 0) {
+    this.payment_status = 'Belum Lunas';
+  }
+
+  // 3. Generate Nomor Tiket
   if (this.isNew && !this.ticket_number) {
     try {
       this.ticket_number = await this.constructor.generateTicketNumber();
@@ -322,11 +337,29 @@ serviceTicketSchema.methods.updateStatus = async function(newStatus, paymentMeth
   } else if (newStatus === 'Completed' && !this.history.completed_at) {
     this.history.completed_at = new Date();
   } else if (newStatus === 'Picked_Up') {
+    // Hitung total terkini (total_cost bisa basi sebelum save)
+    const partsTotal = Array.isArray(this.parts_used)
+      ? this.parts_used.reduce((sum, p) => sum + (Number(p.subtotal) || 0), 0)
+      : 0;
+    const total = partsTotal + (Number(this.service_fee) || 0);
+
+    // Validasi metode pembayaran untuk tiket berbayar
+    const validMethods = ['QRIS', 'Transfer', 'Cash'];
+    if (paymentMethod && !validMethods.includes(paymentMethod)) {
+      throw new Error(`Metode pembayaran tidak valid: ${paymentMethod}`);
+    }
+    if (total > 0 && !paymentMethod && !this.payment_method) {
+      throw new Error('Metode pembayaran wajib dipilih untuk menyelesaikan pengambilan (tiket berbayar)');
+    }
+
     if (!this.history.picked_up_at) {
       this.history.picked_up_at = new Date();
     }
     if (paymentMethod) this.payment_method = paymentMethod;
     if (paymentProof) this.payment_proof = paymentProof;
+
+    // Sinkronisasi status pembayaran (konsisten dengan pre-save)
+    this.payment_status = total === 0 || this.payment_method ? 'Lunas' : 'Belum Lunas';
     
     // Set garansi 7 hari jika belum ada
     if (!this.warranty_expires_at) {

@@ -54,6 +54,12 @@ class Pelayanan {
                                     <option value="Servis">Servis</option>
                                     <option value="Pesanan">Pesanan</option>
                                 </select>
+                                <select class="form-select form-select-sm" id="nota-status-filter" style="width: 140px;">
+                                    <option value="">Semua Status</option>
+                                    <option value="Lunas">Lunas</option>
+                                    <option value="Belum Lunas">Belum Lunas</option>
+                                    <option value="-">Tanda Terima</option>
+                                </select>
                                 <span class="ms-auto small text-muted align-self-center" id="nota-count"></span>
                             </div>
                             <div class="table-responsive">
@@ -64,12 +70,13 @@ class Pelayanan {
                                             <th style="width: 80px;">Tipe</th>
                                             <th>No. Tiket</th>
                                             <th>Pelanggan</th>
+                                            <th style="width: 110px;">Status</th>
                                             <th style="width: 100px;">Tanggal</th>
                                             <th style="width: 60px;">Aksi</th>
                                         </tr>
                                     </thead>
                                     <tbody id="nota-table-body">
-                                        <tr><td colspan="6" class="text-center text-muted py-4">Memuat data...</td></tr>
+                                        <tr><td colspan="7" class="text-center text-muted py-4">Memuat data...</td></tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -114,37 +121,43 @@ class Pelayanan {
         const modal = new bootstrap.Modal(modalEl);
         modal.show();
 
-        document.getElementById('nota-table-body').innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4"><div class="spinner-border spinner-border-sm me-2"></div>Memuat data...</td></tr>';
+        document.getElementById('nota-table-body').innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4"><div class="spinner-border spinner-border-sm me-2"></div>Memuat data...</td></tr>';
 
         try {
             const res = await api.getNotas();
             this.notas = res.data || [];
             this.renderNotaTable();
         } catch (err) {
-            document.getElementById('nota-table-body').innerHTML = `<tr><td colspan="6" class="text-center text-danger py-4">${escapeHTML(err.message)}</td></tr>`;
+            document.getElementById('nota-table-body').innerHTML = `<tr><td colspan="7" class="text-center text-danger py-4">${escapeHTML(err.message)}</td></tr>`;
         }
 
         const searchInput = document.getElementById('nota-search');
         const filterSelect = document.getElementById('nota-type-filter');
+        const statusSelect = document.getElementById('nota-status-filter');
         const handler = () => this.renderNotaTable();
 
         searchInput.removeEventListener('input', handler);
         filterSelect.removeEventListener('change', handler);
+        statusSelect.removeEventListener('change', handler);
         searchInput.addEventListener('input', handler);
         filterSelect.addEventListener('change', handler);
+        statusSelect.addEventListener('change', handler);
     }
 
     renderNotaTable() {
         const searchTerm = document.getElementById('nota-search')?.value.toLowerCase() || '';
         const typeFilter = document.getElementById('nota-type-filter')?.value || '';
+        const statusFilter = document.getElementById('nota-status-filter')?.value || '';
 
         let filtered = this.notas.filter(n => {
             if (typeFilter && n.type !== typeFilter) return false;
+            if (statusFilter && (n.paymentStatus || '-') !== statusFilter) return false;
             if (searchTerm) {
                 const q = searchTerm.toLowerCase();
                 return (n.ticketNumber || '').toLowerCase().includes(q)
                     || (n.customerName || '').toLowerCase().includes(q)
-                    || (n.type || '').toLowerCase().includes(q);
+                    || (n.type || '').toLowerCase().includes(q)
+                    || (n.paymentStatus || '').toLowerCase().includes(q);
             }
             return true;
         });
@@ -163,20 +176,28 @@ class Pelayanan {
         empty.style.display = 'none';
         count.textContent = `${filtered.length} nota`;
 
-        tbody.innerHTML = filtered.map((n, i) => `
+        tbody.innerHTML = filtered.map((n, i) => {
+            const status = n.paymentStatus || '-';
+            const badge = status === 'Lunas'
+                ? '<span class="badge bg-success">LUNAS</span>'
+                : status === 'Belum Lunas'
+                    ? '<span class="badge bg-warning text-dark">BELUM LUNAS</span>'
+                    : '<span class="badge bg-secondary">TANDA TERIMA</span>';
+            return `
             <tr>
                 <td class="text-muted">${i + 1}</td>
-                <td><span class="badge ${n.type === 'Servis' ? 'bg-primary' : 'bg-success'}">${n.type}</span></td>
+                <td><span class="badge ${n.type === 'Servis' ? 'bg-primary' : 'bg-success'}">${n.type}</span><div class="small text-muted">${escapeHTML(n.kind || '')}</div></td>
                 <td class="fw-medium">${escapeHTML(n.ticketNumber)}</td>
                 <td>${escapeHTML(n.customerName)}</td>
+                <td>${badge}</td>
                 <td class="text-muted small">${formatDate(n.date)}</td>
                 <td>
                     <a href="${n.url}" target="_blank" class="btn btn-sm btn-outline-primary" title="Download">
                         <i class="bi bi-download"></i>
                     </a>
                 </td>
-            </tr>
-        `).join('');
+            </tr>`;
+        }).join('');
     }
 }
 

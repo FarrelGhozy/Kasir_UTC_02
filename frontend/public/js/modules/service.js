@@ -1082,14 +1082,19 @@ class Service {
 
                         ${statusSelect}
 
-                        ${t.status === 'Picked_Up' ? `
+                        ${['Completed', 'Picked_Up'].includes(t.status) ? `
                             <div class="p-2 bg-light rounded border mt-2">
                                 <div class="row align-items-center">
                                     <div class="col-8">
                                         <small class="text-secondary fw-bold d-block" style="font-size:0.65rem">PEMBAYARAN</small>
+                                        ${(t.payment_status === 'Lunas' || (t.payment_method && t.status === 'Picked_Up')) ? `
                                         <div class="fw-bold text-success">
-                                            <i class="bi bi-check-circle-fill me-1"></i>${t.payment_method || 'Lunas'}
+                                            <i class="bi bi-check-circle-fill me-1"></i>LUNAS${t.payment_method ? ` (${escapeHTML(t.payment_method)})` : ''}
+                                        </div>` : `
+                                        <div class="fw-bold text-danger">
+                                            <i class="bi bi-exclamation-circle-fill me-1"></i>BELUM LUNAS
                                         </div>
+                                        <div class="small text-muted">Nota sebagai bukti, lunasi saat ambil</div>`}
                                     </div>
                                     <div class="col-4 text-end">
                                         ${t.payment_proof ? `
@@ -1201,7 +1206,9 @@ class Service {
         if (!t) return;
 
         document.getElementById('payment-ticket-id').value = id;
-        const partsTotal = t.parts_used.reduce((sum, p) => sum + (p.subtotal || 0), 0);
+        const partsTotal = Array.isArray(t.parts_used)
+            ? t.parts_used.reduce((sum, p) => sum + (Number(p.subtotal) || 0), 0)
+            : 0;
         document.getElementById('payment-part-cost').textContent = formatCurrency(partsTotal);
         document.getElementById('payment-service-fee').textContent = formatCurrency(t.service_fee || 0);
 
@@ -1670,6 +1677,11 @@ class Service {
             </div>
 
             <h6 class="fw-bold text-primary mb-3"><i class="bi bi-cart me-2"></i>RINCIAN BIAYA & SPAREPART</h6>
+            <div class="alert ${(t.payment_status === 'Lunas' || (t.payment_method && t.status === 'Picked_Up')) ? 'alert-success' : 'alert-warning'} py-2 small mb-3">
+                Status Bayar: <strong>${(t.payment_status === 'Lunas' || (t.payment_method && t.status === 'Picked_Up')) ? 'LUNAS' : 'BELUM LUNAS'}</strong>
+                ${t.payment_method ? ` | Metode: <strong>${escapeHTML(t.payment_method)}</strong>` : ''}
+                ${!((t.payment_status === 'Lunas') || (t.payment_method && t.status === 'Picked_Up')) ? ' | Nota ini sebagai bukti, lunasi saat pengambilan barang.' : ''}
+            </div>
             <div class="table-responsive rounded border">
                 <table class="table table-hover table-sm mb-0">
                     <thead class="table-light">

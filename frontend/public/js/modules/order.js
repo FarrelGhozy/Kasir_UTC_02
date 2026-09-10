@@ -292,7 +292,10 @@ class Order {
                             <div class="col-md-4">
                                 <small class="text-secondary fw-bold">ESTIMASI & DP</small>
                                 <div>Total: ${formatCurrency(o.estimated_price)}</div>
-                                <div>DP: <span class="text-success">${formatCurrency(o.down_payment)}</span></div>
+                                <div>DP: ${(o.down_payment || 0) > 0
+                                    ? `<span class="text-success">${formatCurrency(o.down_payment)}</span>`
+                                    : '<span class="text-muted">-</span>'}</div>
+                                ${!((o.down_payment || 0) > 0) ? '<div class="small text-muted">Belum ada DP masuk</div>' : ''}
                             </div>
                             <div class="col-md-4">
                                 <small class="text-secondary fw-bold">SISA BAYAR</small>

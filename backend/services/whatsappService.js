@@ -3,6 +3,12 @@ const path = require('path');
 const SystemLog = require('../models/SystemLog');
 const pdfService = require('./pdfService');
 const { saveNota } = require('../utils/notaStorage');
+const {
+  getServiceTotal,
+  getServicePaymentStatus,
+  getOrderRemaining,
+  getOrderPaymentStatus
+} = require('../utils/paymentStatus');
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://backend:5000';
 
@@ -182,7 +188,8 @@ Terima kasih telah mempercayakan perangkat Anda kepada kami. 🙏`;
           pdfResult,
           'SVC',
           ticket.ticket_number,
-          ticket.customer.name
+          ticket.customer.name,
+          { kind: 'ENTRY', isPaid: false, paymentStatus: getServicePaymentStatus(ticket) }
         );
         const fullUrl = `${BACKEND_URL}${fileUrl}`;
         const caption = `Nota Registrasi Servis - ${ticket.ticket_number}`;
@@ -239,7 +246,8 @@ Status Saat Ini: Menunggu Antrian ⏳`;
           pdfResult,
           'ORD',
           order.order_number,
-          order.customer.name
+          order.customer.name,
+          { kind: 'ENTRY', isPaid: false, paymentStatus: getOrderPaymentStatus(order) }
         );
         const fullUrl = `${BACKEND_URL}${fileUrl}`;
         const caption = `Nota Registrasi Pesanan - ${order.order_number}`;
@@ -284,8 +292,11 @@ Status Saat Ini: Menunggu Antrian ⏳`;
 
     // Jika sudah selesai, berikan rincian biaya
     if (ticket.status === 'Completed') {
-      const partCost = ticket.parts_used ? ticket.parts_used.reduce((sum, p) => sum + p.subtotal, 0) : 0;
-      const totalCost = (ticket.service_fee || 0) + partCost;
+      const partCost = ticket.parts_used
+        ? ticket.parts_used.reduce((sum, p) => sum + (Number(p.subtotal) || 0), 0)
+        : 0;
+      const totalCost = getServiceTotal(ticket) || ((Number(ticket.service_fee) || 0) + partCost);
+      const paymentStatus = getServicePaymentStatus(ticket);
 
       message += `*RINCIAN BIAYA:*\n`;
       message += `• Jasa Servis: ${currencyFormat.format(ticket.service_fee)}\n`;
@@ -300,6 +311,12 @@ Status Saat Ini: Menunggu Antrian ⏳`;
       
       message += `--------------------------\n`;
       message += `*TOTAL AKHIR: ${currencyFormat.format(totalCost)}*\n\n`;
+      message += `*Status Bayar: ${paymentStatus.toUpperCase()}*\n`;
+      if (paymentStatus === 'Lunas' && ticket.payment_method) {
+        message += `Metode Bayar: ${ticket.payment_method}\n\n`;
+      } else {
+        message += `Nota ini sebagai bukti servis. Lunasi saat pengambilan barang.\n\n`;
+      }
       message += `Silakan Kakak berkunjung kembali ke toko kami untuk pengambilan perangkat. Jangan lupa membawa nota ini ya!\n`;
     } else if (ticket.status === 'Picked_Up') {
       const expiryDate = ticket.warranty_expires_at 
@@ -323,11 +340,13 @@ _Tim Unida Technology Centre_`;
 
       try {
         const pdfResult = await pdfService.generateServiceNota(ticket);
+        const servicePaidStatus = getServicePaymentStatus(ticket);
         const { fileUrl } = await saveNota(
           pdfResult,
           'SVC',
           ticket.ticket_number,
-          ticket.customer.name
+          ticket.customer.name,
+          { kind: 'PAYMENT', isPaid: servicePaidStatus === 'Lunas', paymentStatus: servicePaidStatus }
         );
         const fullUrl = `${BACKEND_URL}${fileUrl}`;
         const caption = `Nota Digital Servis - ${ticket.ticket_number}`;
@@ -369,7 +388,10 @@ _Tim Unida Technology Centre_`;
 
     const statusLabel = statusMap[order.status] || order.status;
     const currencyFormat = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 });
-    const remaining = Math.max(0, (order.estimated_price || 0) - (order.down_payment || 0));
+    const remaining = getOrderRemaining(order);
+    const downPayment = Number(order.down_payment) || 0;
+    const hasDp = downPayment > 0;
+    const paymentStatus = getOrderPaymentStatus(order);
 
     let message = `*UNIDA TECHNOLOGY CENTRE - NOTIFIKASI PESANAN*\n\n`;
     message += `Halo Kak *${order.customer.name}*, selamat hari yang luar biasa! 😊\n\n`;
@@ -380,8 +402,13 @@ _Tim Unida Technology Centre_`;
 
     message += `*DETAIL KEUANGAN:*\n`;
     message += `• Estimasi Harga: ${currencyFormat.format(order.estimated_price)}\n`;
-    message += `• DP Masuk: ${currencyFormat.format(order.down_payment)}\n`;
-    message += `• *SISA BAYAR: ${currencyFormat.format(remaining)}*\n\n`;
+    // Aturan pesanan: DP dikosongkan (-) bila belum bayar, tampil nominal bila sudah bayar.
+    message += `• DP Masuk: ${hasDp ? currencyFormat.format(downPayment) : '-'}\n`;
+    message += `• *SISA BAYAR: ${currencyFormat.format(remaining)}*\n`;
+    message += `• *Status Bayar: ${paymentStatus.toUpperCase()}*\n\n`;
+    if (!hasDp) {
+      message += `Belum ada DP masuk. Nota ini sebagai bukti pesanan.\n\n`;
+    }
 
     if (order.status === 'Arrived') {
       message += `🎉 Kabar gembira! Barang pesanan Kakak sudah sampai di toko kami.\n`;
@@ -406,7 +433,8 @@ _Tim Unida Technology Centre_`;
           pdfResult,
           'ORD',
           order.order_number,
-          order.customer.name
+          order.customer.name,
+          { kind: 'PAYMENT', isPaid: getOrderPaymentStatus(order) === 'Lunas', paymentStatus: getOrderPaymentStatus(order) }
         );
         const fullUrl = `${BACKEND_URL}${fileUrl}`;
         const caption = `Nota Digital Pesanan - ${order.order_number}`;

@@ -233,7 +233,16 @@ exports.updateStatus = async (req, res, next) => {
       paymentProof = `${baseURL}/api/uploads/${req.file.filename}`;
     }
 
-    await ticket.updateStatus(status, payment_method, paymentProof);
+    try {
+      await ticket.updateStatus(status, payment_method, paymentProof);
+    } catch (statusError) {
+      // Error validasi metode bayar kembalikan 400 langsung agar kasir jelas;
+      // error transisi status diteruskan ke error handler global (perilaku lama).
+      if (statusError.message && statusError.message.includes('Metode pembayaran')) {
+        return res.status(400).json({ success: false, message: statusError.message });
+      }
+      throw statusError;
+    }
 
     // LOGIKA BARU: Jika status Completed, kirim email nota
     if (status === 'Completed') {

@@ -98,18 +98,38 @@ exports.listNotas = async (req, res, next) => {
 
 /**
  * Parse nama file nota menjadi metadata terstruktur
- * Format: NOTA-{SVC|ORD}-{nomor}_{nama}_{YYYY-MM-DD}.pdf
+ * Format baru: NOTA-{SVC|ORD}-{nomor}-{ENTRY|PAYMENT}-{ENTRY|LUNAS|BELUM}_{nama}_{YYYY-MM-DD}-{stamp}.pdf
+ * Format lama: NOTA-{SVC|ORD}-{nomor}_{nama}_{YYYY-MM-DD}.pdf (tetap didukung)
  */
 function parseFilename(filename) {
   const base = filename.replace('.pdf', '');
   const parts = base.split('_');
 
-  const typePrefix = parts[0] || '';        // NOTA-SVC-001234 or NOTA-ORD-2026-0001
+  const typePrefix = parts[0] || '';        // NOTA-SVC-... atau NOTA-ORD-...
   const customerName = parts.slice(1, -1).join(' ') || '-';
-  const dateStr = parts[parts.length - 1] || '';
+  const datePart = parts[parts.length - 1] || '';
+  const dateStr = datePart.split('-').slice(0, 3).join('-');
 
   const type = typePrefix.startsWith('NOTA-SVC') ? 'Servis' : 'Pesanan';
-  const ticketNumber = typePrefix.replace('NOTA-SVC-', '').replace('NOTA-ORD-', '');
+  const withoutPrefix = typePrefix.replace('NOTA-SVC-', '').replace('NOTA-ORD-', '');
+  const segments = withoutPrefix.split('-');
 
-  return { type, ticketNumber, customerName, date: dateStr };
+  // Deteksi suffix KIND dan STATUS dari belakang nomor
+  let kind = 'Payment';
+  let paymentStatus = '-';
+  const statusTags = ['LUNAS', 'BELUM', 'ENTRY'];
+  const kindTags = ['ENTRY', 'PAYMENT'];
+  const rest = [...segments];
+  if (rest.length > 0 && statusTags.includes(rest[rest.length - 1])) {
+    const tag = rest.pop();
+    if (tag === 'LUNAS') paymentStatus = 'Lunas';
+    else if (tag === 'BELUM') paymentStatus = 'Belum Lunas';
+    else if (tag === 'ENTRY') paymentStatus = '-';
+  }
+  if (rest.length > 0 && kindTags.includes(rest[rest.length - 1])) {
+    kind = rest.pop() === 'ENTRY' ? 'Entry' : 'Payment';
+  }
+  const ticketNumber = rest.join('-');
+
+  return { type, ticketNumber, customerName, date: dateStr, kind, paymentStatus };
 }

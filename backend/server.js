@@ -128,7 +128,7 @@ app.get('/api/verify-nota/:model/:id', async (req, res) => {
     const { model, id } = req.params;
     let doc;
     if (model === 'ServiceTicket') {
-      doc = await ServiceTicket.findById(id).select('ticket_number customer.name customer.phone status total_cost payment_method warranty_expires_at').lean();
+      doc = await ServiceTicket.findById(id).select('ticket_number customer.name customer.phone status total_cost payment_method payment_status warranty_expires_at').lean();
     } else if (model === 'SpecialOrder') {
       doc = await SpecialOrder.findById(id).select('order_number customer.name customer.phone status estimated_price down_payment payment_status').lean();
     }

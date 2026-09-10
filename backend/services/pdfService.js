@@ -2,6 +2,12 @@ const PDFDocument = require('pdfkit');
 const path = require('path');
 const fs = require('fs');
 const QRCode = require('qrcode');
+const {
+  getServiceTotal,
+  getServicePaymentStatus,
+  getOrderRemaining,
+  getOrderPaymentStatus
+} = require('../utils/paymentStatus');
 
 const LOGO_PATH = path.join(__dirname, '..', 'assets', 'logo.png');
 
@@ -228,8 +234,12 @@ function addServiceDetails(doc, ticket) {
 
 function addPricingSection(doc, ticket) {
   const y = doc.y + 5 * MM;
-  const partCost = ticket.parts_used ? ticket.parts_used.reduce((sum, p) => sum + p.subtotal, 0) : 0;
-  const totalCost = (ticket.service_fee || 0) + partCost;
+  const partCost = ticket.parts_used
+    ? ticket.parts_used.reduce((sum, p) => sum + (Number(p.subtotal) || 0), 0)
+    : 0;
+  const totalCost = getServiceTotal(ticket) || ((Number(ticket.service_fee) || 0) + partCost);
+  const paymentStatus = getServicePaymentStatus(ticket);
+  const isPaid = paymentStatus === 'Lunas';
 
   const lineY = y - 1 * MM;
   doc.moveTo(PAGE.margin, lineY)
@@ -271,14 +281,23 @@ function addPricingSection(doc, ticket) {
   doc.font('Helvetica').text(formatCurrency(totalCost), PAGE.margin, totalY, { width: CONTENT_WIDTH, align: 'right' });
 
   const statusY = totalY + 5 * MM;
-  const isPaid = ticket.payment_method || totalCost === 0;
   doc.font('Helvetica-Bold').fontSize(7.5);
   if (isPaid) {
     doc.fillColor(hexCode(...COLORS.success));
     doc.text('Status Bayar : LUNAS', PAGE.margin, statusY);
+    if (ticket.payment_method) {
+      doc.fillColor(hexCode(...COLORS.text));
+      doc.text(`Metode Bayar : ${ticket.payment_method}`, PAGE.margin, doc.y + 2.5 * MM);
+    }
+    if (ticket.status === 'Picked_Up') {
+      doc.fillColor(hexCode(...COLORS.muted));
+      doc.text('Barang sudah diambil & pembayaran selesai.', PAGE.margin, doc.y + 2.5 * MM);
+    }
   } else {
     doc.fillColor(hexCode(...COLORS.danger));
     doc.text('Status Bayar : BELUM LUNAS', PAGE.margin, statusY);
+    doc.fillColor(hexCode(...COLORS.text));
+    doc.text('Nota ini sebagai bukti servis. Lunasi saat pengambilan barang.', PAGE.margin, doc.y + 2.5 * MM);
   }
 }
 
@@ -327,9 +346,11 @@ function addOrderDetails(doc, order) {
   }
 }
 
-function addOrderPricing(doc, order) {
+function addOrderPricing(doc, order, isEntry = false) {
   const y = doc.y + 5 * MM;
-  const remaining = Math.max(0, (order.estimated_price || 0) - (order.down_payment || 0));
+  const remaining = getOrderRemaining(order);
+  const paymentStatus = getOrderPaymentStatus(order);
+  const isPaid = paymentStatus === 'Lunas';
 
   const lineY = y - 1 * MM;
   doc.moveTo(PAGE.margin, lineY)
@@ -350,9 +371,12 @@ function addOrderPricing(doc, order) {
   rowY += 4 * MM;
 
   const dp = order.down_payment || 0;
+  // Aturan pesanan: kolom DP dikosongkan (tanda '-') bila belum ada pembayaran,
+  // kecuali sudah bayar (DP > 0) maka tampil nominal + keterangan.
+  const hasDp = dp > 0;
   doc.font('Helvetica-Bold').fontSize(7.5).fillColor(hexCode(...COLORS.success));
   doc.text('DP Dibayar', PAGE.margin, rowY);
-  doc.font('Helvetica').text(formatCurrency(dp), PAGE.margin, rowY, { width: CONTENT_WIDTH, align: 'right' });
+  doc.font('Helvetica').text(hasDp ? formatCurrency(dp) : '-', PAGE.margin, rowY, { width: CONTENT_WIDTH, align: 'right' });
   rowY += 4 * MM;
 
   doc.moveTo(PAGE.margin, rowY - 1.5 * MM)
@@ -367,12 +391,36 @@ function addOrderPricing(doc, order) {
 
   const statusY = rowY + 5 * MM;
   doc.font('Helvetica-Bold').fontSize(7.5);
-  if (order.payment_status === 'Lunas') {
+  if (isEntry) {
+    // Nota tanda terima: tidak memakai cap Lunas/Belum Lunas, hanya info DP.
+    doc.fillColor(hexCode(...COLORS.muted));
+    doc.text('Nota tanda terima pesanan.', PAGE.margin, statusY);
+    if (hasDp) {
+      doc.fillColor(hexCode(...COLORS.text));
+      doc.text(`DP masuk sebesar ${formatCurrency(dp)}.`, PAGE.margin, doc.y + 2.5 * MM);
+    } else {
+      doc.fillColor(hexCode(...COLORS.text));
+      doc.text('Belum ada DP masuk. Pembayaran dilakukan saat pengambilan.', PAGE.margin, doc.y + 2.5 * MM);
+    }
+  } else if (isPaid) {
     doc.fillColor(hexCode(...COLORS.success));
     doc.text('Status Bayar : LUNAS', PAGE.margin, statusY);
+    doc.fillColor(hexCode(...COLORS.text));
+    if (remaining > 0) {
+      doc.text(`Sisa ${formatCurrency(remaining)} dilunasi saat pengambilan barang.`, PAGE.margin, doc.y + 2.5 * MM);
+    } else {
+      doc.text('Pembayaran sudah lunas & barang sudah bisa diambil.', PAGE.margin, doc.y + 2.5 * MM);
+    }
   } else {
     doc.fillColor(hexCode(...COLORS.warning));
     doc.text('Status Bayar : BELUM LUNAS', PAGE.margin, statusY);
+    if (hasDp) {
+      doc.fillColor(hexCode(...COLORS.text));
+      doc.text(`DP masuk sebesar ${formatCurrency(dp)}.`, PAGE.margin, doc.y + 2.5 * MM);
+    } else {
+      doc.fillColor(hexCode(...COLORS.text));
+      doc.text('Belum ada DP masuk. Nota ini sebagai bukti pesanan.', PAGE.margin, doc.y + 2.5 * MM);
+    }
     doc.fillColor(hexCode(...COLORS.danger));
     doc.text(`Sisa Bayar   : ${formatCurrency(remaining)}`, PAGE.margin, doc.y + 2.5 * MM);
   }
@@ -488,7 +536,7 @@ async function generateOrderEntryNota(order) {
       addHeader(doc, 'NOTA TANDA TERIMA');
       addCustomerSection(doc, order.customer);
       addOrderDetails(doc, order);
-      addOrderPricing(doc, order);
+      addOrderPricing(doc, order, true);
       addQRCode(doc, qrBuffer);
       addFooter(doc);
 

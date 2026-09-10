@@ -117,6 +117,12 @@ exports.updateOrderStatus = async (req, res, next) => {
     const order = await SpecialOrder.findById(req.params.id);
     if (!order) return res.status(404).json({ success: false, message: 'Pesanan tidak ditemukan' });
 
+    // Aturan pengambilan: Picked_Up berarti barang diambil + lunas.
+    // Jika masih ada sisa, tandai otomatis Lunas (sisa dilunasi saat ambil).
+    if (status === 'Picked_Up') {
+      order.payment_status = 'Lunas';
+    }
+
     order.status = status;
     if (status === 'Ordered') order.history.ordered_at = new Date();
     if (status === 'Arrived') order.history.arrived_at = new Date();

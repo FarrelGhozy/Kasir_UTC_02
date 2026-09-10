@@ -99,6 +99,15 @@ specialOrderSchema.virtual('remaining_payment').get(function() {
 });
 
 specialOrderSchema.pre('save', async function() {
+  // Sinkronisasi status pembayaran dari DP vs estimasi.
+  // DP penuh (>= estimasi, estimasi > 0) otomatis Lunas.
+  // Manual 'Lunas' tetap diizinkan meski sisa > 0 (sisa dilunasi saat ambil).
+  // Koreksi data lama: sisa 0 tapi status Belum Lunas -> otomatis Lunas.
+  const remaining = Math.max(0, (Number(this.estimated_price) || 0) - (Number(this.down_payment) || 0));
+  if (remaining === 0 && (Number(this.estimated_price) || 0) > 0 && this.payment_status !== 'Lunas') {
+    this.payment_status = 'Lunas';
+  }
+
   // Status transition validation
   if (this.isModified('status') && !this.isNew) {
     const original = await this.constructor.findById(this._id).select('status').lean();

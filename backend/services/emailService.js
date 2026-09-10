@@ -49,6 +49,7 @@ const sendInvoiceEmail = async (ticket) => {
   }
 
   try {
+    const paymentStatus = ticket.payment_status === 'Lunas' ? 'Lunas' : 'Belum Lunas';
     const htmlContent = `
       <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px;">
         <h2 style="text-align: center; color: #0d6efd;">Nota Servis Bengkel UTC</h2>
@@ -68,6 +69,10 @@ const sendInvoiceEmail = async (ticket) => {
           <tr>
             <td style="padding: 5px 0;"><strong>Status:</strong></td>
             <td>Selesai (Completed)</td>
+          </tr>
+          <tr>
+            <td style="padding: 5px 0;"><strong>Status Bayar:</strong></td>
+            <td>${paymentStatus === 'Lunas' ? 'LUNAS' : 'BELUM LUNAS (nota sebagai bukti, lunasi saat pengambilan)'}</td>
           </tr>
         </table>
         
