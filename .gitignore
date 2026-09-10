@@ -47,6 +47,9 @@ Thumbs.db
 # Backup files
 backend/backups/
 
+# WAHA session data (data autentikasi WhatsApp — jangan di-commit)
+waha-sessions/
+
 #pembantu 
 CLAUDE.md
 AGENTS.md

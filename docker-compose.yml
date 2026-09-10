@@ -78,7 +78,7 @@ services:
         reservations:
           memory: 32M
 
-  # 4. WAHA (WhatsApp HTTP API) — NOWEB Engine
+  # 4. WAHA (WhatsApp HTTP API) — GOWS Engine
   waha:
     image: devlikeapro/waha:latest
     container_name: utc_waha
@@ -89,7 +89,7 @@ services:
       - PORT=8000
       - WAHA_WHATSAPP_DEFAULT_SESSION=default
       - WHATSAPP_START_SESSION=default
-      - WAHA_WHATSAPP_ENGINE=NOWEB
+      - WAHA_WHATSAPP_ENGINE=GOWS
       - WHATSAPP_HOOK_URL=http://backend:5000/api/waha-webhook
       - WHATSAPP_HOOK_EVENTS=message
       - WAHA_PRINT_QR=true
@@ -98,6 +98,9 @@ services:
       - WHATSAPP_SWAGGER_PASSWORD=adminutc28
       - WAHA_DASHBOARD_USERNAME=admin-utc01
       - WAHA_DASHBOARD_PASSWORD=adminutc28
+    volumes:
+      # Persistensi session WhatsApp agar tidak hilang saat container di-recreate
+      - ./waha-sessions:/app/.sessions
     networks:
       - utc_network
     mem_limit: 1024m
