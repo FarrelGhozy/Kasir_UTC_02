@@ -687,8 +687,6 @@ class Dashboard {
                 console.error('Chart.js gagal dimuat untuk grafik pelayanan:', err);
             }
         }
-        if (typeof Chart === 'undefined') return;
-
         const { startLocal, endLocal, label } = this.getServiceRange();
         if (labelEl) labelEl.textContent = `(${label})`;
         if (badgeEl) badgeEl.classList.add('d-none');

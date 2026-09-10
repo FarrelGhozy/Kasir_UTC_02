@@ -444,10 +444,18 @@ export default api;
  */
 export function loadScript(src) {
   return new Promise((resolve, reject) => {
-    if (document.querySelector(`script[src="${src}"]`)) return resolve();
+    const existing = document.querySelector(`script[src="${src}"]`);
+    if (existing) {
+      // Tag sudah ada tapi belum tentu selesai dimuat (race saat dipanggil paralel) —
+      // tunggu event load aslinya, jangan langsung resolve.
+      if (existing.dataset.loaded === 'true') return resolve();
+      existing.addEventListener('load', () => resolve(), { once: true });
+      existing.addEventListener('error', () => reject(new Error(`Gagal memuat script: ${src}`)), { once: true });
+      return;
+    }
     const s = document.createElement('script');
     s.src = src;
-    s.onload = () => resolve();
+    s.onload = () => { s.dataset.loaded = 'true'; resolve(); };
     s.onerror = () => reject(new Error(`Gagal memuat script: ${src}`));
     document.head.appendChild(s);
   });
