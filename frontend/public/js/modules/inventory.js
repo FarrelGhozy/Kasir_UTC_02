@@ -74,7 +74,7 @@ class Inventory {
                                         Stok <span class="sort-icon" data-sort="stock">▲▼</span>
                                     </th>
                                     <th>Status</th>
-                                    <th>Aksi</th>
+                                    <th class="text-center text-nowrap" style="width:130px;">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody id="inventory-table-body">
@@ -323,24 +323,27 @@ class Inventory {
                     <td>${formatCurrency(item.selling_price)}</td>
                     <td><strong>${item.stock}</strong></td>
                     <td>${stockBadge}</td>
-                    <td>
-                        <div class="btn-group btn-group-sm">
-                            <button class="btn btn-outline-primary btn-action-stock" 
-                                    data-id="${item._id}" 
-                                    data-name="${safeName}" 
-                                    data-stock="${item.stock}" 
-                                    title="Sesuaikan Stok">
-                                <i class="bi bi-plus-minus"></i>
+                    <td class="text-center text-nowrap">
+                        <div class="btn-group btn-group-sm inventory-actions" role="group" aria-label="Aksi barang">
+                            <button class="btn btn-outline-primary btn-action-stock"
+                                    data-id="${item._id}"
+                                    data-name="${safeName}"
+                                    data-stock="${item.stock}"
+                                    title="Sesuaikan Stok"
+                                    aria-label="Sesuaikan Stok">
+                                <i class="bi bi-plus-slash-minus"></i>
                             </button>
-                            <button class="btn btn-outline-secondary btn-action-edit" 
-                                    data-id="${item._id}" 
-                                    title="Edit">
+                            <button class="btn btn-outline-secondary btn-action-edit"
+                                    data-id="${item._id}"
+                                    title="Edit"
+                                    aria-label="Edit barang">
                                 <i class="bi bi-pencil"></i>
                             </button>
-                            <button class="btn btn-outline-danger btn-action-delete" 
-                                    data-id="${item._id}" 
-                                    data-name="${safeName}" 
-                                    title="Hapus">
+                            <button class="btn btn-outline-danger btn-action-delete"
+                                    data-id="${item._id}"
+                                    data-name="${safeName}"
+                                    title="Hapus"
+                                    aria-label="Hapus barang">
                                 <i class="bi bi-trash"></i>
                             </button>
                         </div>

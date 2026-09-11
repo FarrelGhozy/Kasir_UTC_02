@@ -314,6 +314,29 @@ body {
     background-color: rgba(13, 110, 253, 0.05);
 }
 
+/* Tombol aksi Gudang (Inventaris) — ikon rapi sejajar */
+.inventory-actions {
+    display: inline-flex;
+    gap: 6px;
+    flex-wrap: nowrap;
+}
+
+.inventory-actions .btn {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    line-height: 1;
+}
+
+.inventory-actions .btn i {
+    font-size: 0.95rem;
+    line-height: 1;
+}
+
 
 /* Search Bar */
 
@@ -545,6 +568,14 @@ body {
     .table .btn-sm {
         padding: 0.2rem 0.4rem;
         font-size: 0.75rem;
+    }
+
+    /* Tombol aksi Gudang tetap mudah disentuh di HP */
+    .inventory-actions .btn {
+        width: 34px;
+        height: 34px;
+        padding: 0;
+        font-size: 0.9rem;
     }
 
     /* Product card di HP: lebih kecil */
