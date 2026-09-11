@@ -74,16 +74,24 @@ class Auth {
                     // Tampilkan aplikasi utama
                     this.showMainApp();
                     showToast(`Selamat datang, ${this.user.name}!`, 'success');
+                } else {
+                    throw new Error(response.message || 'Login gagal. Silakan periksa kredensial Anda.');
                 }
             } catch (error) {
-                loginError.textContent = error.message || 'Login gagal. Silakan periksa kredensial Anda.';
+                const pesan = error.message || 'Login gagal. Silakan periksa kredensial Anda.';
+                loginError.textContent = pesan;
                 loginError.classList.remove('d-none');
+                showToast(pesan, 'error');
 
                 // Trigger animasi shake
                 loginCard.classList.remove('shake');
                 void loginCard.offsetWidth;
                 loginCard.classList.add('shake');
                 setTimeout(() => loginCard.classList.remove('shake'), 500);
+
+                // Fokus kembali ke kata sandi agar pengguna langsung bisa mencoba lagi
+                passwordInput.select();
+                passwordInput.focus();
             } finally {
                 loginBtn.disabled = false;
                 loginBtn.innerHTML = '<i class="bi bi-box-arrow-in-right me-2"></i>Masuk';

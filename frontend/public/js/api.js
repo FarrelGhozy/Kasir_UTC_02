@@ -34,8 +34,12 @@ class API {
 
     /**
      * Tangani respons API
+     * @param {Response} response - Respons fetch
+     * @param {object} context - Konteks request { endpoint, authenticated }
      */
-    async handleResponse(response) {
+    async handleResponse(response, context = {}) {
+        const { endpoint = '', authenticated = true } = context;
+
         // Cek tipe konten
         const contentType = response.headers.get('content-type');
         
@@ -54,11 +58,18 @@ class API {
         const data = await response.json();
 
         if (!response.ok) {
-            // Tangani error autentikasi
-            if (response.status === 401) {
+            // Tangani error autentikasi (sesi kedaluwarsa / token tidak valid).
+            // JANGAN reload untuk percobaan login yang gagal — biarkan
+            // form login menampilkan pesan error ke pengguna.
+            const isLoginRequest = endpoint.includes('/auth/login');
+            if (response.status === 401 && authenticated && !isLoginRequest && this.getToken()) {
                 localStorage.removeItem('token');
                 localStorage.removeItem('user');
-                window.location.reload();
+                // Hindari reload berulang kalau posisi sudah di layar login
+                const loginScreen = document.getElementById('login-screen');
+                if (!loginScreen || loginScreen.classList.contains('d-none')) {
+                    window.location.reload();
+                }
             }
 
             throw new Error(data.message || `Kesalahan HTTP: ${response.status}`);
@@ -91,7 +102,7 @@ class API {
 
         try {
             const response = await fetch(url, config);
-            const data = await this.handleResponse(response);
+            const data = await this.handleResponse(response, { endpoint, authenticated });
             return data;
         } catch (error) {
             console.error('Kesalahan Permintaan API:', error);
