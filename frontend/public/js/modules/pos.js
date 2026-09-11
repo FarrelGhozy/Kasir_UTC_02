@@ -1,6 +1,6 @@
 // public/js/modules/pos.js - Modul Kasir dengan Fitur Cetak Struk / PDF
 
-import api, { formatCurrency, showToast, showError, setupCurrencyInput, parseCurrencyValue, formatInputCurrency, escapeHTML } from '../api.js';
+import api, { formatCurrency, showToast, showError, setupCurrencyInput, parseCurrencyValue, formatInputCurrency, escapeHTML, confirmDialog } from '../api.js';
 
 class POS {
     constructor() {
@@ -403,8 +403,8 @@ class POS {
 
         const clearBtn = document.getElementById('clear-cart-btn');
         if(clearBtn) {
-            clearBtn.addEventListener('click', () => {
-                if (this.cart.length > 0 && confirm('Kosongkan keranjang?')) {
+            clearBtn.addEventListener('click', async () => {
+                if (this.cart.length > 0 && await confirmDialog('Kosongkan semua item di keranjang?', 'Kosongkan Keranjang', 'Ya, Kosongkan', 'warning')) {
                     this.cart = [];
                     this.renderCart();
                 }
@@ -469,7 +469,7 @@ class POS {
             }
         }
 
-        if (!confirm(`Proses pembayaran sebesar ${formatCurrency(total)}?`)) return;
+        if (!await confirmDialog(`Proses pembayaran sebesar ${formatCurrency(total)}?`, 'Proses Pembayaran', 'Ya, Proses', 'success')) return;
 
         const payBtn = document.getElementById('pay-btn');
         const originalText = payBtn.innerHTML;

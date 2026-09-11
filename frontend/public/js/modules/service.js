@@ -974,6 +974,8 @@ class Service {
 
         container.innerHTML = filteredTickets.map(t => {
             const isCompleted = t.status === 'Completed' || t.status === 'Picked_Up';
+            const isCancelled = t.status === 'Cancelled';
+            const isActionable = !isCompleted && !isCancelled;
             
             // Logika Durasi
             let durationLabel = 'Durasi Masuk';
@@ -996,13 +998,23 @@ class Service {
             }
 
             let statusSelect = '';
-            if (!isCompleted) {
+            if (isCancelled) {
+                // Tiket dibatalkan: tidak ada dropdown, hanya badge info.
+                // Jalur batal resmi hanya lewat tombol Batalkan + konfirmasi.
+                statusSelect = `
+                    <div class="mb-2">
+                        <small class="text-secondary fw-bold" style="font-size:0.7rem">STATUS</small>
+                        <div><span class="badge bg-danger">Dibatalkan</span></div>
+                    </div>
+                `;
+            } else if (!isCompleted) {
+                // Opsi Dibatalkan sengaja dihapus dari dropdown agar tidak dobel
+                // dengan tombol Batalkan. Pembatalan wajib lewat tombol + konfirmasi.
                 const stages = [
                     {val: 'Queue', label: 'Antrian'},
                     {val: 'Diagnosing', label: 'Diagnosa'},
                     {val: 'Waiting_Part', label: 'Tunggu Part'},
-                    {val: 'In_Progress', label: 'Dikerjakan'},
-                    {val: 'Cancelled', label: 'Dibatalkan'}
+                    {val: 'In_Progress', label: 'Dikerjakan'}
                 ];
                 
                 const options = stages.map(s => 
@@ -1138,49 +1150,49 @@ class Service {
                             </div>
                         ` : ''}
 
-                        <div class="d-flex gap-2 mt-3 pt-2 border-top justify-content-end">
-                            <button class="btn btn-sm btn-outline-secondary" onclick="service.openDetail('${t._id}')" title="Detail">
+                        <div class="ticket-actions mt-3 pt-2 border-top">
+                            <button class="btn btn-sm btn-outline-secondary" onclick="service.openDetail('${t._id}')" title="Lihat Detail" aria-label="Lihat Detail">
                                 <i class="bi bi-eye"></i>
                             </button>
 
-                            ${!['Completed', 'Picked_Up', 'Cancelled'].includes(t.status) ? `
-                            <button class="btn btn-sm btn-outline-warning" onclick="service.openEdit('${t._id}')" title="Edit">
+                            ${isActionable ? `
+                            <button class="btn btn-sm btn-outline-primary" onclick="service.openEdit('${t._id}')" title="Edit Tiket" aria-label="Edit Tiket">
                                 <i class="bi bi-pencil"></i>
                             </button>
                             ` : ''}
                             
-                            ${!['Completed', 'Picked_Up', 'Cancelled'].includes(t.status) ? `
-                            <button class="btn btn-sm ${t.status === 'Waiting_Part' ? 'btn-warning fw-bold' : 'btn-outline-primary'}" onclick="service.openAddPart('${t._id}', ${t.status === 'Waiting_Part'})" title="Sparepart">
-                                <i class="bi ${t.status === 'Waiting_Part' ? 'bi-box-seam' : 'bi-wrench'}"></i>
+                            ${isActionable ? `
+                            <button class="btn btn-sm btn-outline-info" onclick="service.openAddPart('${t._id}', ${t.status === 'Waiting_Part'})" title="${t.status === 'Waiting_Part' ? 'Pesan Barang' : 'Tambah Sparepart'}" aria-label="Kelola Sparepart">
+                                <i class="bi bi-box-seam"></i>
                             </button>
                             ` : ''}
 
-                            ${!['Completed', 'Picked_Up', 'Cancelled'].includes(t.status) ? `
-                            <button class="btn btn-sm btn-success fw-bold px-3" onclick="service.openFinalize('${t._id}')">
-                                <i class="bi bi-check-circle"></i>
+                            ${isActionable ? `
+                            <button class="btn btn-sm btn-success" onclick="service.openFinalize('${t._id}')" title="Selesaikan Servis" aria-label="Selesaikan Servis">
+                                <i class="bi bi-check-lg"></i>
                             </button>
                             ` : ''}
 
-                            ${!['Completed', 'Picked_Up', 'Cancelled'].includes(t.status) ? `
-                            <button class="btn btn-sm btn-outline-danger" onclick="service.cancelTicket('${t._id}')" title="Batalkan">
-                                <i class="bi bi-x-circle"></i>
+                            ${isActionable ? `
+                            <button class="btn btn-sm btn-outline-warning" onclick="service.cancelTicket('${t._id}')" title="Batalkan Tiket" aria-label="Batalkan Tiket">
+                                <i class="bi bi-slash-circle"></i>
                             </button>
                             ` : ''}
 
                             ${['admin', 'owner'].includes(currentUser.role) ? `
-                            <button class="btn btn-sm btn-outline-danger" onclick="service.deleteTicket('${t._id}')" title="Hapus Permanen">
+                            <button class="btn btn-sm btn-outline-danger" onclick="service.deleteTicket('${t._id}')" title="Hapus Permanen" aria-label="Hapus Permanen">
                                 <i class="bi bi-trash"></i>
                             </button>
                             ` : ''}
 
                             ${t.warranty_expires_at && new Date() < new Date(t.warranty_expires_at) ? `
-                                <button class="btn btn-sm btn-warning fw-bold" onclick="service.claimWarranty('${t._id}')" title="Klaim Garansi">
+                                <button class="btn btn-sm btn-warning" onclick="service.claimWarranty('${t._id}')" title="Klaim Garansi" aria-label="Klaim Garansi">
                                     <i class="bi bi-shield-check"></i>
                                 </button>
                             ` : ''}
 
                             ${isCompleted ? `
-                                <button class="btn btn-sm btn-outline-dark" onclick="service.downloadNota('${t._id}', 'payment')" title="Nota Pembayaran">
+                                <button class="btn btn-sm btn-outline-dark" onclick="service.downloadNota('${t._id}', 'payment')" title="Cetak Nota Pembayaran" aria-label="Cetak Nota Pembayaran">
                                     <i class="bi bi-printer"></i>
                                 </button>
                             ` : ''}
@@ -1221,7 +1233,7 @@ class Service {
         }
         const t = this.tickets.find(x => x._id === id);
         const label = { Queue: 'Antrian', Diagnosing: 'Diagnosa', Waiting_Part: 'Tunggu Part', In_Progress: 'Dikerjakan', Completed: 'Selesai', Cancelled: 'Dibatalkan' }[newStatus] || newStatus;
-        if (!await confirmDialog(`Ubah status tiket menjadi "${label}"?`, 'Ubah Status', 'Ya, Ubah')) return;
+        if (!await confirmDialog(`Ubah status tiket menjadi "${label}"?`, 'Ubah Status', 'Ya, Ubah', 'primary')) return;
         try {
             await api.updateTicketStatus(id, newStatus);
             showToast('Status diperbarui');
@@ -1317,7 +1329,7 @@ class Service {
     }
 
     async cancelTicket(id) {
-        if (!confirm('Yakin ingin MEMBATALKAN tiket ini? Data tetap tersimpan.')) return;
+        if (!await confirmDialog('Yakin ingin MEMBATALKAN tiket ini? Data tetap tersimpan dan bisa dilihat di filter Dibatalkan.', 'Batalkan Tiket', 'Ya, Batalkan', 'warning')) return;
         try {
             await api.updateTicketStatus(id, 'Cancelled');
             showToast('Tiket berhasil dibatalkan', 'success');
@@ -1328,7 +1340,7 @@ class Service {
     }
 
     async deleteTicket(id) {
-        if (!await confirmDialog('Yakin ingin MENGHAPUS PERMANEN tiket ini? Data akan hilang dan tidak bisa dikembalikan!', 'Hapus Permanen', 'Ya, Hapus')) return;
+        if (!await confirmDialog('Yakin ingin MENGHAPUS PERMANEN tiket ini? Data akan hilang dan tidak bisa dikembalikan!', 'Hapus Permanen', 'Ya, Hapus', 'danger')) return;
         try {
             await api.deleteServiceTicket(id);
             showToast('Tiket berhasil dihapus permanen', 'success');
@@ -1555,7 +1567,7 @@ class Service {
     }
 
     async deletePart(ticketId, partId) {
-        if (!confirm('Apakah Anda yakin ingin menghapus sparepart ini? Stok akan dikembalikan ke gudang.')) return;
+        if (!await confirmDialog('Hapus sparepart ini dari tiket? Stok akan dikembalikan ke gudang.', 'Hapus Sparepart', 'Ya, Hapus', 'danger')) return;
         try {
             await api.removePartFromService(ticketId, partId);
             showToast('Sparepart berhasil dihapus');
@@ -1889,7 +1901,7 @@ class Service {
     }
 
     async claimWarranty(id) {
-        if (!confirm('Buat tiket klaim garansi baru berdasarkan tiket ini?')) return;
+        if (!await confirmDialog('Buat tiket klaim garansi baru berdasarkan tiket ini?', 'Klaim Garansi', 'Ya, Buat', 'primary')) return;
         try {
             await api.claimWarranty(id);
             showToast('Tiket klaim garansi berhasil dibuat');

@@ -609,11 +609,31 @@ export function showError(containerId, message) {
  * @param {string} message - Pesan konfirmasi
  * @param {string} title - Judul modal (default: 'Konfirmasi')
  * @param {string} confirmText - Teks tombol konfirmasi (default: 'Hapus')
+ * @param {object|string} options - Varian tampilan atau tipe string ('danger'|'warning'|'success'|'primary').
+ *   Bentuk object: { type, icon, confirmClass, cancelText }
  * @returns {Promise<boolean>}
  */
-export function confirmDialog(message, title = 'Konfirmasi', confirmText = 'Hapus') {
+export function confirmDialog(message, title = 'Konfirmasi', confirmText = 'Hapus', options = {}) {
+    // Kompatibilitas: param ke-4 boleh string tipe saja, mis. confirmDialog(msg, title, text, 'warning')
+    const opts = typeof options === 'string' ? { type: options } : (options || {});
+    const type = ['danger', 'warning', 'success', 'primary'].includes(opts.type) ? opts.type : 'danger';
+    const cancelText = opts.cancelText || 'Batal';
+
+    // Ikon & warna tombol mengikuti tipe agar makna tiap aksi jelas:
+    // danger = hapus (merah), warning = batalkan (kuning),
+    // success = selesaikan/setuju (hijau), primary = ubah umum (biru)
+    const presets = {
+        danger: { icon: 'bi-trash', confirmClass: 'btn-danger' },
+        warning: { icon: 'bi-exclamation-triangle', confirmClass: 'btn-warning' },
+        success: { icon: 'bi-check-circle', confirmClass: 'btn-success' },
+        primary: { icon: 'bi-question-circle', confirmClass: 'btn-primary' }
+    };
+    const icon = opts.icon || presets[type].icon;
+    const confirmClass = opts.confirmClass || presets[type].confirmClass;
+
     return new Promise((resolve) => {
         const modalEl = document.getElementById('confirmModal');
+        const iconWrap = document.getElementById('confirmModalIcon');
         const titleEl = document.getElementById('confirmModalTitle');
         const messageEl = document.getElementById('confirmModalMessage');
         const confirmBtn = document.getElementById('confirmModalConfirm');
@@ -621,7 +641,13 @@ export function confirmDialog(message, title = 'Konfirmasi', confirmText = 'Hapu
 
         titleEl.textContent = title;
         messageEl.textContent = message;
-        confirmBtn.innerHTML = `<i class="bi bi-trash me-2"></i>${confirmText}`;
+        if (iconWrap) {
+            iconWrap.className = `confirm-modal-icon ${type}`;
+            iconWrap.innerHTML = `<i class="bi ${icon}"></i>`;
+        }
+        confirmBtn.className = `btn fw-bold px-4 ${confirmClass}`;
+        confirmBtn.innerHTML = `<i class="bi ${icon} me-2"></i>${confirmText}`;
+        cancelBtn.textContent = cancelText;
 
         const existing = bootstrap.Modal.getInstance(modalEl);
         if (existing) existing.dispose();

@@ -386,7 +386,7 @@ class Order {
 
     async updateStatus(id, newStatus) {
         const label = { Pending: 'Antrian', Searching: 'Mencari', Ordered: 'Dipesan', Arrived: 'Sampai', Picked_Up: 'Diambil', Cancelled: 'Dibatalkan' }[newStatus] || newStatus;
-        if (!await confirmDialog(`Ubah status pesanan menjadi "${label}"?`, 'Ubah Status', 'Ya, Ubah')) return;
+        if (!await confirmDialog(`Ubah status pesanan menjadi "${label}"?`, 'Ubah Status', 'Ya, Ubah', 'primary')) return;
         try {
             await api.updateSpecialOrderStatus(id, newStatus);
             showToast('Status pesanan diperbarui');
@@ -395,7 +395,7 @@ class Order {
     }
 
     async deleteOrder(id) {
-        if (!await confirmDialog('Batalkan pesanan ini?', 'Konfirmasi', 'Ya, Batalkan')) return;
+        if (!await confirmDialog('Batalkan pesanan ini?', 'Batalkan Pesanan', 'Ya, Batalkan', 'warning')) return;
         try {
             await api.deleteSpecialOrder(id);
             showToast('Pesanan dibatalkan');

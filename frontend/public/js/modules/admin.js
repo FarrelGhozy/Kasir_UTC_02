@@ -389,7 +389,7 @@ class Admin {
     }
 
     async deleteTech(id) {
-        if (!await confirmDialog('Hapus akun ini secara permanen? Data tidak bisa dikembalikan.', 'Hapus Pengguna', 'Ya, Hapus')) return;
+        if (!await confirmDialog('Hapus akun ini secara permanen? Data tidak bisa dikembalikan.', 'Hapus Pengguna', 'Ya, Hapus', 'danger')) return;
         try {
             await this._removeUserDutySchedules(id);
             await api.delete(`/admin/technicians/${id}`);
@@ -464,7 +464,8 @@ class Admin {
         if (!await confirmDialog(
             '⚠️ PERINGATAN KERAS!\n\nMelakukan import akan MENGHAPUS SEMUA DATA saat ini dan menimpanya dengan data dari file backup. Proses ini tidak dapat dibatalkan.',
             'Konfirmasi Import Data',
-            'Ya, Import'
+            'Ya, Import',
+            'danger'
         )) return;
 
         try {
@@ -579,7 +580,8 @@ class Admin {
         if (!await confirmDialog(
             `Yakin ingin memulihkan data dari file "${filename}"?\n\nSeluruh data saat ini akan DIHAPUS dan diganti dengan data dari file backup. Proses ini tidak dapat dibatalkan.`,
             'Restore Data',
-            'Ya, Restore'
+            'Ya, Restore',
+            'danger'
         )) return;
 
         try {
