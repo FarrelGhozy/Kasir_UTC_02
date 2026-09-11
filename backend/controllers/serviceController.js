@@ -5,6 +5,7 @@ const User = require('../models/User');
 const SystemLog = require('../models/SystemLog');
 const whatsappService = require('../services/whatsappService');
 const emailService = require('../services/emailService');
+const { assertWAValidOrOverride, applyWACustomerMeta } = require('../utils/waValidation');
 const mongoose = require('mongoose');
 
 /**
@@ -129,6 +130,21 @@ exports.createTicket = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'ID Teknisi tidak valid' });
     }
 
+    // Validasi WA otoritatif SEBELUM simpan: nomor invalid tanpa override -> 422, tanpa tulis DB.
+    const waCheck = await assertWAValidOrOverride(customer.phone, {
+      required: false,
+      override: req.body.wa_override_confirmed === true || req.body.wa_override_confirmed === 'true',
+      logContext: { by: req.user && (req.user.username || req.user.id), source: 'createTicket' }
+    });
+    if (!waCheck.allowed) {
+      return res.status(waCheck.status).json({
+        success: false,
+        code: waCheck.code,
+        message: waCheck.message,
+        waStatus: waCheck.waStatus
+      });
+    }
+
     const ticketPayload = {
       customer,
       device: { ...device, photos: { front: '', back: '', left: '', right: '' } },
@@ -137,6 +153,8 @@ exports.createTicket = async (req, res, next) => {
       notes,
       history: { created_at: tanggalMasuk }
     };
+    // Simpan status cek WA agar riwayat validitas tercatat di tiket
+    applyWACustomerMeta(ticketPayload.customer, waCheck.waStatus);
 
     // Nomor tiket mengikuti tahun tanggal masuk (isolasi sequence per tahun).
     // Retry bila duplikat (race dua kasir input tahun custom yang sama).
@@ -587,6 +605,28 @@ exports.updateTicketDetails = async (req, res, next) => {
     if (customer) {
         try {
             const customerData = typeof customer === 'string' ? JSON.parse(customer) : customer;
+            // Bila nomor HP diubah, validasi ulang ke WAHA sebelum disimpan.
+            // Nomor invalid tanpa override -> 422, tanpa tulis DB.
+            const newPhone = customerData && customerData.phone !== undefined ? customerData.phone : undefined;
+            const oldPhone = ticket.customer && ticket.customer.phone ? String(ticket.customer.phone) : '';
+            if (newPhone !== undefined && String(newPhone) !== oldPhone) {
+                const waCheck = await assertWAValidOrOverride(newPhone, {
+                    required: false,
+                    override: req.body.wa_override_confirmed === true,
+                    logContext: { by: req.user && (req.user.username || req.user.id), source: 'updateTicketDetails', ticket_number: ticket.ticket_number }
+                });
+                if (!waCheck.allowed) {
+                    return res.status(waCheck.status).json({
+                        success: false,
+                        code: waCheck.code,
+                        message: waCheck.message,
+                        waStatus: waCheck.waStatus
+                    });
+                }
+                customerData.is_wa_valid = waCheck.waStatus === 'valid';
+                customerData.wa_status = waCheck.waStatus;
+                customerData.wa_checked_at = new Date();
+            }
             ticket.customer = { ...ticket.customer.toObject(), ...customerData };
         } catch (e) {
             console.error('Error parsing customer in update:', e);

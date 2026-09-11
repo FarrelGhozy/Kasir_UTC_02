@@ -1,4 +1,5 @@
 const whatsappService = require('../services/whatsappService');
+const { checkPhoneFormat, checkPhoneExists } = require('../utils/waValidation');
 
 /**
  * @desc    Cek apakah nomor terdaftar di WA
@@ -11,25 +12,42 @@ exports.checkWANumber = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Nomor HP wajib diisi' });
     }
 
-    const result = await whatsappService.checkExists(phone);
-    
-    // Sesuai permintaan instruksi: isValid dan isError
-    // result.error ada jika koneksi ke WAHA gagal
-    const isError = !!result.error;
-    const isValid = result.exists === true || result.status === 'exists';
+    // Tolak format jelas-jelas salah tanpa membebani WAHA
+    const fmt = checkPhoneFormat(phone, { required: true });
+    if (!fmt.ok) {
+      return res.status(fmt.status).json({
+        success: false,
+        isValid: false,
+        isError: false,
+        exists: false,
+        waStatus: 'unknown',
+        code: 'WA_NUMBER_FORMAT',
+        message: fmt.message
+      });
+    }
+
+    const { verdict, waError } = await checkPhoneExists(fmt.clean);
+    const isError = verdict === 'unknown';
 
     res.status(200).json({
       success: true,
-      isValid: isValid,
-      isError: isError,
-      exists: isValid, // Tetap sertakan exists untuk backward compatibility jika ada
-      details: result
+      isValid: verdict === 'valid',
+      isError,
+      exists: verdict === 'valid', // Tetap sertakan exists untuk backward compatibility
+      // waStatus: 'valid' | 'invalid' | 'unknown' — 'unknown' berarti WAHA tidak
+      // terkoneksi / error sehingga pengecekan tidak berlaku (fail-open di form).
+      waStatus: verdict,
+      cached: undefined,
+      details: verdict === 'unknown'
+        ? { exists: false, error: waError }
+        : { exists: verdict === 'valid', error: null }
     });
   } catch (error) {
     res.status(502).json({
       success: false,
       isValid: false,
       isError: true,
+      waStatus: 'unknown',
       message: 'Gagal memeriksa nomor WhatsApp: ' + error.message
     });
   }

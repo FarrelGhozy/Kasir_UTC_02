@@ -1,6 +1,7 @@
 // controllers/authController.js - Manajemen & Autentikasi Pengguna
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
+const { assertWAValidOrOverride } = require('../utils/waValidation');
 
 // Generate JWT Token (berisi versi sesi agar bisa dicabut seketika)
 const generateToken = (user) => {
@@ -18,7 +19,7 @@ const generateToken = (user) => {
  */
 exports.register = async (req, res, next) => {
   try {
-    const { name, username, password, role } = req.body;
+    const { name, username, password, role, phone } = req.body;
 
     // Cek apakah user sudah ada
     const existingUser = await User.findOne({ username }).lean();
@@ -29,12 +30,34 @@ exports.register = async (req, res, next) => {
       });
     }
 
+    // Validasi WA otoritatif SEBELUM simpan (bila nomor diisi).
+    let waMeta = { is_wa_valid: false, wa_status: 'unknown', wa_checked_at: null };
+    if (phone) {
+      const overrideFlag = req.body.wa_override_confirmed === true || req.body.wa_override_confirmed === 'true';
+      const waCheck = await assertWAValidOrOverride(phone, {
+        required: false,
+        override: overrideFlag,
+        logContext: { by: req.user && (req.user.username || req.user.id), source: 'register', username }
+      });
+      if (!waCheck.allowed) {
+        return res.status(waCheck.status).json({
+          success: false,
+          code: waCheck.code,
+          message: waCheck.message,
+          waStatus: waCheck.waStatus
+        });
+      }
+      waMeta = { is_wa_valid: waCheck.waStatus === 'valid', wa_status: waCheck.waStatus, wa_checked_at: new Date() };
+    }
+
     // Buat pengguna
     const user = await User.create({
       name,
       username,
       password,
-      role
+      role,
+      phone: phone || '',
+      ...waMeta
     });
 
     res.status(201).json({
@@ -184,7 +207,7 @@ exports.getTechnicians = async (req, res, next) => {
  */
 exports.updateUser = async (req, res, next) => {
   try {
-    const { name, role, isActive } = req.body;
+    const { name, role, isActive, phone } = req.body;
 
     const user = await User.findById(req.params.id);
     if (!user) {
@@ -195,6 +218,27 @@ exports.updateUser = async (req, res, next) => {
     }
 
     if (name) user.name = name;
+    // Nomor HP diubah -> validasi ulang ke WAHA sebelum disimpan.
+    if (phone !== undefined && String(phone) !== String(user.phone || '')) {
+      const overrideFlag = req.body.wa_override_confirmed === true || req.body.wa_override_confirmed === 'true';
+      const waCheck = await assertWAValidOrOverride(phone, {
+        required: false,
+        override: overrideFlag,
+        logContext: { by: req.user && (req.user.username || req.user.id), source: 'updateUser', username: user.username }
+      });
+      if (!waCheck.allowed) {
+        return res.status(waCheck.status).json({
+          success: false,
+          code: waCheck.code,
+          message: waCheck.message,
+          waStatus: waCheck.waStatus
+        });
+      }
+      user.phone = phone || '';
+      user.is_wa_valid = waCheck.waStatus === 'valid';
+      user.wa_status = waCheck.waStatus;
+      user.wa_checked_at = new Date();
+    }
     // Perubahan role/status mencabut semua sesi aktif user tersebut
     const resetSesi = (role && role !== user.role) ||
       (isActive !== undefined && isActive !== user.isActive);

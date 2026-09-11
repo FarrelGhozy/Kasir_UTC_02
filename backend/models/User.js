@@ -40,6 +40,20 @@ const userSchema = new mongoose.Schema({
     trim: true,
     default: ''
   },
+  // Status hasil cek keberadaan WA terakhir (teknisi/user): valid | invalid | unknown
+  is_wa_valid: {
+    type: Boolean,
+    default: false
+  },
+  wa_status: {
+    type: String,
+    enum: ['valid', 'invalid', 'unknown'],
+    default: 'unknown'
+  },
+  wa_checked_at: {
+    type: Date,
+    default: null
+  },
   status: {
     type: String,
     enum: ['active', 'inactive'],

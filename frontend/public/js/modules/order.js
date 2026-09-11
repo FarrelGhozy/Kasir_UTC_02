@@ -1,4 +1,4 @@
-import api, { formatCurrency, formatDateTime, showToast, setupCurrencyInput, parseCurrencyValue, calculateElapsedTime, validateWhatsApp, escapeHTML, confirmDialog } from '../api.js';
+import api, { formatCurrency, formatDateTime, showToast, setupCurrencyInput, parseCurrencyValue, calculateElapsedTime, validateWhatsApp, checkWARealtime, setupPhoneRealtimeValidation, escapeHTML, confirmDialog } from '../api.js';
 
 class Order {
     constructor() {
@@ -427,12 +427,69 @@ class Order {
         return validateWhatsApp(phone, 'order-wa-validation-msg', 'save-order-btn');
     }
 
+    /**
+     * Soft-block submit: nomor invalid -> konfirmasi "Tetap simpan".
+     */
+    async guardWAInvalidOnSubmit(inputEl) {
+        let state = inputEl?.dataset?.waState || 'idle';
+        if ((state === 'idle' || state === 'checking') && inputEl && inputEl.value && inputEl.value.trim().length >= 5) {
+            const res = await checkWARealtime(inputEl.value, 'order-wa-validation-msg');
+            state = res.state;
+            inputEl.dataset.waState = state;
+        }
+        if (state === 'invalid') {
+            const ok = await confirmDialog(
+                'Nomor pelanggan tidak terdeteksi terdaftar di WhatsApp. Notifikasi WA kemungkinan gagal.\n\nTetap simpan pesanan ini?',
+                'Nomor WA Tidak Terdaftar',
+                'Tetap simpan',
+                { type: 'warning', cancelText: 'Periksa nomor' }
+            );
+            return { proceed: ok, override: ok };
+        }
+        return { proceed: true, override: false };
+    }
+
+    /**
+     * Kirim order dengan penjaga 422 backend (tawarkan override lalu ulangi).
+     */
+    async _postOrderWithWAGuard(data, isFormData, phoneInput, preOverride) {
+        const send = (withOverride) => {
+            if (isFormData) {
+                if (withOverride && !data.get('wa_override_confirmed')) data.append('wa_override_confirmed', 'true');
+                return api.createSpecialOrder(data);
+            }
+            return api.createSpecialOrder(withOverride ? { ...data, wa_override_confirmed: true } : data);
+        };
+        try {
+            return await send(preOverride);
+        } catch (e) {
+            if (!/WhatsApp|terdaftar/i.test(e.message || '')) throw e;
+            if (phoneInput) {
+                phoneInput.dataset.waState = 'invalid';
+                await checkWARealtime(phoneInput.value, 'order-wa-validation-msg');
+            }
+            const ok = await confirmDialog(
+                `${e.message}\n\nTetap simpan pesanan ini?`,
+                'Nomor WA Tidak Terdaftar',
+                'Tetap simpan',
+                { type: 'warning', cancelText: 'Periksa nomor' }
+            );
+            if (!ok) throw new Error('Penyimpanan dibatalkan — periksa nomor WhatsApp terlebih dahulu.');
+            return await send(true);
+        }
+    }
+
     setupEventListeners() {
         document.getElementById('order-form').addEventListener('submit', async (e) => {
             e.preventDefault();
+            // Soft-block: nomor invalid -> konfirmasi "Tetap simpan"
+            const orderPhoneInput = document.getElementById('order-customer-phone');
+            const waGuard = await this.guardWAInvalidOnSubmit(orderPhoneInput);
+            if (!waGuard.proceed) return;
             const photoInput = document.getElementById('order-photo');
             let data;
-            if (photoInput && photoInput.files && photoInput.files[0]) {
+            const isFormData = !!(photoInput && photoInput.files && photoInput.files[0]);
+            if (isFormData) {
                 data = new FormData();
                 data.append('photo', photoInput.files[0]);
                 data.append('customer', JSON.stringify({
@@ -445,6 +502,7 @@ class Order {
                 data.append('down_payment', parseCurrencyValue(document.getElementById('order-dp').value));
                 const staffId = document.getElementById('order-staff-select').value;
                 if (staffId) data.append('handled_by_id', staffId);
+                if (waGuard.override) data.append('wa_override_confirmed', 'true');
             } else {
                 data = {
                     customer: {
@@ -459,7 +517,7 @@ class Order {
                 };
             }
             try {
-                await api.createSpecialOrder(data);
+                await this._postOrderWithWAGuard(data, isFormData, orderPhoneInput, waGuard.override);
                 showToast('Pesanan berhasil disimpan');
                 document.getElementById('order-form').reset();
                 document.getElementById('order-photo-preview').classList.add('d-none');
@@ -485,9 +543,12 @@ class Order {
             });
         }
 
-        document.getElementById('order-customer-phone').addEventListener('blur', (e) => {
-            this.validateWA(e.target.value);
-        });
+        // Validasi realtime saat mulai mengetik (debounce) + badge status koneksi WAHA
+        const orderPhoneInput = document.getElementById('order-customer-phone');
+        if (orderPhoneInput && !orderPhoneInput.dataset.waBound) {
+            orderPhoneInput.dataset.waBound = '1';
+            setupPhoneRealtimeValidation(orderPhoneInput, { msgId: 'order-wa-validation-msg' });
+        }
 
         document.getElementById('save-edit-order-btn').addEventListener('click', async () => {
             const id = document.getElementById('edit-order-id').value;

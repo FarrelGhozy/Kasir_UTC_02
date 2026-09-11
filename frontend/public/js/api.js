@@ -379,6 +379,82 @@ export function formatWhatsAppNumber(phone) {
 }
 
 /**
+ * Ambang & cache validasi realtime WA (frontend).
+ * - Hanya menembak API bila digit ternormalisasi >= 9 (tidak nyala terus saat baru mengetik).
+ * - Hasil sukses di-cache 5 menit per nomor (selaras dengan backend).
+ */
+const WA_MIN_DIGITS = 9;
+const WA_CACHE_TTL_MS = 5 * 60 * 1000;
+const waRealtimeCache = new Map(); // nomor -> { state, at }
+// Cache status koneksi WAHA di frontend (30 detik) — dipakai badge global form
+let wahaConnCache = { at: 0, connected: null };
+
+/**
+ * Normalisasi + cek kelayakan nomor untuk dicek ke WAHA.
+ * @param {string} phone
+ * @returns {{ clean: string, plausible: boolean }}
+ */
+export function precheckPhoneNumber(phone) {
+    const clean = formatWhatsAppNumber(phone);
+    const plausible = clean.length >= WA_MIN_DIGITS && /^62\d{8,13}$/.test(clean);
+    return { clean, plausible };
+}
+
+function getCachedWAState(clean) {
+    const entry = waRealtimeCache.get(clean);
+    if (entry && (Date.now() - entry.at) < WA_CACHE_TTL_MS) return entry.state;
+    waRealtimeCache.delete(clean);
+    return null;
+}
+
+function setCachedWAState(clean, state) {
+    waRealtimeCache.set(clean, { state, at: Date.now() });
+    if (waRealtimeCache.size > 200) {
+        const oldest = waRealtimeCache.keys().next().value;
+        waRealtimeCache.delete(oldest);
+    }
+}
+
+/**
+ * Reset cache realtime WA + status koneksi (dipakai unit test agar deterministik).
+ */
+export function clearWARealtimeCache() {
+    waRealtimeCache.clear();
+    wahaConnCache = { at: 0, connected: null };
+}
+
+/**
+ * Render badge status validasi WA di bawah input.
+ * State: 'idle' | 'checking' | 'valid' | 'invalid' | 'unknown'
+ */
+export function renderWAState(msgEl, state, extra = '') {
+    if (!msgEl) return;
+    const base = 'small mt-1 fw-bold';
+    if (state === 'idle') {
+        msgEl.innerHTML = '';
+        msgEl.className = `${base} d-none`;
+        return;
+    }
+    msgEl.classList.remove('d-none');
+    if (state === 'checking') {
+        msgEl.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Mengecek WhatsApp...';
+        msgEl.className = `${base} text-muted`;
+    } else if (state === 'valid') {
+        msgEl.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>Nomor WhatsApp Terverifikasi ✓';
+        msgEl.className = `${base} text-success`;
+    } else if (state === 'invalid') {
+        msgEl.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i>Nomor tidak terdaftar di WhatsApp. Periksa kembali atau gunakan "Tetap simpan" saat menyimpan.';
+        msgEl.className = `${base} text-danger`;
+    } else {
+        // unknown: WAHA tidak terkoneksi / error — pengecekan tidak berlaku.
+        // Pesan mencakup frasa "Pengecekan WA gagal" & "Server sibuk" agar konsisten
+        // dengan penamaan lama sekaligus menjelaskan status koneksi.
+        msgEl.innerHTML = `<i class="bi bi-wifi-off me-1"></i>WA tidak terkoneksi — Pengecekan WA gagal${extra ? `: ${extra}` : ''}. Server sibuk / WAHA mati, pastikan nomor benar secara manual.`;
+        msgEl.className = `${base} text-warning`;
+    }
+}
+
+/**
  * Global function to validate WhatsApp number with UI feedback
  * @param {string} phone Original phone input
  * @param {string} msgElementId ID of the message container
@@ -386,62 +462,157 @@ export function formatWhatsAppNumber(phone) {
  * @returns {Promise<boolean>}
  */
 export async function validateWhatsApp(phone, msgElementId, submitBtnId) {
-    const msgEl = document.getElementById(msgElementId);
-    const submitBtn = document.getElementById(submitBtnId);
-    
-    // Jika kosong atau terlalu pendek, anggap valid (boleh simpan) dan sembunyikan pesan
-    if (!phone || phone.trim().length < 5) {
-        if (msgEl) msgEl.classList.add('d-none');
-        if (submitBtn) submitBtn.disabled = false;
-        return true;
+    const result = await checkWARealtime(phone, msgElementId);
+    const submitBtn = submitBtnId ? document.getElementById(submitBtnId) : null;
+    // Soft-block: tombol tetap aktif agar kasir bisa override via konfirmasi saat submit
+    if (submitBtn) submitBtn.disabled = false;
+    return true;
+}
+
+/**
+ * Cek realtime satu nomor + render badge. Kembalikan { state, clean }.
+ * Dipakai oleh helper setupPhoneRealtimeValidation dan pemanggilan langsung.
+ */
+export async function checkWARealtime(phone, msgElementId, { signal } = {}) {
+    const msgEl = msgElementId ? document.getElementById(msgElementId) : null;
+    const raw = (phone || '').trim();
+
+    // Kosong / terlalu pendek -> idle, nol request
+    if (!raw || raw.replace(/\D/g, '').length < 5) {
+        renderWAState(msgEl, 'idle');
+        return { state: 'idle', clean: '' };
     }
 
-    if (msgEl) {
-        msgEl.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Mengecek WhatsApp...';
-        msgEl.className = 'small mt-1 text-muted';
-        msgEl.classList.remove('d-none');
+    const { clean, plausible } = precheckPhoneNumber(raw);
+    if (!plausible) {
+        // Digit belum cukup / pola belum ID -> hint format, tanpa request
+        if (msgEl) {
+            msgEl.classList.remove('d-none');
+            msgEl.innerHTML = '<i class="bi bi-info-circle me-1"></i>Lengkapi nomor (contoh: 08xxxxxxxxxx) untuk cek otomatis.';
+            msgEl.className = 'small mt-1 text-muted';
+        }
+        return { state: 'idle', clean };
     }
 
-    const formattedPhone = formatWhatsAppNumber(phone);
+    const hit = getCachedWAState(clean);
+    if (hit) {
+        renderWAState(msgEl, hit);
+        return { state: hit, clean };
+    }
 
+    renderWAState(msgEl, 'checking');
     try {
-        const res = await api.checkWA(formattedPhone);
-        
-        if (res.isError) {
-            // Skenario API WAHA Error: Tetap aktif
-            if (msgEl) {
-                msgEl.innerHTML = '<i class="bi bi-exclamation-circle me-1"></i>Pengecekan WA gagal/timeout. Pastikan nomor benar.';
-                msgEl.className = 'small mt-1 text-warning fw-bold';
-            }
-            if (submitBtn) submitBtn.disabled = false;
-            return true;
-        }
-
-        if (res.isValid) {
-            if (msgEl) {
-                msgEl.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>Nomor WhatsApp Terverifikasi';
-                msgEl.className = 'small mt-1 text-success fw-bold';
-            }
-            if (submitBtn) submitBtn.disabled = false;
-            return true;
+        const res = await api.checkWA(clean);
+        // Backend baru: waStatus 'valid' | 'invalid' | 'unknown'.
+        // Fallback backend lama: isValid / isError saja.
+        let state = 'unknown';
+        if (res.waStatus === 'valid' || res.waStatus === 'invalid' || res.waStatus === 'unknown') {
+            state = res.waStatus;
+        } else if (res.isError) {
+            state = 'unknown';
+        } else if (res.isValid) {
+            state = 'valid';
         } else {
-            // Sesuai permintaan terbaru: Tetap aktif (boleh simpan) tapi beri peringatan merah
-            if (msgEl) {
-                msgEl.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i>Nomor tidak terdaftar di WhatsApp. Tetap simpan?';
-                msgEl.className = 'small mt-1 text-danger fw-bold';
-            }
-            if (submitBtn) submitBtn.disabled = false; // TOMBOL TETAP AKTIF
-            return true; // Return true agar tidak dianggap memblokir form
+            state = 'invalid';
         }
+        setCachedWAState(clean, state);
+        renderWAState(msgEl, state);
+        return { state, clean };
     } catch (error) {
         console.error('WA Validation error:', error);
-        if (msgEl) {
-            msgEl.innerHTML = '<i class="bi bi-exclamation-circle me-1"></i>Server sibuk. Pastikan nomor benar secara manual.';
-            msgEl.className = 'small mt-1 text-warning fw-bold';
-        }
-        if (submitBtn) submitBtn.disabled = false;
-        return true;
+        renderWAState(msgEl, 'unknown', error.message || '');
+        return { state: 'unknown', clean };
     }
+}
+
+/**
+ * Pasang validasi realtime pada input telepon:
+ * - 'input' + debounce 700ms + AbortController-style guard (abaikan respons basi)
+ * - hanya menembak API bila nomor sudah plausible (mulai diinput, bukan nyala terus)
+ * - status tersimpan di input.dataset.waState untuk dibaca saat submit
+ *
+ * @param {HTMLInputElement} inputEl
+ * @param {object} opts { msgId, debounceMs, onState }
+ * @returns {function} cleanup
+ */
+export function setupPhoneRealtimeValidation(inputEl, opts = {}) {
+    if (!inputEl) return () => {};
+    const { msgId, debounceMs = 700, onState } = opts;
+    let timer = null;
+    let seq = 0;
+    const msgEl = msgId ? document.getElementById(msgId) : null;
+
+    // Status koneksi WAHA global (sekali per halaman, 30 dtk) agar form tahu
+    // apakah pengecekan berlaku atau WA sedang tidak terkoneksi.
+    checkWHAConnectionBadge(msgId);
+
+    const run = async () => {
+        const mySeq = ++seq;
+        const { state, clean } = await checkWARealtime(inputEl.value, msgId);
+        if (mySeq !== seq) return; // abaikan respons basi
+        inputEl.dataset.waState = state;
+        inputEl.dataset.waPhone = clean;
+        if (typeof onState === 'function') onState(state, clean);
+    };
+
+    const onInput = () => {
+        clearTimeout(timer);
+        // Reset badge ke idle bila user menghapus hingga di bawah ambang
+        const digits = (inputEl.value || '').replace(/\D/g, '');
+        if (digits.length < 5) {
+            renderWAState(msgEl, 'idle');
+            inputEl.dataset.waState = 'idle';
+            inputEl.dataset.waPhone = '';
+            return;
+        }
+        timer = setTimeout(run, debounceMs);
+    };
+    const onBlur = () => { clearTimeout(timer); run(); };
+
+    inputEl.addEventListener('input', onInput);
+    inputEl.addEventListener('blur', onBlur);
+    inputEl.dataset.waState = inputEl.dataset.waState || 'idle';
+    return () => {
+        clearTimeout(timer);
+        inputEl.removeEventListener('input', onInput);
+        inputEl.removeEventListener('blur', onBlur);
+    };
+}
+
+// Status koneksi WAHA: dideklarasikan di atas bersama cache realtime
+export async function getWAHAConnected() {
+    if (Date.now() - wahaConnCache.at < 30000 && wahaConnCache.connected !== null) {
+        return wahaConnCache.connected;
+    }
+    try {
+        const res = await api.getWAHAStatus();
+        wahaConnCache = { at: Date.now(), connected: res.status === 'CONNECTED' };
+    } catch {
+        wahaConnCache = { at: Date.now(), connected: false };
+    }
+    return wahaConnCache.connected;
+}
+
+/**
+ * Tampilkan badge status koneksi WAHA di atas pesan validasi form.
+ * Bila WA tidak terkoneksi: beri keterangan agar kasir tahu pengecekan tidak berlaku.
+ */
+export async function checkWHAConnectionBadge(msgId) {
+    const msgEl = msgId ? document.getElementById(msgId) : null;
+    if (!msgEl) return;
+    const connected = await getWAHAConnected();
+    if (connected) return;
+    // Jangan timpa badge hasil cek nomor bila sudah ada hasil tegas
+    const hasResult = /terverifikasi|tidak terdaftar/i.test(msgEl.innerHTML || '');
+    if (hasResult) return;
+    let badge = document.getElementById(`${msgId}-waha-conn`);
+    if (!badge) {
+        badge = document.createElement('div');
+        badge.id = `${msgId}-waha-conn`;
+        msgEl.parentNode.insertBefore(badge, msgEl);
+    }
+    badge.innerHTML = '<span class="badge bg-warning text-dark"><i class="bi bi-wifi-off me-1"></i>WA tidak terkoneksi — pengecekan nomor tidak aktif, pastikan nomor benar manual</span>';
+    badge.className = 'mb-1';
 }
 
 // Ekspor instance singleton

@@ -143,8 +143,19 @@ const apiLimiter = rateLimit({
   validate: { trustProxy: false }
 });
 
+// Limiter khusus cek WA realtime: tiap keystroke (debounced) + submit menembak endpoint ini.
+// 60/mnt/IP cukup untuk pemakaian wajar sekaligus menahan spam ke WAHA.
+const waCheckLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,
+  max: 60,
+  message: { success: false, isValid: false, isError: true, waStatus: 'unknown', message: 'Terlalu banyak pengecekan nomor. Tunggu sebentar lalu coba lagi.' },
+  validate: { trustProxy: false }
+});
+
 app.use('/api/auth/login', loginLimiter);
 app.use('/api', apiLimiter);
+app.use('/api/check-wa', waCheckLimiter);
+app.use('/api/services/validate-wa', waCheckLimiter);
 
 // ==========================================
 // 2. ROUTES

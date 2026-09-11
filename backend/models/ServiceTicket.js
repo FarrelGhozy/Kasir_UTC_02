@@ -26,6 +26,16 @@ const customerSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  // Status hasil cek keberadaan WA terakhir: valid | invalid | unknown
+  wa_status: {
+    type: String,
+    enum: ['valid', 'invalid', 'unknown'],
+    default: 'unknown'
+  },
+  wa_checked_at: {
+    type: Date,
+    default: null
+  },
   email: {
     type: String,
     trim: true

@@ -2,6 +2,7 @@ const SpecialOrder = require('../models/SpecialOrder');
 const SystemLog = require('../models/SystemLog');
 const User = require('../models/User');
 const whatsappService = require('../services/whatsappService');
+const { assertWAValidOrOverride, applyWACustomerMeta } = require('../utils/waValidation');
 const { sendInvoiceEmail } = require('../services/emailService');
 
 exports.createOrder = async (req, res, next) => {
@@ -18,6 +19,29 @@ exports.createOrder = async (req, res, next) => {
       if (user) {
         handled_by = { id: user._id, name: user.name };
       }
+    }
+
+    // Validasi WA otoritatif SEBELUM simpan: nomor invalid tanpa override -> 422, tanpa tulis DB.
+    // Flag override ikut di dalam customer (FormData) atau top-level body (JSON).
+    const overrideFlag = req.body.wa_override_confirmed === true
+      || req.body.wa_override_confirmed === 'true'
+      || (customer && (customer.wa_override_confirmed === true || customer.wa_override_confirmed === 'true'));
+    const waCheck = await assertWAValidOrOverride(customer && customer.phone, {
+      required: true,
+      override: overrideFlag,
+      logContext: { by: req.user && (req.user.username || req.user.id), source: 'createOrder' }
+    });
+    if (!waCheck.allowed) {
+      return res.status(waCheck.status).json({
+        success: false,
+        code: waCheck.code,
+        message: waCheck.message,
+        waStatus: waCheck.waStatus
+      });
+    }
+    if (customer && typeof customer === 'object') {
+      delete customer.wa_override_confirmed;
+      applyWACustomerMeta(customer, waCheck.waStatus);
     }
 
     const order_number = await SpecialOrder.generateOrderNumber();
@@ -153,6 +177,32 @@ exports.updateOrderDetails = async (req, res, next) => {
     
     const order = await SpecialOrder.findById(req.params.id);
     if (!order) return res.status(404).json({ success: false, message: 'Pesanan tidak ditemukan' });
+
+    // Bila nomor HP diubah, validasi ulang ke WAHA sebelum disimpan (422 tanpa tulis DB).
+    if (customer && customer.phone !== undefined) {
+      const oldPhone = order.customer && order.customer.phone ? String(order.customer.phone) : '';
+      if (String(customer.phone) !== oldPhone) {
+        const overrideFlag = req.body.wa_override_confirmed === true
+          || req.body.wa_override_confirmed === 'true'
+          || customer.wa_override_confirmed === true
+          || customer.wa_override_confirmed === 'true';
+        const waCheck = await assertWAValidOrOverride(customer.phone, {
+          required: true,
+          override: overrideFlag,
+          logContext: { by: req.user && (req.user.username || req.user.id), source: 'updateOrderDetails', order_number: order.order_number }
+        });
+        if (!waCheck.allowed) {
+          return res.status(waCheck.status).json({
+            success: false,
+            code: waCheck.code,
+            message: waCheck.message,
+            waStatus: waCheck.waStatus
+          });
+        }
+        delete customer.wa_override_confirmed;
+        applyWACustomerMeta(customer, waCheck.waStatus);
+      }
+    }
 
     if (customer) order.customer = { ...order.customer.toObject(), ...customer };
     if (item_name) order.item_name = item_name;

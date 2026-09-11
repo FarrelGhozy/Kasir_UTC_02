@@ -1,6 +1,6 @@
 // public/js/modules/service.js - Modul Manajemen Servis (FIXED: Add Part & Detail View)
 
-import api, { formatCurrency, formatDateTime, showToast, showError, setupCurrencyInput, parseCurrencyValue, calculateElapsedTime, validateWhatsApp, escapeHTML, loadScript, confirmDialog, toLocalDateString } from '../api.js';
+import api, { formatCurrency, formatDateTime, showToast, showError, setupCurrencyInput, parseCurrencyValue, calculateElapsedTime, validateWhatsApp, checkWARealtime, setupPhoneRealtimeValidation, escapeHTML, loadScript, confirmDialog, toLocalDateString } from '../api.js';
 
 /**
  * Helper class for Pattern Lock UI
@@ -1440,10 +1440,21 @@ class Service {
         const valMsg = document.getElementById('edit-wa-validation-msg');
         if (valMsg) valMsg.classList.add('d-none');
         
-        // Setup blur listener for edit phone
-        document.getElementById('edit-customer-phone').onblur = (e) => {
-            this.validateWA(e.target.value, 'edit-wa-validation-msg', 'save-edit-btn');
-        };
+        // Realtime validation untuk nomor edit (debounce saat mengetik)
+        const editPhoneInput = document.getElementById('edit-customer-phone');
+        if (editPhoneInput && !editPhoneInput.dataset.waBound) {
+            editPhoneInput.dataset.waBound = '1';
+            setupPhoneRealtimeValidation(editPhoneInput, { msgId: 'edit-wa-validation-msg' });
+        }
+        if (editPhoneInput) {
+            editPhoneInput.dataset.waState = editPhoneInput.dataset.waState || 'idle';
+            // Cek ulang nomor lama yang terisi otomatis agar status langsung terlihat
+            if (editPhoneInput.value && editPhoneInput.value.trim().length >= 9) {
+                checkWARealtime(editPhoneInput.value, 'edit-wa-validation-msg').then(res => {
+                    editPhoneInput.dataset.waState = res.state;
+                });
+            }
+        }
 
         // Populate Parts List for Edit
         const partsListContainer = document.getElementById('edit-parts-list');
@@ -1480,6 +1491,11 @@ class Service {
         const t = this.tickets.find(x => x._id === id);
         if (!t) return;
 
+        // Soft-block: nomor invalid -> konfirmasi "Tetap simpan"
+        const editPhoneInput = document.getElementById('edit-customer-phone');
+        const waGuard = await this.guardWAInvalidOnSubmit(editPhoneInput, 'Nomor pelanggan');
+        if (!waGuard.proceed) return;
+
         const formData = new FormData();
         const customerData = {
             name: document.getElementById('edit-customer-name').value,
@@ -1503,6 +1519,7 @@ class Service {
         formData.append('technician_id', document.getElementById('edit-technician-select').value);
         formData.append('service_fee', parseCurrencyValue(document.getElementById('edit-service-fee').value));
         formData.append('notes', t.notes || '');
+        if (waGuard.override) formData.append('wa_override_confirmed', 'true');
         const editEntryDateVal = document.getElementById('edit-entry-date')?.value || '';
         const originalEntryDate = toLocalDateString(t.history?.created_at) || '';
         if (editEntryDateVal && editEntryDateVal !== originalEntryDate) {
@@ -1523,7 +1540,25 @@ class Service {
             showToast('Data tiket berhasil diperbarui', 'success');
             this.getOrCreateModal('editTicketModal').hide();
             await this.loadTickets();
-        } catch(e) { 
+        } catch(e) {
+            // Bila backend menolak (422 nomor invalid), tawarkan "Tetap simpan" lalu ulangi
+            if (/WhatsApp|terdaftar/i.test(e.message || '')) {
+                const ok = await confirmDialog(
+                    `${e.message}\n\nTetap simpan perubahan ini?`,
+                    'Nomor WA Tidak Terdaftar',
+                    'Tetap simpan',
+                    { type: 'warning', cancelText: 'Periksa nomor' }
+                );
+                if (!ok) { showToast('Perubahan dibatalkan — periksa nomor WhatsApp.', 'error'); return; }
+                try {
+                    if (!formData.get('wa_override_confirmed')) formData.append('wa_override_confirmed', 'true');
+                    await api.updateTicketDetails(id, formData);
+                    showToast('Data tiket berhasil diperbarui', 'success');
+                    this.getOrCreateModal('editTicketModal').hide();
+                    await this.loadTickets();
+                } catch(e2) { showToast(e2.message, 'error'); }
+                return;
+            }
             showToast(e.message, 'error'); 
         }
     }
@@ -1670,8 +1705,68 @@ class Service {
         `;
     }
 
-    async validateWA(phone, targetMsgId = 'wa-validation-msg', submitBtnId = 'save-ticket-btn') {
+        async validateWA(phone, targetMsgId = 'wa-validation-msg', submitBtnId = 'save-ticket-btn') {
         return validateWhatsApp(phone, targetMsgId, submitBtnId);
+    }
+
+    /**
+     * Soft-block submit: bila state nomor 'invalid', tahan + tawarkan "Tetap simpan".
+     * Kembalikan { proceed: boolean, override: boolean }.
+     */
+    async guardWAInvalidOnSubmit(inputEl, label = 'Nomor pelanggan') {
+        let state = inputEl?.dataset?.waState || 'idle';
+        // Bila belum ada hasil (idle/checking), cek sinkron terakhir sebelum submit
+        if ((state === 'idle' || state === 'checking') && inputEl && inputEl.value && inputEl.value.trim().length >= 5) {
+            const targetId = inputEl.id === 'edit-customer-phone' ? 'edit-wa-validation-msg' : 'wa-validation-msg';
+            const res = await checkWARealtime(inputEl.value, targetId);
+            state = res.state;
+            inputEl.dataset.waState = state;
+        }
+        if (state === 'invalid') {
+            const ok = await confirmDialog(
+                `${label} tidak terdeteksi terdaftar di WhatsApp. Notifikasi WA kemungkinan gagal dan teknisi bisa direpotkan.\n\nTetap simpan data ini?`,
+                'Nomor WA Tidak Terdaftar',
+                'Tetap simpan',
+                { type: 'warning', cancelText: 'Periksa nomor' }
+            );
+            return { proceed: ok, override: ok };
+        }
+        return { proceed: true, override: false };
+    }
+
+    /**
+     * Kirim tiket dengan penjaga 422 backend: bila server menolak karena nomor
+     * invalid (balapan cache/state), tawarkan "Tetap simpan" lalu ulangi + override.
+     */
+    async _postTicketWithWAGuard(endpoint, payload, phoneInput, preOverride, isFormData = false) {
+        const send = (withOverride) => {
+            if (isFormData) {
+                const fd = payload;
+                if (withOverride && !fd.get('wa_override_confirmed')) fd.append('wa_override_confirmed', 'true');
+                return api.createServiceTicket(fd);
+            }
+            return api.post(endpoint, withOverride ? { ...payload, wa_override_confirmed: true } : payload);
+        };
+        try {
+            return await send(preOverride);
+        } catch (e) {
+            const msg = e.message || '';
+            const isWARejection = /WhatsApp|terdaftar/i.test(msg);
+            if (!isWARejection) throw e;
+            // Sinkronkan badge agar merah
+            if (phoneInput) {
+                phoneInput.dataset.waState = 'invalid';
+                await checkWARealtime(phoneInput.value, 'wa-validation-msg');
+            }
+            const ok = await confirmDialog(
+                `${msg}\n\nTetap simpan data ini?`,
+                'Nomor WA Tidak Terdaftar',
+                'Tetap simpan',
+                { type: 'warning', cancelText: 'Periksa nomor' }
+            );
+            if (!ok) throw new Error('Penyimpanan dibatalkan — periksa nomor WhatsApp terlebih dahulu.');
+            return await send(true);
+        }
     }
 
     openDetail(id) {
@@ -1978,6 +2073,12 @@ class Service {
 
         document.getElementById('service-form').addEventListener('submit', async (e) => {
             e.preventDefault();
+
+            // Soft-block: nomor invalid -> konfirmasi "Tetap simpan" sebelum data dikirim
+            const phoneInput = document.getElementById('customer-phone');
+            const waGuard = await this.guardWAInvalidOnSubmit(phoneInput, 'Nomor pelanggan');
+            if (!waGuard.proceed) return;
+            const waOverride = waGuard.override;
             
             const submitBtn = e.target.querySelector('button[type="submit"]');
             submitBtn.disabled = true;
@@ -2058,9 +2159,10 @@ class Service {
                         technician_id: techId,
                         service_fee: fee,
                         input_mode: entryMode,
-                        ...(entryMode === 'custom' ? { tanggal_masuk: entryDate } : {})
+                        ...(entryMode === 'custom' ? { tanggal_masuk: entryDate } : {}),
+                        ...(waOverride ? { wa_override_confirmed: true } : {})
                     };
-                    response = await api.post('/services', payload);
+                    response = await this._postTicketWithWAGuard('/services', payload, phoneInput, waOverride);
                 } else {
                     // JIKA ADA FOTO: Gunakan FormData
                     photoMsg.classList.remove('d-none');
@@ -2071,7 +2173,8 @@ class Service {
                         }
                     }
                     photoMsg.classList.add('d-none');
-                    response = await api.createServiceTicket(formData);
+                    if (waOverride) formData.append('wa_override_confirmed', 'true');
+                    response = await this._postTicketWithWAGuard(null, formData, phoneInput, waOverride, true);
                 }
 
                 console.log('Ticket creation success:', response);
@@ -2100,10 +2203,12 @@ class Service {
             }
         });
 
-        // WA Validation on blur
-        document.getElementById('customer-phone').addEventListener('blur', (e) => {
-            this.validateWA(e.target.value);
-        });
+        // WA Validation realtime (saat mulai mengetik, debounce) + badge status koneksi WAHA
+        const phoneInput = document.getElementById('customer-phone');
+        if (phoneInput && !phoneInput.dataset.waBound) {
+            phoneInput.dataset.waBound = '1';
+            setupPhoneRealtimeValidation(phoneInput, { msgId: 'wa-validation-msg' });
+        }
 
         // Toggle input tanggal custom (maks. hari ini)
         const entryDateInput = document.getElementById('entry-date');

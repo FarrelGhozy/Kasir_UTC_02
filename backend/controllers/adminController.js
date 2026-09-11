@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const { assertWAValidOrOverride } = require('../utils/waValidation');
 
 /**
  * @desc    Ambil semua data teknisi
@@ -26,6 +27,22 @@ exports.createTechnician = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Username sudah digunakan' });
     }
 
+    // Validasi WA otoritatif SEBELUM simpan (422 tanpa tulis DB bila invalid tanpa override).
+    const overrideFlag = req.body.wa_override_confirmed === true || req.body.wa_override_confirmed === 'true';
+    const waCheck = await assertWAValidOrOverride(phone, {
+      required: false,
+      override: overrideFlag,
+      logContext: { by: req.user && (req.user.username || req.user.id), source: 'createTechnician', username }
+    });
+    if (!waCheck.allowed) {
+      return res.status(waCheck.status).json({
+        success: false,
+        code: waCheck.code,
+        message: waCheck.message,
+        waStatus: waCheck.waStatus
+      });
+    }
+
     const technician = await User.create({
       name,
       username,
@@ -33,7 +50,10 @@ exports.createTechnician = async (req, res, next) => {
       phone,
       status,
       jabatan: jabatan || null,
-      role: 'teknisi'
+      role: 'teknisi',
+      is_wa_valid: waCheck.waStatus === 'valid',
+      wa_status: waCheck.waStatus,
+      wa_checked_at: new Date()
     });
 
     res.status(201).json({ success: true, message: 'Teknisi berhasil ditambahkan', data: technician });
@@ -65,7 +85,31 @@ exports.updateTechnician = async (req, res, next) => {
       }
       user.username = username;
     }
-    if (phone) user.phone = phone;
+    if (phone) {
+      const oldPhone = user.phone ? String(user.phone) : '';
+      if (String(phone) !== oldPhone) {
+        const overrideFlag = req.body.wa_override_confirmed === true || req.body.wa_override_confirmed === 'true';
+        const waCheck = await assertWAValidOrOverride(phone, {
+          required: false,
+          override: overrideFlag,
+          logContext: { by: req.user && (req.user.username || req.user.id), source: 'updateTechnician', username: user.username }
+        });
+        if (!waCheck.allowed) {
+          return res.status(waCheck.status).json({
+            success: false,
+            code: waCheck.code,
+            message: waCheck.message,
+            waStatus: waCheck.waStatus
+          });
+        }
+        user.phone = phone;
+        user.is_wa_valid = waCheck.waStatus === 'valid';
+        user.wa_status = waCheck.waStatus;
+        user.wa_checked_at = new Date();
+      } else {
+        user.phone = phone;
+      }
+    }
     if (status) user.status = status;
     if (jabatan !== undefined) user.jabatan = jabatan || null;
     

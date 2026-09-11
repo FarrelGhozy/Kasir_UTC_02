@@ -16,6 +16,20 @@ const customerSchema = new mongoose.Schema({
     type: String,
     enum: ['Mahasiswa', 'Dosen', 'Umum'],
     default: 'Umum'
+  },
+  is_wa_valid: {
+    type: Boolean,
+    default: false
+  },
+  // Status hasil cek keberadaan WA terakhir: valid | invalid | unknown
+  wa_status: {
+    type: String,
+    enum: ['valid', 'invalid', 'unknown'],
+    default: 'unknown'
+  },
+  wa_checked_at: {
+    type: Date,
+    default: null
   }
 }, { _id: false });
 

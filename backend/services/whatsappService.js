@@ -3,6 +3,7 @@ const path = require('path');
 const SystemLog = require('../models/SystemLog');
 const pdfService = require('./pdfService');
 const { saveNota } = require('../utils/notaStorage');
+const { normalizeIDPhone } = require('../utils/phone');
 const {
   getServiceTotal,
   getServicePaymentStatus,
@@ -11,6 +12,37 @@ const {
 } = require('../utils/paymentStatus');
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://backend:5000';
+
+// TTL cache hasil cek WA (5 menit, sesuai kesepakatan) dan status session (30 detik).
+// Cache in-memory per proses — cukup untuk satu instance backend; tidak perlu dep baru.
+const WA_CHECK_TTL_MS = 5 * 60 * 1000;
+const WA_SESSION_TTL_MS = 30 * 1000;
+const waCheckCache = new Map(); // key: nomor ternormalisasi -> { result, expiresAt }
+let waSessionCache = { result: null, expiresAt: 0 };
+
+function getCachedCheck(cleanPhone) {
+  const entry = waCheckCache.get(cleanPhone);
+  if (entry && entry.expiresAt > Date.now()) return entry.result;
+  waCheckCache.delete(cleanPhone);
+  return null;
+}
+
+function setCachedCheck(cleanPhone, result) {
+  waCheckCache.set(cleanPhone, { result, expiresAt: Date.now() + WA_CHECK_TTL_MS });
+  // Batasi ukuran cache agar tidak tumbuh tanpa batas
+  if (waCheckCache.size > 500) {
+    const oldest = waCheckCache.keys().next().value;
+    waCheckCache.delete(oldest);
+  }
+}
+
+/**
+ * Reset cache WA (dipakai unit test agar deterministik).
+ */
+function clearWACache() {
+  waCheckCache.clear();
+  waSessionCache = { result: null, expiresAt: 0 };
+}
 
 /**
  * Format tanggal masuk tiket ke Bahasa Indonesia (aman untuk nilai kosong/invalid)
@@ -559,18 +591,26 @@ _Tim Unida Technology Centre_`;
   }
 
   /**
-   * Cek apakah nomor WA terdaftar
-   * @param {string} phone 
+   * Cek apakah nomor WA terdaftar.
+   * Hasil di-cache 5 menit per nomor. Kembalikan bentuk konsisten:
+   * { exists: boolean, error: string|null, cached: boolean }
+   * - exists:true  -> nomor terdaftar di WA
+   * - exists:false + error:null -> WAHA menjawab tegas: tidak terdaftar
+   * - exists:false + error:<pesan> -> WAHA tidak bisa dihubungi / gagal (unknown)
+   * @param {string} phone
    */
   async checkExists(phone) {
-    try {
-      let cleanPhone = phone.toString().replace(/\D/g, '');
-      if (cleanPhone.startsWith('0')) {
-        cleanPhone = '62' + cleanPhone.slice(1);
-      }
-      
-      const chatId = cleanPhone.includes('@') ? cleanPhone : `${cleanPhone}@c.us`;
+    const cleanPhone = normalizeIDPhone(phone);
+    if (!cleanPhone) {
+      return { exists: false, error: 'Nomor HP kosong' };
+    }
 
+    const cached = getCachedCheck(cleanPhone);
+    if (cached) {
+      return { ...cached, cached: true };
+    }
+
+    try {
       const url = `${this.baseURL}/api/contacts/check-exists`;
       const data = {
         phone: cleanPhone,
@@ -585,7 +625,16 @@ _Tim Unida Technology Centre_`;
       };
 
       const response = await axios.post(url, data, config);
-      return response.data;
+      const body = response.data || {};
+      // WAHA GOWS mengembalikan { status: 'exists' | 'not_exists' } atau { exists: boolean }
+      const exists = body.exists === true || body.status === 'exists';
+      // Anggap unknown (bukan not-found tegas) bila payload tidak dikenali
+      const recognized = body.exists !== undefined || body.status !== undefined;
+      const result = recognized
+        ? { exists, error: null }
+        : { exists: false, error: 'Respons WAHA tidak dikenali' };
+      setCachedCheck(cleanPhone, result);
+      return { ...result, cached: false };
     } catch (error) {
       console.error(`[WhatsApp] Gagal cek nomor ${phone}:`, error.message);
       return { exists: false, error: error.message };
@@ -593,9 +642,12 @@ _Tim Unida Technology Centre_`;
   }
 
   /**
-   * Cek status session WAHA
+   * Cek status session WAHA (dengan cache 30 detik agar polling status murah).
    */
   async checkSessionStatus() {
+    if (waSessionCache.result && waSessionCache.expiresAt > Date.now()) {
+      return { ...waSessionCache.result, cached: true };
+    }
     try {
       const url = `${this.baseURL}/api/sessions/${this.session}`;
       const config = {
@@ -605,7 +657,9 @@ _Tim Unida Technology Centre_`;
 
       const response = await axios.get(url, config);
       // Status WAHA: STARTING, SCAN_QR, WORKING, FAILED, STOPPED
-      return response.data;
+      const result = { ...(response.data || {}), cached: false };
+      waSessionCache = { result, expiresAt: Date.now() + WA_SESSION_TTL_MS };
+      return result;
     } catch (error) {
       const statusCode = error.response?.status;
       const respData = error.response?.data;
@@ -626,3 +680,4 @@ _Tim Unida Technology Centre_`;
 }
 
 module.exports = new WhatsAppService();
+module.exports.clearWACache = clearWACache;

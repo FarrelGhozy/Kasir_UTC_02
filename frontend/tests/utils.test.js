@@ -19,6 +19,7 @@ import api, {
   showLoading,
   showError,
   validateWhatsApp,
+  clearWARealtimeCache,
 } from '../public/js/api.js';
 
 // ───── Setup ─────
@@ -588,6 +589,7 @@ describe('validateWhatsApp(phone, msgElementId, submitBtnId)', () => {
 
   beforeEach(() => {
     setupDOM();
+    clearWARealtimeCache();
     jest.spyOn(api, 'checkWA').mockResolvedValue({ isValid: true });
   });
 

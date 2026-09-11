@@ -1,4 +1,4 @@
-import api, { showToast, escapeHTML, confirmDialog, loadScript } from '../api.js';
+import api, { showToast, escapeHTML, confirmDialog, loadScript, checkWARealtime, setupPhoneRealtimeValidation } from '../api.js';
 import Reports from './reports.js';
 
 class Admin {
@@ -49,6 +49,7 @@ class Admin {
                                                 <div class="mb-3">
                                                     <label class="form-label small fw-bold">Nomor WhatsApp</label>
                                                     <input type="tel" class="form-control form-control-sm" id="tech-phone" required placeholder="08xxxxxxxx">
+                                                    <div id="tech-wa-validation-msg" class="small mt-1 d-none"></div>
                                                 </div>
                                                 <div class="mb-3">
                                                     <label class="form-label small fw-bold">Password</label>
@@ -228,6 +229,7 @@ class Admin {
                                 <div class="mb-3">
                                     <label class="form-label fw-bold small">No. WhatsApp</label>
                                     <input type="tel" class="form-control" id="edit-tech-phone" required>
+                                    <div id="edit-tech-wa-validation-msg" class="small mt-1 d-none"></div>
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label fw-bold small">Jabatan</label>
@@ -405,6 +407,18 @@ class Admin {
         document.getElementById('edit-tech-name').value = t.name;
         document.getElementById('edit-tech-phone').value = t.phone;
         document.getElementById('edit-tech-jabatan').value = t.jabatan || '';
+
+        // Validasi realtime nomor edit + cek ulang nomor lama yang terisi otomatis
+        const editPhone = document.getElementById('edit-tech-phone');
+        if (editPhone && !editPhone.dataset.waBound) {
+            editPhone.dataset.waBound = '1';
+            setupPhoneRealtimeValidation(editPhone, { msgId: 'edit-tech-wa-validation-msg' });
+        }
+        if (editPhone && editPhone.value && editPhone.value.trim().length >= 9) {
+            checkWARealtime(editPhone.value, 'edit-tech-wa-validation-msg').then(res => {
+                editPhone.dataset.waState = res.state;
+            });
+        }
 
         const entries = this.scheduleMap[id] || [];
         const days = entries.map(e => e.day);
@@ -596,11 +610,66 @@ class Admin {
         }
     }
 
+    /**
+     * Soft-block submit teknisi/user: nomor invalid -> konfirmasi "Tetap simpan".
+     */
+    async guardWAInvalidOnSubmit(inputEl, msgId, label = 'Nomor WhatsApp') {
+        let state = inputEl?.dataset?.waState || 'idle';
+        if ((state === 'idle' || state === 'checking') && inputEl && inputEl.value && inputEl.value.trim().length >= 5) {
+            const res = await checkWARealtime(inputEl.value, msgId);
+            state = res.state;
+            inputEl.dataset.waState = state;
+        }
+        if (state === 'invalid') {
+            const ok = await confirmDialog(
+                `${label} tidak terdeteksi terdaftar di WhatsApp.\n\nTetap simpan data ini?`,
+                'Nomor WA Tidak Terdaftar',
+                'Tetap simpan',
+                { type: 'warning', cancelText: 'Periksa nomor' }
+            );
+            return { proceed: ok, override: ok };
+        }
+        return { proceed: true, override: false };
+    }
+
+    async _sendTechWithWAGuard(method, url, data, inputEl, msgId, preOverride) {
+        const send = (withOverride) => {
+            const payload = withOverride ? { ...data, wa_override_confirmed: true } : data;
+            return method === 'POST' ? api.post(url, payload) : api.put(url, payload);
+        };
+        try {
+            return await send(preOverride);
+        } catch (e) {
+            if (!/WhatsApp|terdaftar/i.test(e.message || '')) throw e;
+            if (inputEl) {
+                inputEl.dataset.waState = 'invalid';
+                await checkWARealtime(inputEl.value, msgId);
+            }
+            const ok = await confirmDialog(
+                `${e.message}\n\nTetap simpan data ini?`,
+                'Nomor WA Tidak Terdaftar',
+                'Tetap simpan',
+                { type: 'warning', cancelText: 'Periksa nomor' }
+            );
+            if (!ok) throw new Error('Penyimpanan dibatalkan — periksa nomor WhatsApp terlebih dahulu.');
+            return await send(true);
+        }
+    }
+
     setupEventListeners() {
+        // Validasi realtime saat mulai mengetik (debounce) + badge status koneksi WAHA
+        const techPhone = document.getElementById('tech-phone');
+        if (techPhone && !techPhone.dataset.waBound) {
+            techPhone.dataset.waBound = '1';
+            setupPhoneRealtimeValidation(techPhone, { msgId: 'tech-wa-validation-msg' });
+        }
         const techForm = document.getElementById('tech-form');
         if (techForm) {
             techForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
+                const phoneInput = document.getElementById('tech-phone');
+                const waGuard = await this.guardWAInvalidOnSubmit(phoneInput, 'tech-wa-validation-msg');
+                if (!waGuard.proceed) return;
                 const name = document.getElementById('tech-name').value;
                 const username = document.getElementById('tech-username').value;
                 const phone = document.getElementById('tech-phone').value;
@@ -609,7 +678,7 @@ class Admin {
                 const days = this._getCheckedDays('duty');
 
                 try {
-                    const res = await api.post('/admin/technicians', { name, username, phone, password, jabatan: jabatan || undefined });
+                    const res = await this._sendTechWithWAGuard('POST', '/admin/technicians', { name, username, phone, password, jabatan: jabatan || undefined }, phoneInput, 'tech-wa-validation-msg', waGuard.override);
                     const newUserId = res.data?._id || res.data?.user?._id;
                     if (newUserId && days.length > 0) {
                         await this._saveDutySchedules(newUserId, days);
@@ -625,6 +694,9 @@ class Admin {
         if (saveEditBtn) {
             saveEditBtn.addEventListener('click', async () => {
                 const id = document.getElementById('edit-tech-id').value;
+                const phoneInput = document.getElementById('edit-tech-phone');
+                const waGuard = await this.guardWAInvalidOnSubmit(phoneInput, 'edit-tech-wa-validation-msg');
+                if (!waGuard.proceed) return;
                 const data = {
                     name: document.getElementById('edit-tech-name').value,
                     phone: document.getElementById('edit-tech-phone').value,
@@ -633,7 +705,7 @@ class Admin {
                 const days = this._getCheckedDays('edit-duty');
 
                 try {
-                    await api.put(`/admin/technicians/${id}`, data);
+                    await this._sendTechWithWAGuard('PUT', `/admin/technicians/${id}`, data, phoneInput, 'edit-tech-wa-validation-msg', waGuard.override);
                     await this._removeUserDutySchedules(id);
                     if (days.length > 0) {
                         await this._saveDutySchedules(id, days);

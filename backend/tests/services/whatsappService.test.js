@@ -15,6 +15,8 @@ beforeEach(() => {
   jest.clearAllMocks();
   jest.spyOn(whatsappService, 'delay').mockResolvedValue();
   SystemLog.create.mockResolvedValue({});
+  // Reset cache WA (TTL 5 menit / 30 detik) agar tiap test deterministik
+  if (typeof whatsappService.clearWACache === 'function') whatsappService.clearWACache();
 });
 
 describe('sendMessage', () => {
@@ -370,6 +372,40 @@ describe('checkExists', () => {
     const result = await whatsappService.checkExists('08123456789');
     expect(result.exists).toBe(false);
     expect(result.error).toBe('API Error');
+  });
+
+  test('hasil sukses di-cache 5 menit (request kedua tanpa hit axios)', async () => {
+    axios.post.mockResolvedValue({ data: { exists: true } });
+    const first = await whatsappService.checkExists('08123456780');
+    expect(first.exists).toBe(true);
+    expect(first.cached).toBe(false);
+    expect(axios.post).toHaveBeenCalledTimes(1);
+
+    const second = await whatsappService.checkExists('08123456780');
+    expect(second.exists).toBe(true);
+    expect(second.cached).toBe(true);
+    expect(axios.post).toHaveBeenCalledTimes(1);
+  });
+
+  test('payload status:"exists" (GOWS) dinormalisasi ke exists:true', async () => {
+    axios.post.mockResolvedValue({ data: { status: 'exists' } });
+    const result = await whatsappService.checkExists('08123456781');
+    expect(result.exists).toBe(true);
+    expect(result.error).toBeNull();
+  });
+
+  test('payload status:"not_exists" dinormalisasi ke exists:false tanpa error', async () => {
+    axios.post.mockResolvedValue({ data: { status: 'not_exists' } });
+    const result = await whatsappService.checkExists('08123456782');
+    expect(result.exists).toBe(false);
+    expect(result.error).toBeNull();
+  });
+
+  test('payload tak dikenali -> exists:false + error (unknown, bukan not-found tegas)', async () => {
+    axios.post.mockResolvedValue({ data: { foo: 'bar' } });
+    const result = await whatsappService.checkExists('08123456783');
+    expect(result.exists).toBe(false);
+    expect(result.error).toBeTruthy();
   });
 });
 
