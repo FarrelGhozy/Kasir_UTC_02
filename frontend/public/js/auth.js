@@ -175,36 +175,36 @@ class Auth {
         let title, iconColor, desc, extraAlert;
         if (status === 'UNREACHABLE') {
             title = 'Server WhatsApp Tidak Terjangkau';
-            iconColor = 'text-secondary';
+            iconColor = 'text-danger';
             desc = `Backend tidak bisa terhubung ke server WAHA (Status: <strong>${safeStatus}</strong>).`;
-            extraAlert = 'Periksa apakah container WAHA berjalan dan dapat dijangkau dari backend. Coba jalankan: <code>docker compose logs backend | grep WAHA</code>';
+            extraAlert = 'Periksa apakah container WAHA berjalan dan dapat dijangkau dari backend. Coba jalankan: <code>docker compose logs backend | grep WAHA</code>. Harap segera dinyalakan kembali demi kenyamanan pelanggan.';
         } else if (status === 'STARTING') {
             title = 'WhatsApp Belum Siap';
-            iconColor = 'text-warning';
+            iconColor = 'text-danger';
             desc = `Session WhatsApp sedang dalam proses koneksi (Status: <strong>${safeStatus}</strong>).`;
-            extraAlert = 'Buka dashboard WAHA di http://localhost:8000 dan scan QR code jika muncul.';
+            extraAlert = 'Buka dashboard WAHA di http://localhost:8000 dan scan QR code jika muncul. Harap segera dinyalakan kembali demi kenyamanan pelanggan.';
         } else {
             title = 'Layanan WhatsApp Terputus';
             iconColor = 'text-danger';
             desc = `Layanan Bot WhatsApp (WAHA) saat ini tidak merespon/terputus (Status: <strong>${safeStatus}</strong>).`;
-            extraAlert = 'Fitur notifikasi otomatis pelanggan sedang lumpuh. Harap hubungi Administrator atau cek koneksi server.';
+            extraAlert = 'Fitur notifikasi otomatis pelanggan sedang lumpuh. Harap hubungi Administrator atau cek koneksi server. Harap segera dinyalakan kembali demi kenyamanan pelanggan.';
         }
 
         if (!modalEl) {
             const modalHTML = `
                 <div class="modal fade" id="waha-alert-modal" tabindex="-1" data-bs-backdrop="static">
                     <div class="modal-dialog modal-dialog-centered">
-                        <div class="modal-content border-4 border-warning">
-                            <div class="modal-header bg-warning text-dark">
+                        <div class="modal-content border-4 border-danger">
+                            <div class="modal-header bg-danger text-white">
                                 <h5 class="modal-title fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i>Peringatan Sistem</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                             </div>
                             <div class="modal-body text-center p-4">
                                 <i class="bi bi-whatsapp ${iconColor} mb-3" style="font-size: 4rem;"></i>
                                 <h4 class="fw-bold">${title}</h4>
                                 <p class="text-muted">${desc}</p>
                                 ${safeDetail ? `<p class="small text-danger">Detail: ${safeDetail}</p>` : ''}
-                                <div class="alert alert-warning small text-start">${extraAlert}</div>
+                                <div class="alert alert-danger small text-start">${extraAlert}</div>
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-secondary w-100" data-bs-dismiss="modal">Saya Mengerti</button>
@@ -216,13 +216,21 @@ class Auth {
             document.body.insertAdjacentHTML('beforeend', modalHTML);
             modalEl = document.getElementById('waha-alert-modal');
         } else {
-            // Update konten modal yang sudah ada
+            // Update konten modal yang sudah ada (ikut tema merah)
+            const contentEl = modalEl.querySelector('.modal-content');
+            if (contentEl) contentEl.className = 'modal-content border-4 border-danger';
+            const headerEl = modalEl.querySelector('.modal-header');
+            if (headerEl) headerEl.className = 'modal-header bg-danger text-white';
+            const closeBtn = modalEl.querySelector('.modal-header .btn-close');
+            if (closeBtn) closeBtn.classList.add('btn-close-white');
             const icon = modalEl.querySelector('.bi-whatsapp');
             if (icon) icon.className = `bi bi-whatsapp ${iconColor} mb-3`;
             const titleEl = modalEl.querySelector('h4');
             if (titleEl) titleEl.textContent = title;
             const descEl = modalEl.querySelector('.text-muted');
             if (descEl) descEl.innerHTML = desc;
+            const alertEl = modalEl.querySelector('.modal-body .alert');
+            if (alertEl) alertEl.innerHTML = extraAlert;
         }
         
         const modal = new bootstrap.Modal(modalEl);
@@ -284,6 +292,11 @@ class Auth {
     }
 
     logout() {
+        // Hentikan polling banner WAHA di dashboard agar tidak bocor
+        if (window.app?.modules?.dashboard?.stopWAHABannerPolling) {
+            window.app.modules.dashboard.stopWAHABannerPolling();
+        }
+
         // Hapus data yang tersimpan
         localStorage.removeItem('token');
         localStorage.removeItem('user');

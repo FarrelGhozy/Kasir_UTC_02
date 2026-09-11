@@ -10,12 +10,18 @@ class Dashboard {
         this.technicianChart = null;
         this.serviceStatusChart = null;
         this.servicePeriod = '30';
+        this.wahaBannerInterval = null;
+        this.WAHA_POLL_MS = 60000;
     }
 
     async render() {
         const content = document.getElementById('app-content');
-        
+
+        // Hentikan polling lama sebelum render ulang (hindari interval ganda)
+        this.stopWAHABannerPolling();
+
         content.innerHTML = `
+            ${this.wahaBannerHTML()}
             <div class="row g-4 mb-4">
                 <div class="col-md-3">
                     <div class="card stat-card border-0 shadow-sm h-100">
@@ -185,6 +191,81 @@ class Dashboard {
         `;
 
         await this.loadDashboardData();
+
+        // Cek status WAHA untuk banner (tanpa popup ulang), lalu polling berkala
+        await this.refreshWAHABanner();
+        this.startWAHABannerPolling();
+    }
+
+    /**
+     * Template banner peringatan WAHA (biru, permanen, tanpa tombol tutup).
+     * Dipisah agar mudah di-test.
+     */
+    wahaBannerHTML() {
+        return `
+            <div id="waha-banner" class="alert waha-banner d-none align-items-center mb-4" role="alert">
+                <i class="bi bi-whatsapp me-2 fs-5"></i>
+                <div>
+                    <strong>Layanan WhatsApp (WAHA) bermasalah <span id="waha-banner-status"></span>.</strong>
+                    <span class="d-block small">Notifikasi pelanggan terganggu — harap segera dinyalakan kembali demi kenyamanan pelanggan.</span>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Terapkan visibilitas banner berdasarkan status WAHA.
+     * @param {HTMLElement} banner - Elemen banner
+     * @param {string} status - Status WAHA (CONNECTED = sembunyi)
+     */
+    applyWAHABannerState(banner, status) {
+        if (!banner) return;
+        const statusEl = banner.querySelector('#waha-banner-status');
+        if (status === 'CONNECTED') {
+            banner.classList.add('d-none');
+            banner.classList.remove('d-flex');
+        } else {
+            if (statusEl) statusEl.textContent = `(Status: ${status})`;
+            banner.classList.remove('d-none');
+            banner.classList.add('d-flex');
+        }
+    }
+
+    /**
+     * Cek status WAHA dan tampilkan/sembunyikan banner biru permanen.
+     * Banner hanya hilang otomatis saat status pulih (CONNECTED).
+     */
+    async refreshWAHABanner() {
+        const banner = document.getElementById('waha-banner');
+        if (!banner) return;
+
+        try {
+            const res = await api.getWAHAStatus();
+            this.applyWAHABannerState(banner, escapeHTML(res.status));
+        } catch (error) {
+            console.error('Cek status WAHA dashboard gagal:', error);
+            this.applyWAHABannerState(banner, 'ERROR');
+        }
+    }
+
+    startWAHABannerPolling() {
+        this.stopWAHABannerPolling();
+        this.wahaBannerInterval = setInterval(() => {
+            // Hentikan polling jika user sudah pindah halaman / logout
+            const mainApp = document.getElementById('main-app');
+            if (!document.getElementById('waha-banner') || (mainApp && mainApp.classList.contains('d-none'))) {
+                this.stopWAHABannerPolling();
+                return;
+            }
+            this.refreshWAHABanner();
+        }, this.WAHA_POLL_MS);
+    }
+
+    stopWAHABannerPolling() {
+        if (this.wahaBannerInterval) {
+            clearInterval(this.wahaBannerInterval);
+            this.wahaBannerInterval = null;
+        }
     }
 
     async loadDashboardData() {

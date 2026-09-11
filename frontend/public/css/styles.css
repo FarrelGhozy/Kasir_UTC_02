@@ -482,6 +482,18 @@ body {
     font-weight: 500;
 }
 
+/* Banner peringatan WAHA di Dashboard (biru solid, permanen) */
+.waha-banner {
+    background-color: #0d6efd;
+    color: #fff;
+    border: none;
+    font-weight: 500;
+}
+
+.waha-banner .small {
+    color: rgba(255, 255, 255, 0.9);
+}
+
 
 /* Loading Spinner */
 
