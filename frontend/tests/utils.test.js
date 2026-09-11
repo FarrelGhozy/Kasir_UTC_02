@@ -42,10 +42,11 @@ beforeAll(() => {
 beforeEach(() => {
   document.body.innerHTML = '';
   jest.restoreAllMocks();
-  window.confirm = jest.fn();
   window.bootstrap = {
     Toast: jest.fn().mockImplementation(() => ({ show: jest.fn() })),
+    Modal: jest.fn().mockImplementation(() => ({ show: jest.fn(), hide: jest.fn(), dispose: jest.fn() })),
   };
+  window.bootstrap.Modal.getInstance = jest.fn().mockReturnValue(null);
 });
 
 // ───── formatCurrency ─────
@@ -354,13 +355,26 @@ describe('loadScript(src)', () => {
     await expect(promise).resolves.toBeUndefined();
   });
 
-  it('resolve segera jika script sudah dimuat', async () => {
+  it('resolve segera jika script sudah dimuat (dataset.loaded)', async () => {
     const src = 'https://cdn.example.com/already-loaded.js';
+    const existing = document.createElement('script');
+    existing.src = src;
+    existing.dataset.loaded = 'true';
+    document.head.appendChild(existing);
+
+    const promise = loadScript(src);
+    await expect(promise).resolves.toBeUndefined();
+  });
+
+  it('menunggu event load jika tag script sudah ada tapi belum selesai dimuat', async () => {
+    const src = 'https://cdn.example.com/loading.js';
     const existing = document.createElement('script');
     existing.src = src;
     document.head.appendChild(existing);
 
     const promise = loadScript(src);
+    existing.dispatchEvent(new Event('load'));
+
     await expect(promise).resolves.toBeUndefined();
   });
 
@@ -414,20 +428,49 @@ describe('setupCurrencyInput(inputElement)', () => {
 
 // ───── confirmDialog ─────
 
-describe('confirmDialog(message)', () => {
-  it('memanggil window.confirm dengan pesan yang benar', () => {
-    confirmDialog('Apakah Anda yakin?');
-    expect(window.confirm).toHaveBeenCalledWith('Apakah Anda yakin?');
+describe('confirmDialog(message, title, confirmText, options)', () => {
+  const MODAL_HTML = `
+    <div id="confirmModal">
+      <div id="confirmModalIcon"></div>
+      <h5 id="confirmModalTitle">Konfirmasi</h5>
+      <p id="confirmModalMessage">Apakah Anda yakin?</p>
+      <button id="confirmModalCancel">Batal</button>
+      <button id="confirmModalConfirm">Hapus</button>
+    </div>
+  `;
+
+  beforeEach(() => {
+    document.body.innerHTML = MODAL_HTML;
+    window.bootstrap.Modal.getInstance.mockReturnValue(null);
   });
 
-  it('mengembalikan true jika user mengonfirmasi', () => {
-    window.confirm.mockReturnValueOnce(true);
-    expect(confirmDialog('Lanjutkan?')).toBe(true);
+  it('mengisi judul, pesan, dan tombol dari argumen', async () => {
+    const promise = confirmDialog('Hapus item ini?', 'Hapus Barang', 'Ya, Hapus', 'danger');
+
+    expect(document.getElementById('confirmModalTitle').textContent).toBe('Hapus Barang');
+    expect(document.getElementById('confirmModalMessage').textContent).toBe('Hapus item ini?');
+    expect(document.getElementById('confirmModalConfirm').innerHTML).toContain('Ya, Hapus');
+    expect(window.bootstrap.Modal).toHaveBeenCalledWith(document.getElementById('confirmModal'));
+
+    document.getElementById('confirmModalConfirm').click();
+    await expect(promise).resolves.toBe(true);
   });
 
-  it('mengembalikan false jika user membatalkan', () => {
-    window.confirm.mockReturnValueOnce(false);
-    expect(confirmDialog('Batalkan?')).toBe(false);
+  it('resolve false saat tombol batal diklik', async () => {
+    const promise = confirmDialog('Batalkan?', 'Batalkan Tiket', 'Ya, Batalkan', 'warning');
+
+    document.getElementById('confirmModalCancel').click();
+    await expect(promise).resolves.toBe(false);
+  });
+
+  it('menerapkan varian tipe (ikon & kelas tombol) dari argumen options', async () => {
+    const promise = confirmDialog('Lanjut?', 'Judul', 'Ya', { type: 'success', cancelText: 'Tidak' });
+
+    expect(document.getElementById('confirmModalConfirm').className).toContain('btn-success');
+    expect(document.getElementById('confirmModalCancel').textContent).toBe('Tidak');
+
+    document.getElementById('confirmModalConfirm').click();
+    await expect(promise).resolves.toBe(true);
   });
 });
 
