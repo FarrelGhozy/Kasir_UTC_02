@@ -1,6 +1,6 @@
 // public/js/modules/service.js - Modul Manajemen Servis (FIXED: Add Part & Detail View)
 
-import api, { formatCurrency, formatDateTime, showToast, showError, setupCurrencyInput, parseCurrencyValue, calculateElapsedTime, validateWhatsApp, escapeHTML, loadScript, confirmDialog } from '../api.js';
+import api, { formatCurrency, formatDateTime, showToast, showError, setupCurrencyInput, parseCurrencyValue, calculateElapsedTime, validateWhatsApp, escapeHTML, loadScript, confirmDialog, toLocalDateString } from '../api.js';
 
 /**
  * Helper class for Pattern Lock UI
@@ -351,6 +351,26 @@ class Service {
                                 <h6 class="border-bottom pb-2 mb-3 mt-4 fw-bold text-secondary">Estimasi & Tugas</h6>
 
                                 <div class="mb-3">
+                                    <label class="form-label small fw-bold">Waktu Masuk Barang *</label>
+                                    <div class="d-flex gap-3 mb-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="entry-mode" id="entry-mode-now" value="now" checked>
+                                            <label class="form-check-label small fw-bold" for="entry-mode-now">
+                                                <i class="bi bi-clock me-1"></i>Sekarang
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="entry-mode" id="entry-mode-custom" value="custom">
+                                            <label class="form-check-label small fw-bold" for="entry-mode-custom">
+                                                <i class="bi bi-calendar-date me-1"></i>Custom Tanggal
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <input type="date" class="form-control" id="entry-date" disabled>
+                                    <div class="form-text">Custom: tanggal barang masuk (maks. hari ini). Jam mengikuti jam input. Nomor tiket mengikuti tahun tanggal ini.</div>
+                                </div>
+
+                                <div class="mb-3">
                                     <label class="form-label small fw-bold">Teknisi *</label>
                                     <select class="form-select" id="technician-select" required>
                                         <option value="">Memuat...</option>
@@ -567,6 +587,12 @@ class Service {
                                             <input type="text" class="form-control currency-input" id="edit-service-fee" placeholder="0" inputmode="numeric">
                                         </div>
                                     </div>
+                                </div>
+
+                                <div class="mb-3" id="edit-entry-date-wrap">
+                                    <label class="form-label small fw-bold">Tanggal Masuk Barang</label>
+                                    <input type="date" class="form-control" id="edit-entry-date">
+                                    <div class="form-text">Hanya admin/kasir. Maks. hari ini. Nomor tiket tidak berubah.</div>
                                 </div>
                                 
                                 <h6 class="border-bottom pb-2 mb-3 mt-4 fw-bold text-secondary">Manajemen Sparepart</h6>
@@ -1014,6 +1040,11 @@ class Service {
                             <div>
                                 <h6 class="fw-bold mb-0 text-dark">#${t.ticket_number}</h6>
                                 <small class="text-muted">${formatDateTime(t.history.created_at)}</small>
+                                ${toLocalDateString(t.history.created_at) < toLocalDateString(new Date()) ? `
+                                    <span class="badge bg-warning text-dark ms-1" style="font-size:0.6rem;" title="Tanggal masuk diinput mundur (custom)">
+                                        <i class="bi bi-calendar-date me-1"></i>Backdate
+                                    </span>
+                                ` : ''}
                             </div>
                             <div class="text-end">
                                 ${this.getStatusBadge(t.status)}
@@ -1355,6 +1386,18 @@ class Service {
         feeInput.value = t.service_fee || 0;
         setupCurrencyInput(feeInput);
 
+        // Tanggal masuk: prefill + batasi hanya admin/kasir
+        const currentUserRole = (JSON.parse(localStorage.getItem('user') || '{}').role) || '';
+        const editEntryDate = document.getElementById('edit-entry-date');
+        if (editEntryDate) {
+            editEntryDate.value = toLocalDateString(t.history?.created_at) || '';
+            editEntryDate.max = toLocalDateString(new Date());
+            const canEditDate = ['admin', 'kasir'].includes(currentUserRole);
+            editEntryDate.disabled = !canEditDate;
+            const editDateWrap = document.getElementById('edit-entry-date-wrap');
+            if (editDateWrap && !canEditDate) editDateWrap.style.display = 'none';
+        }
+
         // Initialize and populate Pattern Lock for Edit
         if (!this.editPatternLock) {
             this.editPatternLock = new PatternLock('edit-pattern-selector', 'edit-device-pattern');
@@ -1429,6 +1472,11 @@ class Service {
         formData.append('technician_id', document.getElementById('edit-technician-select').value);
         formData.append('service_fee', parseCurrencyValue(document.getElementById('edit-service-fee').value));
         formData.append('notes', t.notes || '');
+        const editEntryDateVal = document.getElementById('edit-entry-date')?.value || '';
+        const originalEntryDate = toLocalDateString(t.history?.created_at) || '';
+        if (editEntryDateVal && editEntryDateVal !== originalEntryDate) {
+            formData.append('tanggal_masuk', editEntryDateVal);
+        }
 
         // Handle new photo uploads
         const photoInputs = document.querySelectorAll('.edit-device-photo');
@@ -1929,11 +1977,25 @@ class Service {
             const techId = document.getElementById('technician-select').value;
             const fee = parseCurrencyValue(document.getElementById('service-fee').value);
 
+            // Pilihan waktu masuk barang: sekarang atau custom tanggal
+            const entryModeEl = document.querySelector('input[name="entry-mode"]:checked');
+            const entryMode = entryModeEl ? entryModeEl.value : 'now';
+            const entryDateInput = document.getElementById('entry-date');
+            const entryDate = entryMode === 'custom' ? (entryDateInput?.value || '') : '';
+            if (entryMode === 'custom' && !entryDate) {
+                showToast('Pilih tanggal masuk barang terlebih dahulu', 'error');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="bi bi-save me-2"></i>Buat Tiket';
+                return;
+            }
+
             // Append data teks DULUAN (Penting untuk beberapa server/proxy)
             formData.append('customer', JSON.stringify(customerData));
             formData.append('device', JSON.stringify(deviceData));
             formData.append('technician_id', techId);
             formData.append('service_fee', fee);
+            formData.append('input_mode', entryMode);
+            if (entryMode === 'custom') formData.append('tanggal_masuk', entryDate);
 
             // Handle Photo Uploads with Compression
             const photoMsg = document.getElementById('photo-compression-msg');
@@ -1950,7 +2012,9 @@ class Service {
                         customer: customerData,
                         device: deviceData,
                         technician_id: techId,
-                        service_fee: fee
+                        service_fee: fee,
+                        input_mode: entryMode,
+                        ...(entryMode === 'custom' ? { tanggal_masuk: entryDate } : {})
                     };
                     response = await api.post('/services', payload);
                 } else {
@@ -1968,7 +2032,12 @@ class Service {
 
                 console.log('Ticket creation success:', response);
                 showToast('Tiket Dibuat'); 
-                document.getElementById('service-form').reset(); 
+                document.getElementById('service-form').reset();
+                // Kembalikan mode waktu masuk ke default (Sekarang)
+                const entryNowRadio = document.getElementById('entry-mode-now');
+                if (entryNowRadio) entryNowRadio.checked = true;
+                const entryDateEl = document.getElementById('entry-date');
+                if (entryDateEl) { entryDateEl.value = ''; entryDateEl.disabled = true; }
                 // Clear photo previews
                 document.querySelectorAll('.photo-upload-box').forEach(box => {
                     const img = box.querySelector('img');
@@ -1991,6 +2060,23 @@ class Service {
         document.getElementById('customer-phone').addEventListener('blur', (e) => {
             this.validateWA(e.target.value);
         });
+
+        // Toggle input tanggal custom (maks. hari ini)
+        const entryDateInput = document.getElementById('entry-date');
+        if (entryDateInput) {
+            entryDateInput.max = toLocalDateString(new Date());
+            document.querySelectorAll('input[name="entry-mode"]').forEach(radio => {
+                radio.addEventListener('change', (e) => {
+                    const isCustom = e.target.value === 'custom';
+                    entryDateInput.disabled = !isCustom;
+                    if (!isCustom) {
+                        entryDateInput.value = '';
+                    } else {
+                        entryDateInput.focus();
+                    }
+                });
+            });
+        }
 
         document.getElementById('view-logs-btn').addEventListener('click', () => {
             this.loadLogs();

@@ -8,7 +8,63 @@ const emailService = require('../services/emailService');
 const mongoose = require('mongoose');
 
 /**
- * @desc    Buat tiket servis baru
+ * Parse dan validasi tanggal masuk barang servis.
+ * Mode 'now' -> waktu server saat ini.
+ * Mode 'custom' -> tanggal YYYY-MM-DD digabung dengan jam server saat request.
+ * @param {string} mode - 'now' | 'custom'
+ * @param {string} tanggalStr - string tanggal YYYY-MM-DD (wajib bila mode custom)
+ * @returns {Date} tanggal masuk yang valid
+ * @throws {Error} dengan statusCode 400 bila input tidak valid
+ */
+function parseTanggalMasuk(mode, tanggalStr) {
+  const now = new Date();
+  const inputMode = mode || 'now';
+
+  if (inputMode === 'now' || !inputMode) {
+    return now;
+  }
+
+  if (inputMode !== 'custom') {
+    const err = new Error("Mode waktu masuk tidak valid. Gunakan 'now' atau 'custom'");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (!tanggalStr || typeof tanggalStr !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(tanggalStr.trim())) {
+    const err = new Error('Tanggal masuk wajib diisi dengan format YYYY-MM-DD untuk mode custom');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const [ys, ms, ds] = tanggalStr.trim().split('-');
+  const y = parseInt(ys, 10);
+  const m = parseInt(ms, 10);
+  const d = parseInt(ds, 10);
+
+  // Gabung tanggal custom dengan jam server saat request (input hanya tanggal saja)
+  const masukDate = new Date(y, m - 1, d, now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+
+  // Tangkap tanggal tak-kalendar (mis. 2025-02-30 yang roll-over oleh Date)
+  if (masukDate.getFullYear() !== y || masukDate.getMonth() !== m - 1 || masukDate.getDate() !== d) {
+    const err = new Error('Tanggal masuk tidak valid (periksa kalender)');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Maksimal hari ini — tanggal masa depan ditolak
+  if (masukDate.getTime() > Date.now()) {
+    const err = new Error('Tanggal masuk tidak boleh melebihi hari ini');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  return masukDate;
+}
+
+/**
+ * @desc    Buat tiket servis baru (mendukung waktu masuk sekarang / custom tanggal)
+ * @route   POST /api/services
+ * @access  Private (Teknisi, Kasir, Admin)
  */
 exports.createTicket = async (req, res, next) => {
   try {
@@ -59,38 +115,74 @@ exports.createTicket = async (req, res, next) => {
         });
     }
 
+    // Pilihan waktu masuk barang: 'now' (default) atau 'custom' (tanggal YYYY-MM-DD)
+    let tanggalMasuk;
+    try {
+      tanggalMasuk = parseTanggalMasuk(req.body.input_mode, req.body.tanggal_masuk);
+    } catch (validationError) {
+      const status = validationError.statusCode || 400;
+      return res.status(status).json({ success: false, message: validationError.message });
+    }
+
       const technician = await User.findById(technician_id).lean();
     if (!technician || technician.role !== 'teknisi') {
       return res.status(400).json({ success: false, message: 'ID Teknisi tidak valid' });
     }
 
-    const ticket_number = await ServiceTicket.generateTicketNumber();
+    const ticketPayload = {
+      customer,
+      device: { ...device, photos: { front: '', back: '', left: '', right: '' } },
+      technician: { id: technician._id, name: technician.name },
+      service_fee: service_fee || 0,
+      notes,
+      history: { created_at: tanggalMasuk }
+    };
 
-    // Handling photos if uploaded
-    const photos = { front: '', back: '', left: '', right: '' };
+    // Nomor tiket mengikuti tahun tanggal masuk (isolasi sequence per tahun).
+    // Retry bila duplikat (race dua kasir input tahun custom yang sama).
+    let ticket = null;
+    let lastDupError = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        ticketPayload.ticket_number = await ServiceTicket.generateTicketNumber(tanggalMasuk.getFullYear());
+        ticket = new ServiceTicket(ticketPayload);
+        await ticket.save();
+        lastDupError = null;
+        break;
+      } catch (saveError) {
+        if (saveError && saveError.code === 11000) {
+          lastDupError = saveError;
+          continue;
+        }
+        throw saveError;
+      }
+    }
+    if (!ticket) {
+      throw lastDupError || new Error('Gagal membuat nomor tiket (duplikat)');
+    }
+
+    // Handling photos if uploaded (setelah tiket tersimpan agar upload gagal tidak bikin tiket yatim)
     if (req.files) {
       const host = req.get('host');
       const protocol = req.protocol;
       const baseURL = `${protocol}://${host}`;
-      
+
       const sides = ['front', 'back', 'left', 'right'];
+      let photosChanged = false;
       sides.forEach(side => {
         if (req.files[side] && req.files[side][0]) {
-          photos[side] = `${baseURL}/api/uploads/${req.files[side][0].filename}`;
+          ticket.device.photos[side] = `${baseURL}/api/uploads/${req.files[side][0].filename}`;
+          photosChanged = true;
         }
       });
-      
-      console.log('Photos processed:', photos);
-    }
 
-    const ticket = await ServiceTicket.create({
-      ticket_number,
-      customer,
-      device: { ...device, photos },
-      technician: { id: technician._id, name: technician.name },
-      service_fee: service_fee || 0,
-      notes
-    });
+      if (photosChanged) {
+        ticket.markModified('device.photos');
+        await ticket.save();
+      }
+
+      console.log('Photos processed:', ticket.device.photos);
+    }
 
     console.log(`Ticket created: ${ticket.ticket_number}`);
 
@@ -446,16 +538,50 @@ exports.getTechnicianWorkload = async (req, res, next) => {
 };
 
 /**
- * @desc    Update Detail Tiket (Nama, Perangkat, dll)
+ * @desc    Update Detail Tiket (Nama, Perangkat, Tanggal Masuk, dll)
  * @route   PUT /api/services/:id
+ * @access  Private (Teknisi, Kasir, Admin) — ubah tanggal masuk khusus Admin & Kasir
  */
 exports.updateTicketDetails = async (req, res, next) => {
   try {
-    let { customer, device, technician_id, service_fee, notes } = req.body;
+    let { customer, device, technician_id, service_fee, notes, tanggal_masuk } = req.body;
 
     const ticket = await ServiceTicket.findById(req.params.id);
     if (!ticket) {
       return res.status(404).json({ success: false, message: 'Tiket tidak ditemukan' });
+    }
+
+    // Ubah tanggal masuk hanya boleh oleh admin/kasir (teknisi ditolak).
+    // Nomor tiket tidak pernah berubah agar QR, WA, dan arsip nota tetap valid.
+    if (tanggal_masuk !== undefined && tanggal_masuk !== null && String(tanggal_masuk).trim() !== '') {
+      const role = req.user && req.user.role;
+      if (role === 'teknisi') {
+        return res.status(403).json({ success: false, message: 'Hanya admin/kasir yang boleh mengubah tanggal masuk' });
+      }
+      let tanggalBaru;
+      try {
+        tanggalBaru = parseTanggalMasuk('custom', tanggal_masuk);
+      } catch (validationError) {
+        const status = validationError.statusCode || 400;
+        return res.status(status).json({ success: false, message: validationError.message });
+      }
+      const tanggalLama = ticket.history && ticket.history.created_at
+        ? new Date(ticket.history.created_at)
+        : null;
+      if (!ticket.history) ticket.history = {};
+      ticket.history.created_at = tanggalBaru;
+      SystemLog.create({
+        level: 'WARN',
+        source: 'ServiceController',
+        message: 'Tanggal masuk tiket diubah',
+        details: {
+          ticket_id: ticket._id,
+          ticket_number: ticket.ticket_number,
+          changed_by: req.user && (req.user.username || req.user.id),
+          tanggal_lama: tanggalLama,
+          tanggal_baru: tanggalBaru
+        }
+      }).catch(err => console.error('Gagal simpan log ubah tanggal:', err.message));
     }
 
     if (customer) {

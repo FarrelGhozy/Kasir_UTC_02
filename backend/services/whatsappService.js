@@ -13,6 +13,18 @@ const {
 const BACKEND_URL = process.env.BACKEND_URL || 'http://backend:5000';
 
 /**
+ * Format tanggal masuk tiket ke Bahasa Indonesia (aman untuk nilai kosong/invalid)
+ * @param {Date|string} date
+ * @returns {string}
+ */
+function formatTanggalMasukID(date) {
+  if (!date) return '-';
+  const d = date instanceof Date ? date : new Date(date);
+  if (isNaN(d.getTime())) return '-';
+  return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+/**
  * WhatsApp Service using WAHA (WhatsApp HTTP API)
  */
 class WhatsAppService {
@@ -152,6 +164,7 @@ class WhatsAppService {
       }
 
       const deviceName = `${ticket.device.type} ${ticket.device.brand || ''} ${ticket.device.model || ''}`.trim();
+      const tanggalMasuk = formatTanggalMasukID(ticket.history && ticket.history.created_at);
 
       // 1. Pesan Greeting
       const msg1 = `Halo Kak ${ticket.customer.name}, selamat datang di Bengkel UTC! 👋 Terima kasih telah mempercayakan perbaikan/pemesanan perangkat Anda kepada kami.`;
@@ -163,6 +176,7 @@ class WhatsAppService {
       const msg2 = `Berikut adalah informasi perangkat Anda:
 *No. Tiket/Pesanan: ${ticket.ticket_number}
 *Perangkat: ${deviceName}
+*Tanggal Masuk: ${tanggalMasuk}
 Status Saat Ini: Menunggu Antrian ⏳`;
       await this.sendMessage(phone, msg2);
 
@@ -282,12 +296,14 @@ Status Saat Ini: Menunggu Antrian ⏳`;
 
     const statusLabel = statusMap[ticket.status] || ticket.status;
     const currencyFormat = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 });
+    const tanggalMasuk = formatTanggalMasukID(ticket.history && ticket.history.created_at);
 
     let message = `*UNIDA TECHNOLOGY CENTRE - UPDATE SERVIS*\n\n`;
     message += `Halo Kak *${ticket.customer.name}*, apa kabarnya? Semoga sehat selalu 😊\n\n`;
     message += `Kami ingin menginformasikan update terbaru untuk perbaikan perangkat Anda:\n`;
     message += `📦 *${ticket.device.type} ${ticket.device.brand || ''} ${ticket.device.model || ''}*\n`;
-    message += `🎫 No. Tiket: #${ticket.ticket_number}\n\n`;
+    message += `🎫 No. Tiket: #${ticket.ticket_number}\n`;
+    message += `📅 Tanggal Masuk: ${tanggalMasuk}\n\n`;
     message += `Status saat ini: ✅ *${statusLabel}*\n\n`;
 
     // Jika sudah selesai, berikan rincian biaya

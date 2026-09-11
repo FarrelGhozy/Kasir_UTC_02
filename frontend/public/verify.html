@@ -236,6 +236,7 @@
         let rows = '';
         if (model === 'ServiceTicket') {
           rows += renderDetailRow('No. Tiket', escapeHTML(doc.ticket_number));
+          rows += renderDetailRow('Tanggal Masuk', escapeHTML(formatDate(doc.history && doc.history.created_at)));
           let warranty = '-';
           if (doc.warranty_expires_at) {
             warranty = 's/d ' + formatDate(doc.warranty_expires_at);

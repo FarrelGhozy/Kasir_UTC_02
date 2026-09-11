@@ -240,19 +240,22 @@ serviceTicketSchema.pre('save', async function() {
     this.payment_status = 'Belum Lunas';
   }
 
-  // 3. Generate Nomor Tiket
+  // 3. Generate Nomor Tiket (prefix tahun mengikuti tanggal masuk barang)
   if (this.isNew && !this.ticket_number) {
     try {
-      this.ticket_number = await this.constructor.generateTicketNumber();
+      const tahunMasuk = this.history && this.history.created_at
+        ? new Date(this.history.created_at).getFullYear()
+        : new Date().getFullYear();
+      this.ticket_number = await this.constructor.generateTicketNumber(tahunMasuk);
     } catch (error) {
       throw new Error('Gagal membuat nomor tiket: ' + error.message);
     }
   }
 });
 
-// Method static untuk membuat nomor tiket berikutnya
-serviceTicketSchema.statics.generateTicketNumber = async function() {
-  const year = new Date().getFullYear();
+// Method static untuk membuat nomor tiket berikutnya per tahun tanggal masuk
+serviceTicketSchema.statics.generateTicketNumber = async function(tahun = new Date().getFullYear()) {
+  const year = parseInt(tahun, 10) || new Date().getFullYear();
   const prefix = `SRV-${year}`;
   
   // FIX: Sort by _id (ObjectId berisi timestamp, terjamin unik & asc)

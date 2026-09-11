@@ -84,7 +84,7 @@ async function generateServiceNota(ticket) {
       addWatermark(doc);
       addBorder(doc);
       addHeader(doc, 'NOTA SERVIS');
-      addCustomerSection(doc, ticket.customer);
+      addCustomerSection(doc, ticket.customer, ticket);
       addServiceDetails(doc, ticket);
       addPricingSection(doc, ticket);
       if (ticket.warranty_expires_at || ticket.status === 'Picked_Up') {
@@ -191,7 +191,14 @@ function addHeader(doc, title) {
   doc.text(title, PAGE.margin, lineY + 2 * MM, { width: CONTENT_WIDTH, align: 'center' });
 }
 
-function addCustomerSection(doc, customer) {
+function formatTanggalID(date) {
+  if (!date) return '-';
+  const d = date instanceof Date ? date : new Date(date);
+  if (isNaN(d.getTime())) return '-';
+  return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+function addCustomerSection(doc, customer, ticket = null) {
   const y = doc.y + 3 * MM;
   const leftX = PAGE.margin;
   const rightX = PAGE.margin + CONTENT_WIDTH / 2;
@@ -211,9 +218,17 @@ function addCustomerSection(doc, customer) {
   doc.font('Helvetica').text(`       : ${customer.type || '-'}`);
 
   doc.y = y;
+  // Tanggal Masuk mengikuti tanggal tiket (bisa backdate via tanggal custom),
+  // sedangkan Tanggal Cetak selalu waktu nota ini digenerate.
+  const tanggalMasuk = ticket && ticket.history && ticket.history.created_at
+    ? ticket.history.created_at
+    : null;
   doc.font('Helvetica-Bold').fontSize(fontSize).fillColor(color);
-  doc.text('Tanggal', rightX, y, { continued: true });
-  doc.font('Helvetica').text(`    : ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}`);
+  doc.text('Tgl. Masuk', rightX, y, { continued: true });
+  doc.font('Helvetica').text(` : ${formatTanggalID(tanggalMasuk)}`);
+  doc.font('Helvetica-Bold').fontSize(fontSize).fillColor(color);
+  doc.text('Tgl. Cetak', rightX, doc.y + 2.5 * MM, { continued: true });
+  doc.font('Helvetica').text(` : ${formatTanggalID(new Date())}`);
 }
 
 function addServiceDetails(doc, ticket) {
@@ -508,7 +523,7 @@ async function generateServiceEntryNota(ticket) {
       addWatermark(doc);
       addBorder(doc);
       addHeader(doc, 'NOTA TANDA TERIMA');
-      addCustomerSection(doc, ticket.customer);
+      addCustomerSection(doc, ticket.customer, ticket);
       addServiceDetails(doc, ticket);
       addEntryDisclaimer(doc, ticket);
       addTCSection(doc);

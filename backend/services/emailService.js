@@ -50,6 +50,14 @@ const sendInvoiceEmail = async (ticket) => {
 
   try {
     const paymentStatus = ticket.payment_status === 'Lunas' ? 'Lunas' : 'Belum Lunas';
+    const fmtTanggal = (d) => {
+      if (!d) return '-';
+      const dt = d instanceof Date ? d : new Date(d);
+      if (isNaN(dt.getTime())) return '-';
+      return dt.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+    };
+    const tanggalMasuk = fmtTanggal(ticket.history && ticket.history.created_at);
+    const tanggalSelesai = fmtTanggal(ticket.history && ticket.history.completed_at);
     const htmlContent = `
       <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px;">
         <h2 style="text-align: center; color: #0d6efd;">Nota Servis Bengkel UTC</h2>
@@ -65,6 +73,14 @@ const sendInvoiceEmail = async (ticket) => {
           <tr>
             <td style="padding: 5px 0;"><strong>Perangkat:</strong></td>
             <td>${escapeHtml(ticket.device.brand)} ${escapeHtml(ticket.device.model)}</td>
+          </tr>
+          <tr>
+            <td style="padding: 5px 0;"><strong>Tanggal Masuk:</strong></td>
+            <td>${escapeHtml(tanggalMasuk)}</td>
+          </tr>
+          <tr>
+            <td style="padding: 5px 0;"><strong>Tanggal Selesai:</strong></td>
+            <td>${escapeHtml(tanggalSelesai)}</td>
           </tr>
           <tr>
             <td style="padding: 5px 0;"><strong>Status:</strong></td>
