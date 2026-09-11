@@ -1191,8 +1191,8 @@ class Service {
                                 </button>
                             ` : ''}
 
-                            ${isCompleted ? `
-                                <button class="btn btn-sm btn-outline-dark" onclick="service.downloadNota('${t._id}', 'payment')" title="Cetak Nota Pembayaran" aria-label="Cetak Nota Pembayaran">
+                            ${this.getNotaType(t) ? `
+                                <button class="btn btn-sm btn-outline-dark" onclick="service.downloadNota('${t._id}', '${this.getNotaType(t)}')" title="${this.getNotaLabel(t)}" aria-label="${this.getNotaLabel(t)}">
                                     <i class="bi bi-printer"></i>
                                 </button>
                             ` : ''}
@@ -1224,6 +1224,25 @@ class Service {
             'Cancelled': '<span class="badge bg-danger">Dibatalkan</span>'
         };
         return map[status] || status;
+    }
+
+    /**
+     * Tentukan jenis nota yang sesuai kondisi tiket.
+     * - Tiket aktif (Queue Diagnosing Waiting_Part In_Progress): 'entry' (NOTA TANDA TERIMA,
+     *   hanya estimasi jasa + S&K, rincian final belum valid)
+     * - Tiket selesai/diambil (Completed Picked_Up): 'payment' (NOTA SERVIS + rincian final
+     *   + cap LUNAS/BELUM LUNAS + garansi)
+     * - Tiket dibatalkan: null (tidak ada nota yang valid — payment misleading, entry basi)
+     */
+    getNotaType(t) {
+        if (!t) return null;
+        if (['Completed', 'Picked_Up'].includes(t.status)) return 'payment';
+        if (['Queue', 'Diagnosing', 'Waiting_Part', 'In_Progress'].includes(t.status)) return 'entry';
+        return null;
+    }
+
+    getNotaLabel(t) {
+        return this.getNotaType(t) === 'payment' ? 'Cetak Nota Pembayaran' : 'Cetak Tanda Terima';
     }
 
     async updateStatus(id, newStatus) {
@@ -1768,7 +1787,20 @@ class Service {
             </div>
         `;
         document.getElementById('detail-content').innerHTML = html;
-        document.getElementById('print-copy-btn').onclick = () => this.downloadNota(id, 'payment');
+        // Label & tipe nota mengikuti kondisi tiket (entry untuk aktif, payment untuk selesai).
+        // Tiket dibatalkan tidak punya nota valid → sembunyikan tombol cetak.
+        const notaType = this.getNotaType(t);
+        const printBtn = document.getElementById('print-copy-btn');
+        if (printBtn) {
+            if (!notaType) {
+                printBtn.classList.add('d-none');
+                printBtn.onclick = null;
+            } else {
+                printBtn.classList.remove('d-none');
+                printBtn.innerHTML = `<i class="bi bi-printer me-2"></i>${this.getNotaLabel(t)}`;
+                printBtn.onclick = () => this.downloadNota(id, notaType);
+            }
+        }
         this.getOrCreateModal('detailModal').show();
     }
 
