@@ -102,8 +102,18 @@ services:
     container_name: utc_waha
     restart: always
     ports:
-      # Dashboard WAHA hanya untuk admin — bind ke localhost, akses via SSH tunnel bila perlu.
+      # Dashboard WAHA — akses via localhost + Tailscale tailnet.
+      # OPSI A (aktif sekarang): bind langsung ke IP Tailscale via TAILSCALE_IP.
+      #   Akses: http://<TAILSCALE_IP>:8000  (contoh: http://100.78.190.70:8000) dari device tailnet
+      #   Jika IP Tailscale berubah (tailscale ip -4), update .env -> TAILSCALE_IP=<ip baru> lalu restart.
+      # OPSI B (LEBIH AMAN, direkomendasikan untuk production): hapus baris TAILSCALE_IP di bawah,
+      #   biarkan hanya 127.0.0.1, lalu di HOST jalankan:
+      #     tailscale serve --bg http://127.0.0.1:8000
+      #   atau dengan HTTPS MagicDNS:
+      #     tailscale serve --bg --https=443 http://127.0.0.1:8000
+      #   Akses jadi https://myserver.tail<id>.ts.net (enkripsi WireGuard + ACL Tailscale, tanpa buka port).
       - "127.0.0.1:${HOST_WAHA_PORT:-8000}:8000"
+      - "${TAILSCALE_IP:-100.78.190.70}:${HOST_WAHA_PORT:-8000}:8000"
     environment:
       - PORT=8000
       - WAHA_WHATSAPP_DEFAULT_SESSION=${WAHA_SESSION:-default}
