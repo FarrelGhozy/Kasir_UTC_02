@@ -5,15 +5,25 @@ const User = require('../models/User');
 const whatsappService = require('./whatsappService');
 const SystemLog = require('../models/SystemLog');
 
+// Hari dalam WIB (0=Minggu..6=Sabtu). Container jalan UTC — new Date().getDay()
+// mentah salah hari pada 00:00-07:00 WIB. Dipakai untuk skip Jumat (hari libur).
+function wibWeekday(date = new Date()) {
+  return new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' })).getDay();
+}
+
 class ReminderService {
   constructor() {
+    // Guard anti-spam-restart: tiket/order yang selesai SEBELUM waktu ini di-skip.
+    // (Kolom last_*_reminder_at + batas 24/12 jam sudah mencegah spam berulang.)
     this.server_started_at = new Date();
   }
 
   init() {
     // Cron untuk pengingat pelanggan (setiap jam 08:00-15:00 WIB, skip Jumat)
+    // Cek hari dalam WIB (bukan TZ server): container jalan UTC, getDay() mentah
+    // salah hari pada 00:00-07:00 WIB.
     cron.schedule('0 8-15 * * *', async () => {
-      const day = new Date().getDay();
+      const day = wibWeekday();
       if (day === 5) return;
 
       console.log('[ReminderService] Cron pelanggan: memulai pengecekan...');
@@ -28,7 +38,7 @@ class ReminderService {
 
     // Cron untuk pengingat teknisi (jam 08:00 & 13:00 WIB, skip Jumat)
     cron.schedule('0 8,13 * * *', async () => {
-      const day = new Date().getDay();
+      const day = wibWeekday();
       if (day === 5) return;
 
       console.log('[ReminderService] Cron teknisi (WIB): memulai pengecekan...');

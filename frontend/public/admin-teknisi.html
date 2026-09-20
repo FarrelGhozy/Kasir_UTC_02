@@ -140,6 +140,18 @@
 
         let allTechnicians = [];
 
+        // Escape HTML — halaman ini me-render nama/username/no HP teknisi
+        // (input admin) ke innerHTML; tanpa ini = stored XSS.
+        function escapeHTML(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
         // 1. Auth Check (Hanya Admin)
         function checkAuth() {
             const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -185,13 +197,13 @@
                     <td class="px-6 py-4">
                         <div class="flex items-center gap-3">
                             <div class="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-sm">
-                                ${tech.name.charAt(0)}
+                                ${escapeHTML((tech.name || '?').charAt(0))}
                             </div>
-                            <span class="text-sm font-semibold text-gray-900">${tech.name}</span>
+                            <span class="text-sm font-semibold text-gray-900">${escapeHTML(tech.name)}</span>
                         </div>
                     </td>
-                    <td class="px-6 py-4 text-sm text-gray-600 font-mono">${tech.username}</td>
-                    <td class="px-6 py-4 text-sm text-gray-600">${tech.phone || '-'}</td>
+                    <td class="px-6 py-4 text-sm text-gray-600 font-mono">${escapeHTML(tech.username)}</td>
+                    <td class="px-6 py-4 text-sm text-gray-600">${escapeHTML(tech.phone || '-')}</td>
                     <td class="px-6 py-4">
                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${tech.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">
                             ${tech.status === 'active' ? 'Aktif' : 'Nonaktif'}
@@ -199,10 +211,10 @@
                     </td>
                     <td class="px-6 py-4 text-right">
                         <div class="flex justify-end gap-2">
-                            <button data-id="${tech._id}" class="btn-edit p-2 text-gray-400 hover:text-blue-600 transition-colors" title="Edit">
+                            <button data-id="${escapeHTML(tech._id)}" class="btn-edit p-2 text-gray-400 hover:text-blue-600 transition-colors" title="Edit">
                                 <i class="bi bi-pencil-square"></i>
                             </button>
-                            <button data-id="${tech._id}" data-name="${tech.name}" class="btn-delete p-2 text-gray-400 hover:text-red-600 transition-colors" title="Hapus">
+                            <button data-id="${escapeHTML(tech._id)}" data-name="${escapeHTML(tech.name)}" class="btn-delete p-2 text-gray-400 hover:text-red-600 transition-colors" title="Hapus">
                                 <i class="bi bi-trash"></i>
                             </button>
                         </div>

@@ -3,10 +3,13 @@
 // sebelum mencapai query Mongoose. Mutasi in-place agar kompatibel Express 5.
 
 /**
- * Cek apakah nama key berpotensi operator MongoDB
+ * Cek apakah nama key berpotensi operator MongoDB atau prototype pollution.
+ * '__proto__'/'constructor'/'prototype' lolos filter lama padahal hasil
+ * JSON.parse mempertahankannya sebagai own-property.
  */
+const BLOCKED_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 function isKunciBerbahaya(key) {
-  return typeof key === 'string' && (key.startsWith('$') || key.includes('.'));
+  return typeof key === 'string' && (key.startsWith('$') || key.includes('.') || BLOCKED_KEYS.has(key));
 }
 
 /**

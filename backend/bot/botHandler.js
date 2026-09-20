@@ -73,6 +73,7 @@ async function handleIncomingMessage(payload) {
   // Aktifkan kembali dengan menghapus baris return di bawah ini
   return;
 
+  // eslint-disable-next-line no-unreachable -- dead code disengaja (bot dimatikan sementara, hidupkan dengan hapus return di atas)
   const now = Date.now();
   const lastChat = chatSessions.get(from);
   const status = isWorkingHours();

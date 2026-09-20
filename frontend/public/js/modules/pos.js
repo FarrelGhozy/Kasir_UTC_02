@@ -146,10 +146,15 @@ class POS {
 
     async loadItems() {
         try {
-            const response = await api.getInventory({ limit: 100 });
+            // Search + kategori dikirim ke SERVER (bukan filter client-side):
+            // toko >100 SKU tetap bisa menjual semua barang.
+            const params = { limit: 100 };
+            if (this.searchTerm) params.search = this.searchTerm;
+            if (this.selectedCategory && this.selectedCategory !== 'all') params.category = this.selectedCategory;
+            const response = await api.getInventory(params);
             // Hanya tampilkan item yang stoknya > 0
             this.items = response.data.filter(item => item.stock > 0);
-            
+
             const badge = document.getElementById('total-products-badge');
             if(badge) badge.textContent = `${this.items.length} Item`;
 
@@ -162,20 +167,10 @@ class POS {
     renderProductGrid() {
         const grid = document.getElementById('product-grid');
         if (!grid) return;
-        
-        let filtered = this.items;
 
-        if (this.searchTerm) {
-            const term = this.searchTerm.toLowerCase();
-            filtered = filtered.filter(item => 
-                item.name.toLowerCase().includes(term) ||
-                item.sku.toLowerCase().includes(term)
-            );
-        }
-
-        if (this.selectedCategory !== 'all') {
-            filtered = filtered.filter(item => item.category === this.selectedCategory);
-        }
+        // Search/kategori sudah difilter server di loadItems — render langsung.
+        // (Filter client-side dihapus: tidak akurat untuk katalog >100 SKU.)
+        const filtered = this.items;
 
         if (filtered.length === 0) {
             grid.innerHTML = `
@@ -340,14 +335,14 @@ class POS {
         // Set up cart event delegation ONCE (handles all cart row actions)
         this.setupCartEventListeners();
 
-        // Search & Filter — debounced 300ms
+        // Search & Filter — debounced 300ms, tembak server
         const searchInput = document.getElementById('product-search');
         if(searchInput) {
             searchInput.addEventListener('input', (e) => {
                 clearTimeout(this._searchDebounceTimer);
                 this._searchDebounceTimer = setTimeout(() => {
                     this.searchTerm = e.target.value;
-                    this.renderProductGrid();
+                    this.loadItems();
                 }, 300);
             });
         }
@@ -356,7 +351,7 @@ class POS {
         if(categoryFilter) {
             categoryFilter.addEventListener('change', (e) => {
                 this.selectedCategory = e.target.value;
-                this.renderProductGrid();
+                this.loadItems();
             });
         }
 
@@ -509,7 +504,8 @@ class POS {
             showToast(error.message || 'Transaksi gagal', 'error');
         } finally {
             if(payBtn) {
-                payBtn.disabled = false;
+                // Kembalikan sesuai isi keranjang — jangan aktif saat cart kosong.
+                payBtn.disabled = this.cart.length === 0;
                 payBtn.innerHTML = originalText;
             }
         }

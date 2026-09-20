@@ -12,11 +12,18 @@ exports.createRetailTransaction = async (req, res, next) => {
   try {
     const { items, payment_method, amount_paid, notes } = req.body;
 
-    if (!items || items.length === 0) {
+    if (!Array.isArray(items) || items.length === 0) {
       return res.status(400).json({
         success: false,
         message: 'Keranjang belanja tidak boleh kosong'
       });
+    }
+
+    const mongoose = require('mongoose');
+    for (const cartItem of items) {
+      if (!cartItem || !mongoose.Types.ObjectId.isValid(cartItem.item_id)) {
+        return res.status(400).json({ success: false, message: 'ID barang tidak valid' });
+      }
     }
 
     const cashier = await User.findById(req.user.id).lean();
@@ -26,11 +33,11 @@ exports.createRetailTransaction = async (req, res, next) => {
 
     // --- FASE 1: VALIDASI ---
     // Validasi semua input tanpa mengubah database
-    
-    // Batch lookup semua item sekali
+
+    // Batch lookup semua item sekali — hanya barang aktif yang bisa dijual
     const itemIds = items.map(i => i.item_id);
     const itemMap = {};
-    (await Item.find({ _id: { $in: itemIds } }).lean()).forEach(item => {
+    (await Item.find({ _id: { $in: itemIds }, isActive: true }).lean()).forEach(item => {
       itemMap[item._id.toString()] = item;
     });
 
@@ -83,11 +90,18 @@ exports.createRetailTransaction = async (req, res, next) => {
       });
     }
 
-    if (pm === 'Cash' && Number(amount_paid) < grandTotal) {
-      return res.status(400).json({
-        success: false,
-        message: `Uang pembayaran kurang! Total: ${grandTotal}, Dibayar: ${amount_paid}`
-      });
+    if (pm === 'Cash') {
+      const paid = Number(amount_paid);
+      // NaN/undefined/string lolos perbandingan (< NaN = false) — wajib finite.
+      if (!Number.isFinite(paid)) {
+        return res.status(400).json({ success: false, message: 'Jumlah pembayaran tunai wajib diisi angka yang valid' });
+      }
+      if (paid < grandTotal) {
+        return res.status(400).json({
+          success: false,
+          message: `Uang pembayaran kurang! Total: ${grandTotal}, Dibayar: ${amount_paid}`
+        });
+      }
     }
 
     // --- FASE 2: EKSEKUSI ATOMIC ---
@@ -112,8 +126,24 @@ exports.createRetailTransaction = async (req, res, next) => {
       });
     }
 
-    // Generate No Faktur
-    const invoice_no = await Transaction.generateInvoiceNumber();
+    // Generate No Faktur — retry 3x bila duplikat (race dua kasir checkout bersamaan),
+    // sama seperti generateTicketNumber di serviceController.
+    let invoice_no = null;
+    let lastDupError = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        invoice_no = await Transaction.generateInvoiceNumber();
+        break;
+      } catch (genError) {
+        lastDupError = genError;
+      }
+    }
+    if (!invoice_no) {
+      for (const id of deductedItemIds) {
+        await Item.addStockAtomic(id, transactionItems.find(t => t.item_id.equals ? t.item_id.equals(id) : t.item_id === id)?.qty || 0).catch(() => {});
+      }
+      return res.status(500).json({ success: false, message: 'Gagal membuat nomor invoice, coba lagi' });
+    }
 
     const finalAmountPaid = amount_paid !== undefined && amount_paid !== null ? Number(amount_paid) : grandTotal;
 
@@ -129,7 +159,15 @@ exports.createRetailTransaction = async (req, res, next) => {
       date: new Date()
     });
 
-    await transaction.save();
+    try {
+      await transaction.save();
+    } catch (saveError) {
+      // Rollback stok: transaksi gagal tersimpan tapi stok sudah dipotong
+      for (const id of deductedItemIds) {
+        await Item.addStockAtomic(id, transactionItems.find(t => t.item_id.equals ? t.item_id.equals(id) : t.item_id === id)?.qty || 0).catch(() => {});
+      }
+      throw saveError;
+    }
 
     res.status(201).json({
       success: true,

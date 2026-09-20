@@ -459,9 +459,17 @@ class Inventory {
         processBtn.disabled = true;
         processBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Memproses...';
 
-        // Dynamic load PapaParse
-        if (typeof Papa === 'undefined') {
-            await loadScript('https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js');
+        // Dynamic load PapaParse — bungkus try: CDN mati sebelumnya bikin
+        // tombol stuck "Memproses..." selamanya (await di luar try).
+        try {
+            if (typeof Papa === 'undefined') {
+                await loadScript('https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js');
+            }
+        } catch (loadErr) {
+            showToast('Gagal memuat pustaka CSV. Periksa koneksi internet lalu coba lagi.', 'error');
+            processBtn.disabled = false;
+            processBtn.innerHTML = originalText;
+            return;
         }
 
         Papa.parse(file, {

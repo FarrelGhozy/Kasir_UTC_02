@@ -1,4 +1,4 @@
-import api, { showToast, escapeHTML, confirmDialog, loadScript, checkWARealtime, setupPhoneRealtimeValidation } from '../api.js';
+import api, { showToast, escapeHTML, confirmDialog, loadScript, checkWARealtime, setupPhoneRealtimeValidation, isWARejection } from '../api.js';
 import Reports from './reports.js';
 
 class Admin {
@@ -640,7 +640,7 @@ class Admin {
         try {
             return await send(preOverride);
         } catch (e) {
-            if (!/WhatsApp|terdaftar/i.test(e.message || '')) throw e;
+            if (!isWARejection(e)) throw e;
             if (inputEl) {
                 inputEl.dataset.waState = 'invalid';
                 await checkWARealtime(inputEl.value, msgId);

@@ -449,6 +449,8 @@ exports.getRevenueByRange = async (req, res, next) => {
 exports.getTopSellingItems = async (req, res, next) => {
   try {
     const { start_date, end_date, limit = 10 } = req.query;
+    // Clamp limit: negatif/NaN/besar = error Mongo 500 atau OOM.
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 10));
 
     const startDate = validateDateParam(start_date, 'start_date');
     const endDate = validateDateParam(end_date, 'end_date');
@@ -480,7 +482,7 @@ exports.getTopSellingItems = async (req, res, next) => {
         }
       },
       { $sort: { total_qty_sold: -1 } },
-      { $limit: parseInt(limit) }
+      { $limit: limitNum }
     ]);
 
     res.status(200).json({

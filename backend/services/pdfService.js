@@ -172,7 +172,11 @@ function addHeader(doc, title) {
   const logoSize = 18 * MM;
   const y = 10 * MM;
 
-  doc.image(LOGO_PATH, PAGE.margin, y, { width: logoSize, height: logoSize });
+  // Guard: satu asset hilang tidak boleh mematikan SEMUA nota (dipakai 4 generator).
+  const hasLogo = fs.existsSync(LOGO_PATH);
+  if (hasLogo) {
+    doc.image(LOGO_PATH, PAGE.margin, y, { width: logoSize, height: logoSize });
+  }
 
   doc.font('Helvetica-Bold').fontSize(11).fillColor(hexCode(...COLORS.primary));
   doc.text('UNIDA TECHNOLOGY CENTRE', PAGE.margin + logoSize + 3 * MM, y + 1 * MM, {

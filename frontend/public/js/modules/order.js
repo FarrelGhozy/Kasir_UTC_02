@@ -1,4 +1,4 @@
-import api, { formatCurrency, formatDateTime, showToast, setupCurrencyInput, parseCurrencyValue, calculateElapsedTime, validateWhatsApp, checkWARealtime, setupPhoneRealtimeValidation, escapeHTML, confirmDialog } from '../api.js';
+import api, { formatCurrency, formatDateTime, showToast, setupCurrencyInput, parseCurrencyValue, calculateElapsedTime, validateWhatsApp, checkWARealtime, setupPhoneRealtimeValidation, escapeHTML, confirmDialog, isWARejection } from '../api.js';
 
 class Order {
     constructor() {
@@ -184,7 +184,7 @@ class Order {
             this.orders = res.data.filter(o => o.status !== 'Cancelled');
             this.renderOrderList();
         } catch (err) {
-            container.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
+            container.innerHTML = `<div class="alert alert-danger">${escapeHTML(err.message)}</div>`;
         }
     }
 
@@ -311,7 +311,10 @@ class Order {
                                 ${(() => {
                                     const validStatuses = this._getValidOrderStatuses(o.status);
                                     const allLabels = { Pending: 'Antrian', Searching: 'Mencari', Ordered: 'Dipesan', Arrived: 'Sampai', Picked_Up: 'Diambil', Cancelled: 'Dibatalkan' };
-                                    return validStatuses.map(s => `<option value="${s}" ${o.status === s ? 'selected' : ''}>${allLabels[s] || s}</option>`).join('');
+                                    // Sertakan status saat ini sebagai opsi selected/disabled agar
+                                    // dropdown menampilkan nilai yang benar, bukan opsi pertama.
+                                    const current = `<option value="${o.status}" selected disabled>${allLabels[o.status] || o.status} (saat ini)</option>`;
+                                    return current + validStatuses.map(s => `<option value="${s}">${allLabels[s] || s}</option>`).join('');
                                 })()}
                             </select>
                             <select class="form-select form-select-sm" style="width: 130px" onchange="orderModule.togglePayment('${o._id}', this)">
@@ -463,7 +466,7 @@ class Order {
         try {
             return await send(preOverride);
         } catch (e) {
-            if (!/WhatsApp|terdaftar/i.test(e.message || '')) throw e;
+            if (!isWARejection(e)) throw e;
             if (phoneInput) {
                 phoneInput.dataset.waState = 'invalid';
                 await checkWARealtime(phoneInput.value, 'order-wa-validation-msg');
@@ -482,6 +485,9 @@ class Order {
     setupEventListeners() {
         document.getElementById('order-form').addEventListener('submit', async (e) => {
             e.preventDefault();
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            // Guard double-submit: tanpa ini klik ganda = 2 order duplikat.
+            if (submitBtn && submitBtn.disabled) return;
             // Soft-block: nomor invalid -> konfirmasi "Tetap simpan"
             const orderPhoneInput = document.getElementById('order-customer-phone');
             const waGuard = await this.guardWAInvalidOnSubmit(orderPhoneInput);
@@ -517,12 +523,15 @@ class Order {
                 };
             }
             try {
+                if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Menyimpan...'; }
                 await this._postOrderWithWAGuard(data, isFormData, orderPhoneInput, waGuard.override);
                 showToast('Pesanan berhasil disimpan');
                 document.getElementById('order-form').reset();
                 document.getElementById('order-photo-preview').classList.add('d-none');
                 this.loadOrders();
-            } catch (e) { showToast(e.message, 'error'); }
+            } catch (e) { showToast(e.message, 'error'); } finally {
+                if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<i class="bi bi-save me-2"></i>Simpan Pesanan'; }
+            }
         });
 
         const photoInput = document.getElementById('order-photo');

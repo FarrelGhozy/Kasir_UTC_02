@@ -38,6 +38,21 @@ const errorHandler = async (err, req, res, next) => {
     error.message = message;
   }
 
+  // Multer: file terlalu besar / terlalu banyak / tipe ditolak -> 400 yang jelas.
+  if (err.name === 'MulterError') {
+    const message = err.code === 'LIMIT_FILE_SIZE'
+      ? 'Ukuran file melebihi batas 5MB'
+      : err.code === 'LIMIT_FILE_COUNT' || err.code === 'LIMIT_UNEXPECTED_FILE'
+        ? 'Jumlah/jenis file tidak sesuai ketentuan'
+        : 'Upload file gagal';
+    error.statusCode = 400;
+    error.message = message;
+  }
+  // fileFilter menolak dengan Error biasa (pesan 'Hanya file gambar...')
+  if (err.message && err.message.startsWith('Hanya file gambar')) {
+    error.statusCode = 400;
+  }
+
   // Mongoose duplicate key (Data ganda)
   if (err.code === 11000) {
     const field = Object.keys(err.keyValue)[0];

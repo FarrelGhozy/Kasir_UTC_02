@@ -29,7 +29,7 @@ exports.downloadServiceNota = async (req, res, next) => {
       pdfBuffer = await pdfService.generateServiceNota(ticket);
     }
 
-    const filename = `NOTA-SVC-${ticket.ticket_number}_${(ticket.customer.name || 'Unknown').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+    const filename = `NOTA-SVC-${ticket.ticket_number}_${((ticket.customer && ticket.customer.name) || 'Unknown').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
     res.send(pdfBuffer);
@@ -61,7 +61,7 @@ exports.downloadOrderNota = async (req, res, next) => {
       pdfBuffer = await pdfService.generateOrderNota(order);
     }
 
-    const filename = `NOTA-ORD-${order.order_number}_${(order.customer.name || 'Unknown').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+    const filename = `NOTA-ORD-${order.order_number}_${((order.customer && order.customer.name) || 'Unknown').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
     res.send(pdfBuffer);

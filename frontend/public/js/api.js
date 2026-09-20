@@ -72,7 +72,11 @@ class API {
                 }
             }
 
-            throw new Error(data.message || `Kesalahan HTTP: ${response.status}`);
+            const err = new Error(data.message || `Kesalahan HTTP: ${response.status}`);
+            err.statusCode = response.status;
+            err.code = data.code;
+            err.waStatus = data.waStatus;
+            throw err;
         }
 
         return data;
@@ -252,12 +256,9 @@ class API {
         });
     }
 
-    async updatePartQuantity(ticketId, partId, quantity) {
-        return this.patch(`/services/${ticketId}/parts/${partId}`, {
-            quantity: parseInt(quantity)
-        });
-    }
-
+    // DIHAPUS: updatePartQuantity — tidak ada rute PATCH /services/:id/parts/:part_id
+    // di backend (hanya POST + DELETE parts). Method mati yang memanggil endpoint
+    // fiktif; hapus agar tidak dipakai tidak sengaja.
     async removePartFromService(ticketId, partId) {
         return this.delete(`/services/${ticketId}/parts/${partId}`);
     }
@@ -702,6 +703,15 @@ export function formatDateTime(date) {
 }
 
 /**
+ * Cek apakah error API adalah penolakan WA 422 (nomor tidak terdaftar).
+ * Pakai statusCode numerik — jangan tebak via regex pesan (rapuh bila
+ * redaksi backend berubah).
+ */
+export function isWARejection(error) {
+    return !!error && (error.statusCode === 422 || error.status === 422);
+}
+
+/**
  * Escape HTML untuk cegah XSS
  */
 export function escapeHTML(str) {
@@ -880,7 +890,16 @@ export function parseCurrencyValue(formattedValue) {
 
 export function setupCurrencyInput(inputElement) {
     if (!inputElement) return;
-    
+    // Guard: modal yang sama dibuka-tutup berulang memakai elemen yang sama —
+    // tanpa guard listener 'input' menumpuk (cursor jump memburuk).
+    if (inputElement.dataset.currencyBound) {
+        if (inputElement.value) {
+            inputElement.value = formatInputCurrency(inputElement.value);
+        }
+        return;
+    }
+    inputElement.dataset.currencyBound = '1';
+
     if (inputElement.value) {
         inputElement.value = formatInputCurrency(inputElement.value);
     }

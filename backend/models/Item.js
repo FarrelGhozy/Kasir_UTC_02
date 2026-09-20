@@ -128,10 +128,16 @@ itemSchema.methods.addStock = async function(quantity) {
 };
 
 // Static method atomic untuk deduct stok
+// qty wajib integer >= 1: qty negatif lolos cek $gte lalu $inc positif
+// (stok malah BERTAMBAH lewat jalur deduct).
 itemSchema.statics.deductStockAtomic = async function(id, quantity) {
+  const qty = Number(quantity);
+  if (!Number.isInteger(qty) || qty < 1) {
+    throw new Error('Jumlah pengurangan stok harus bilangan bulat positif');
+  }
   const result = await this.findOneAndUpdate(
-    { _id: id, stock: { $gte: quantity } },
-    { $inc: { stock: -quantity } },
+    { _id: id, stock: { $gte: qty } },
+    { $inc: { stock: -qty } },
     { new: true }
   );
   if (!result) {
@@ -143,12 +149,21 @@ itemSchema.statics.deductStockAtomic = async function(id, quantity) {
 
 // Static method atomic untuk add stok
 itemSchema.statics.addStockAtomic = async function(id, quantity) {
-  return this.findByIdAndUpdate(id, { $inc: { stock: quantity } }, { new: true });
+  const qty = Number(quantity);
+  if (!Number.isInteger(qty) || qty < 1) {
+    throw new Error('Jumlah penambahan stok harus bilangan bulat positif');
+  }
+  return this.findByIdAndUpdate(id, { $inc: { stock: qty } }, { new: true });
 };
 
 // Method static untuk mengambil item dengan stok menipis
+// Hitung DINAMIS (stock <= min_stock_alert): kolom isLowStock basi karena
+// semua jalur atomic (findOneAndUpdate) tidak memicu pre('save').
 itemSchema.statics.getLowStockItems = function() {
-  return this.find({ isLowStock: true, isActive: true }).sort({ stock: 1 });
+  return this.find({
+    isActive: true,
+    $expr: { $lte: ['$stock', '$min_stock_alert'] }
+  }).sort({ stock: 1 });
 };
 
 // Middleware pre-save untuk update timestamp dan isLowStock

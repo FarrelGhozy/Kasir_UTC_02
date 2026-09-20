@@ -1,6 +1,6 @@
 // public/js/modules/reports.js - Modul Laporan & Analitik
 
-import api, { formatCurrency, formatDate, formatDateTime, loadScript, showToast } from '../api.js';
+import api, { formatCurrency, formatDate, formatDateTime, loadScript, showToast, escapeHTML, toLocalDateString } from '../api.js';
 import auth from '../auth.js';
 
 class Reports {
@@ -150,7 +150,8 @@ class Reports {
     async renderDailyReport(container) {
         try {
             const dateInput = document.getElementById('daily-date');
-            const selectedDate = dateInput ? dateInput.value : new Date().toISOString().split('T')[0];
+            // WIB, bukan UTC: toISOString() off-by-one pada 00:00-06:59 WIB.
+            const selectedDate = dateInput ? dateInput.value : toLocalDateString(new Date());
             
             const response = await api.getDailyRevenue(selectedDate);
             const data = response.data;
@@ -234,7 +235,7 @@ class Reports {
                 });
             }
         } catch (error) {
-            container.innerHTML = `<div class="alert alert-danger">Gagal memuat laporan: ${error.message}</div>`;
+            container.innerHTML = `<div class="alert alert-danger">Gagal memuat laporan: ${escapeHTML(error.message)}</div>`;
         }
     }
 
@@ -335,7 +336,7 @@ class Reports {
             if (monthSelectEl) monthSelectEl.addEventListener('change', reloadMonthly);
             if (yearSelectEl) yearSelectEl.addEventListener('change', reloadMonthly);
         } catch (error) {
-            container.innerHTML = `<div class="alert alert-danger">Gagal memuat laporan bulanan: ${error.message}</div>`;
+            container.innerHTML = `<div class="alert alert-danger">Gagal memuat laporan bulanan: ${escapeHTML(error.message)}</div>`;
         }
     }
 
@@ -365,7 +366,7 @@ class Reports {
                                     ${items.map((item, index) => `
                                         <tr>
                                             <td class="text-center"><strong>${index + 1}</strong></td>
-                                            <td class="fw-semibold text-primary">${item.item_name}</td>
+                                            <td class="fw-semibold text-primary">${escapeHTML(item.item_name)}</td>
                                             <td class="text-center"><span class="badge bg-primary rounded-pill">${item.total_qty_sold}</span></td>
                                             <td class="text-end fw-bold">${formatCurrency(item.total_revenue)}</td>
                                             <td class="text-center">${item.times_purchased} kali</td>
@@ -378,7 +379,7 @@ class Reports {
                 </div>
             `;
         } catch (error) {
-            container.innerHTML = `<div class="alert alert-danger">Gagal memuat data barang terlaris: ${error.message}</div>`;
+            container.innerHTML = `<div class="alert alert-danger">Gagal memuat data barang terlaris: ${escapeHTML(error.message)}</div>`;
         }
     }
 
@@ -410,7 +411,7 @@ class Reports {
                                         <tbody>
                                             ${(cashierPerf.data || []).map(c => `
                                                 <tr>
-                                                    <td class="fw-semibold">${c.cashier_name}</td>
+                                                    <td class="fw-semibold">${escapeHTML(c.cashier_name)}</td>
                                                     <td class="text-center">${c.total_transactions}</td>
                                                     <td class="text-end">${formatCurrency(c.total_revenue)}</td>
                                                     <td class="text-end small text-muted">${formatCurrency(c.avg_transaction_value)}</td>
@@ -442,7 +443,7 @@ class Reports {
                                         <tbody>
                                             ${(techPerf.data || []).map(t => `
                                                 <tr>
-                                                    <td class="fw-semibold">${t.technician_name}</td>
+                                                    <td class="fw-semibold">${escapeHTML(t.technician_name)}</td>
                                                     <td class="text-center">${t.total_tickets}</td>
                                                     <td class="text-end">${formatCurrency(t.total_revenue)}</td>
                                                     <td class="text-end small text-muted">${formatCurrency(t.avg_ticket_value)}</td>
@@ -457,7 +458,7 @@ class Reports {
                 </div>
             `;
         } catch (error) {
-            container.innerHTML = `<div class="alert alert-danger">Gagal memuat data performa: ${error.message}</div>`;
+            container.innerHTML = `<div class="alert alert-danger">Gagal memuat data performa: ${escapeHTML(error.message)}</div>`;
         }
     }
 
@@ -683,8 +684,9 @@ class Reports {
                 columnStyles: { 5: { halign: 'right' } }
             });
 
-            // Save PDF
-            const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
+            // Save PDF — nama file tanggal WIB
+            const nowWIB = toLocalDateString(new Date());
+            const dateStr = nowWIB.replace(/-/g, '');
             doc.save(`Laporan_Rekap_UTC_${range}_${dateStr}.pdf`);
             showToast('PDF berhasil diunduh', 'success');
 

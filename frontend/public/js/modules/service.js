@@ -1,6 +1,6 @@
 // public/js/modules/service.js - Modul Manajemen Servis (FIXED: Add Part & Detail View)
 
-import api, { formatCurrency, formatDateTime, showToast, showError, setupCurrencyInput, parseCurrencyValue, calculateElapsedTime, validateWhatsApp, checkWARealtime, setupPhoneRealtimeValidation, escapeHTML, loadScript, confirmDialog, toLocalDateString } from '../api.js';
+import api, { formatCurrency, formatDateTime, showToast, showError, setupCurrencyInput, parseCurrencyValue, calculateElapsedTime, validateWhatsApp, checkWARealtime, setupPhoneRealtimeValidation, escapeHTML, loadScript, confirmDialog, toLocalDateString, isWARejection } from '../api.js';
 
 /**
  * Helper class for Pattern Lock UI
@@ -1542,7 +1542,7 @@ class Service {
             await this.loadTickets();
         } catch(e) {
             // Bila backend menolak (422 nomor invalid), tawarkan "Tetap simpan" lalu ulangi
-            if (/WhatsApp|terdaftar/i.test(e.message || '')) {
+            if (isWARejection(e)) {
                 const ok = await confirmDialog(
                     `${e.message}\n\nTetap simpan perubahan ini?`,
                     'Nomor WA Tidak Terdaftar',
@@ -1750,16 +1750,14 @@ class Service {
         try {
             return await send(preOverride);
         } catch (e) {
-            const msg = e.message || '';
-            const isWARejection = /WhatsApp|terdaftar/i.test(msg);
-            if (!isWARejection) throw e;
+            if (!isWARejection(e)) throw e;
             // Sinkronkan badge agar merah
             if (phoneInput) {
                 phoneInput.dataset.waState = 'invalid';
                 await checkWARealtime(phoneInput.value, 'wa-validation-msg');
             }
             const ok = await confirmDialog(
-                `${msg}\n\nTetap simpan data ini?`,
+                `${e.message || ''}\n\nTetap simpan data ini?`,
                 'Nomor WA Tidak Terdaftar',
                 'Tetap simpan',
                 { type: 'warning', cancelText: 'Periksa nomor' }
@@ -2052,14 +2050,14 @@ class Service {
             content.innerHTML = res.data.map(log => `
                 <tr class="${log.level === 'ERROR' ? 'table-danger' : log.level === 'WARN' ? 'table-warning' : ''}">
                     <td class="small">${formatDateTime(log.timestamp)}</td>
-                    <td><span class="badge ${log.level === 'ERROR' ? 'bg-danger' : log.level === 'WARN' ? 'bg-warning text-dark' : 'bg-info text-dark'}">${log.level}</span></td>
-                    <td class="small fw-bold">${log.source}</td>
-                    <td class="small">${log.message}</td>
-                    <td class="small text-truncate" style="max-width: 200px;" title='${JSON.stringify(log.details)}'>${log.details ? JSON.stringify(log.details) : '-'}</td>
+                    <td><span class="badge ${log.level === 'ERROR' ? 'bg-danger' : log.level === 'WARN' ? 'bg-warning text-dark' : 'bg-info text-dark'}">${escapeHTML(log.level)}</span></td>
+                    <td class="small fw-bold">${escapeHTML(log.source)}</td>
+                    <td class="small">${escapeHTML(log.message)}</td>
+                    <td class="small text-truncate" style="max-width: 200px;" title="${escapeHTML(JSON.stringify(log.details)).replace(/"/g, '&quot;')}">${log.details ? escapeHTML(JSON.stringify(log.details)) : '-'}</td>
                 </tr>
             `).join('');
         } catch (error) {
-            content.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-4">${error.message}</td></tr>`;
+            content.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-4">${escapeHTML(error.message)}</td></tr>`;
         }
     }
 
@@ -2232,13 +2230,17 @@ class Service {
             this.getOrCreateModal('logsModal').show();
         });
 
-        // Auto-expand textarea logic
-        document.addEventListener('input', (e) => {
-            if (e.target.classList.contains('auto-expand')) {
-                e.target.style.height = 'auto';
-                e.target.style.height = (e.target.scrollHeight) + 'px';
-            }
-        });
+        // Auto-expand textarea logic — pasang SEKALI (guard): render() dipanggil
+        // tiap navigasi, tanpa guard listener document menumpuk.
+        if (!document.body.dataset.autoExpandBound) {
+            document.body.dataset.autoExpandBound = '1';
+            document.addEventListener('input', (e) => {
+                if (e.target.classList.contains('auto-expand')) {
+                    e.target.style.height = 'auto';
+                    e.target.style.height = (e.target.scrollHeight) + 'px';
+                }
+            });
+        }
         document.getElementById('status-filter').addEventListener('change', () => this.loadTickets());
         document.getElementById('refresh-tickets-btn').addEventListener('click', () => this.loadTickets());
         document.getElementById('save-edit-btn').addEventListener('click', () => this.saveEdit());

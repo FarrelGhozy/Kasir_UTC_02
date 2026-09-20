@@ -17,8 +17,10 @@ const { convertDateStringsToDates, convertObjectIdFields } = require('../utils/d
  */
 exports.exportData = async (req, res, next) => {
   try {
+    // JANGAN sertakan hash password di respons API — hash bocor = bisa di-brute-force offline.
+    // Hash hanya tersimpan di file backup disk (0600) via backupService.
     const data = {
-      users: await User.find({}).select('+password').lean(),
+      users: await User.find({}).lean(),
       items: await Item.find({}).lean(),
       service_tickets: await ServiceTicket.find({}).lean(),
       transactions: await Transaction.find({}).lean(),

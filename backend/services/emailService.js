@@ -38,12 +38,12 @@ async function sendMailWithRetry(mailOptions, maxRetries = 3) {
  * @param {Object} ticket 
  */
 const sendInvoiceEmail = async (ticket) => {
-  if (!ticket.customer.email) {
+  if (!ticket || !ticket.customer || !ticket.customer.email) {
     await SystemLog.create({
       level: 'WARN',
       source: 'EmailService',
       message: 'Email tidak dikirim: pelanggan tidak memiliki alamat email',
-      details: { ticket_id: ticket._id, customer: ticket.customer?.name }
+      details: { ticket_id: ticket && ticket._id, customer: ticket && ticket.customer && ticket.customer.name }
     });
     return;
   }
@@ -101,21 +101,21 @@ const sendInvoiceEmail = async (ticket) => {
             </tr>
           </thead>
           <tbody>
-            ${ticket.parts_used.map(part => `
+            ${(ticket.parts_used || []).map(part => `
               <tr>
                 <td style="padding: 8px; border-bottom: 1px solid #eee;">${escapeHtml(part.name)} (x${part.qty})</td>
-                <td style="text-align: right; padding: 8px; border-bottom: 1px solid #eee;">Rp ${escapeHtml(part.subtotal.toLocaleString('id-ID'))}</td>
+                <td style="text-align: right; padding: 8px; border-bottom: 1px solid #eee;">Rp ${escapeHtml(Number(part.subtotal || 0).toLocaleString('id-ID'))}</td>
               </tr>
             `).join('')}
             <tr>
               <td style="padding: 8px; font-weight: bold;">Biaya Jasa</td>
-              <td style="text-align: right; padding: 8px; font-weight: bold;">Rp ${escapeHtml(ticket.service_fee.toLocaleString('id-ID'))}</td>
+              <td style="text-align: right; padding: 8px; font-weight: bold;">Rp ${escapeHtml(Number(ticket.service_fee || 0).toLocaleString('id-ID'))}</td>
             </tr>
           </tbody>
           <tfoot>
             <tr style="background: #e9ecef;">
               <td style="padding: 10px; font-weight: bold; font-size: 1.1em;">Grand Total</td>
-              <td style="text-align: right; padding: 10px; font-weight: bold; font-size: 1.1em;">Rp ${escapeHtml(ticket.total_cost.toLocaleString('id-ID'))}</td>
+              <td style="text-align: right; padding: 10px; font-weight: bold; font-size: 1.1em;">Rp ${escapeHtml(Number(ticket.total_cost || 0).toLocaleString('id-ID'))}</td>
             </tr>
           </tfoot>
         </table>

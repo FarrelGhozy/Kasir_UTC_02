@@ -862,7 +862,7 @@ class Dashboard {
                 </div>
             `;
         } catch (error) {
-            container.innerHTML = `<div class="p-4 text-center text-danger">${error.message}</div>`;
+            container.innerHTML = `<div class="p-4 text-center text-danger">${escapeHTML(error.message)}</div>`;
         }
     }
 

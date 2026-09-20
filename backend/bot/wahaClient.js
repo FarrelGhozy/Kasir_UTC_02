@@ -1,4 +1,5 @@
 const axios = require('axios');
+const { normalizeIDPhone } = require('../utils/phone');
 
 const WAHA_BASE_URL = process.env.WAHA_URL;
 const WAHA_SESSION = process.env.WAHA_SESSION || 'default';
@@ -11,7 +12,9 @@ async function sendReply(phone, text) {
       return;
     }
 
-    let chatId = phone.toString();
+    // Normalisasi 08xx -> 628xx agar chatId selalu valid (reminder piket/weekend
+    // menyimpan nomor format 08xx, tanpa ini chatId 08xx@c.us tidak terkirim).
+    let chatId = normalizeIDPhone(phone);
     if (!chatId.includes('@')) {
       chatId = `${chatId}@c.us`;
     }
@@ -37,7 +40,7 @@ async function sendReply(phone, text) {
 async function markChatUnread(phone) {
   try {
     if (!WAHA_BASE_URL || !WAHA_API_KEY) return;
-    let chatId = phone.toString();
+    let chatId = normalizeIDPhone(phone);
     if (!chatId.includes('@')) {
       chatId = `${chatId}@c.us`;
     }

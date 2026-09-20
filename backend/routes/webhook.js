@@ -8,7 +8,17 @@ const processedMessages = new Map();
 const DEDUP_TTL = 15_000;
 
 function getMessageId(payload) {
-  return payload?.payload?.id || payload?.data?.id || payload?.id || '';
+  const id = payload?.payload?.id || payload?.data?.id || payload?.id || '';
+  if (id) return String(id);
+  // Fallback: pesan tanpa ID tidak pernah terdedup (spam loop) — hash from+body+timestamp.
+  const raw = payload?.payload || payload?.data || payload || {};
+  const norm = raw.key
+    ? `${raw.key.remoteJid || ''}|${JSON.stringify(raw.message || '').slice(0, 200)}`
+    : `${raw.from || ''}|${raw.body || ''}`;
+  let h = 0;
+  const s = `${norm}|${Math.floor(Date.now() / DEDUP_TTL)}`;
+  for (let i = 0; i < s.length; i++) h = ((h * 31) + s.charCodeAt(i)) | 0;
+  return `hash_${h}`;
 }
 
 function isAlreadyProcessed(msgId) {

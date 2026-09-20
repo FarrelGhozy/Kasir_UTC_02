@@ -11,6 +11,10 @@ exports.checkWANumber = async (req, res, next) => {
     if (!phone) {
       return res.status(400).json({ success: false, message: 'Nomor HP wajib diisi' });
     }
+    // ?phone=a&phone=b jadi array — tolak, jangan di-String-kan jadi "a,b".
+    if (Array.isArray(phone) || typeof phone !== 'string') {
+      return res.status(400).json({ success: false, message: 'Nomor HP harus satu nilai string' });
+    }
 
     // Tolak format jelas-jelas salah tanpa membebani WAHA
     const fmt = checkPhoneFormat(phone, { required: true });

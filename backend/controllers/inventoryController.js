@@ -76,22 +76,27 @@ exports.getAllItems = async (req, res, next) => {
     if (category) filter.category = category;
     
     if (search && typeof search === 'string') {
+      // $text hanya valid top-level di Mongo (tidak boleh di dalam $or) —
+      // pakai regex name+sku saja agar search tidak error.
+      const safe = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       filter.$or = [
-        { $text: { $search: search } },
-        { sku: { $regex: search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' } }
+        { name: { $regex: safe, $options: 'i' } },
+        { sku: { $regex: safe, $options: 'i' } }
       ];
     }
-    
+
     if (low_stock === 'true') {
       filter.isLowStock = true;
     }
 
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
+    const skip = (pageNum - 1) * limitNum;
 
     const items = await Item.find(filter)
       .sort(sort)
       .skip(skip)
-      .limit(parseInt(limit))
+      .limit(limitNum)
       .lean();
 
     const total = await Item.countDocuments(filter);
@@ -100,10 +105,10 @@ exports.getAllItems = async (req, res, next) => {
       success: true,
       data: items,
       pagination: {
-        current_page: parseInt(page),
-        total_pages: Math.ceil(total / parseInt(limit)),
+        current_page: pageNum,
+        total_pages: Math.ceil(total / limitNum),
         total_records: total,
-        records_per_page: parseInt(limit)
+        records_per_page: limitNum
       }
     });
   } catch (error) {
@@ -217,8 +222,8 @@ exports.adjustStock = async (req, res, next) => {
     const item = await Item.findById(req.params.id);
     if (!item) return res.status(404).json({ success: false, message: 'Barang tidak ditemukan' });
 
-    if (type === 'add') await item.addStock(quantity);
-    else if (type === 'deduct') await item.deductStock(quantity);
+    if (type === 'add') await item.addStock(qty);
+    else if (type === 'deduct') await item.deductStock(qty);
     else return res.status(400).json({ success: false, message: 'Tipe salah' });
 
     res.status(200).json({ success: true, message: 'Stok berhasil diupdate', data: item });

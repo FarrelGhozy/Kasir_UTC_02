@@ -58,6 +58,9 @@ exports.createTechnician = async (req, res, next) => {
 
     res.status(201).json({ success: true, message: 'Teknisi berhasil ditambahkan', data: technician });
   } catch (error) {
+    if (error && error.code === 11000) {
+      return res.status(409).json({ success: false, message: 'Username sudah digunakan' });
+    }
     next(error);
   }
 };
@@ -112,6 +115,9 @@ exports.updateTechnician = async (req, res, next) => {
     }
     if (status) user.status = status;
     if (jabatan !== undefined) user.jabatan = jabatan || null;
+    // Sinkron status <-> isActive: login hanya cek isActive, jadi keduanya harus konsisten.
+    if (status === 'inactive') user.isActive = false;
+    if (status === 'active') user.isActive = true;
     
     // Hanya update password jika diisi
     if (password && password.trim() !== '') {

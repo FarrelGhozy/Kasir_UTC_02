@@ -40,8 +40,25 @@ exports.createOrder = async (req, res, next) => {
       });
     }
     if (customer && typeof customer === 'object') {
+      // Client tidak boleh memalsukan badge WA — selalu tulis dari hasil cek server.
       delete customer.wa_override_confirmed;
+      delete customer.is_wa_valid;
+      delete customer.wa_status;
+      delete customer.wa_checked_at;
       applyWACustomerMeta(customer, waCheck.waStatus);
+    }
+
+    // Validasi harga: DP tidak boleh melebihi estimasi (tolak 400, bukan auto-Lunas diam-diam).
+    const estNum = estimated_price !== undefined && estimated_price !== null && estimated_price !== '' ? Number(estimated_price) : 0;
+    const dpNum = down_payment !== undefined && down_payment !== null && down_payment !== '' ? Number(down_payment) : 0;
+    if (!Number.isFinite(estNum) || estNum < 0) {
+      return res.status(400).json({ success: false, message: 'Estimasi harga harus angka non-negatif' });
+    }
+    if (!Number.isFinite(dpNum) || dpNum < 0) {
+      return res.status(400).json({ success: false, message: 'DP harus angka non-negatif' });
+    }
+    if (estNum > 0 && dpNum > estNum) {
+      return res.status(400).json({ success: false, message: 'DP tidak boleh melebihi estimasi harga' });
     }
 
     const order_number = await SpecialOrder.generateOrderNumber();
@@ -67,7 +84,16 @@ exports.createOrder = async (req, res, next) => {
     });
     
     if (order.customer.email) {
-      await sendInvoiceEmail(order);
+      // Fire-and-forget: email gagal JANGAN menggagalkan order yang sudah tersimpan
+      // (kasir bisa kira gagal lalu membuat order duplikat).
+      sendInvoiceEmail(order).catch(err => {
+        SystemLog.create({
+          level: 'ERROR',
+          source: 'EmailService',
+          message: 'Gagal kirim email nota order',
+          details: { order_id: order._id, error: err.message }
+        }).catch(() => {});
+      });
     }
 
     // Kirim notifikasi WA - SEKUENSE 3 PESAN
@@ -146,8 +172,22 @@ exports.getOrderById = async (req, res, next) => {
 exports.updateOrderStatus = async (req, res, next) => {
   try {
     const { status } = req.body;
+    // Whitelist status: error transisi jadi 400 yang jelas, bukan 500 dari pre-save.
+    const VALID_STATUSES = ['Pending', 'Searching', 'Ordered', 'Arrived', 'Picked_Up', 'Cancelled'];
+    if (!status || !VALID_STATUSES.includes(status)) {
+      return res.status(400).json({ success: false, message: 'Status pesanan tidak valid' });
+    }
     const order = await SpecialOrder.findById(req.params.id);
     if (!order) return res.status(404).json({ success: false, message: 'Pesanan tidak ditemukan' });
+
+    // Validasi transisi SEBELUM simpan agar kasir dapat 400, bukan 500.
+    const allowedNext = SpecialOrder.validTransitions[order.status] || [];
+    if (!allowedNext.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Transisi status tidak valid: ${order.status} → ${status}. Status yang diizinkan: ${allowedNext.join(', ') || 'tidak ada (status final)'}`
+      });
+    }
 
     // Aturan pengambilan: Picked_Up berarti barang diambil + lunas.
     // Jika masih ada sisa, tandai otomatis Lunas (sisa dilunasi saat ambil).
@@ -283,7 +323,22 @@ exports.updatePaymentStatus = async (req, res, next) => {
 
       if (ticket) {
         try {
-          await ticket.updateStatus('In_Progress');
+          // Validasi transisi dulu: tiket final (Picked_Up/Cancelled) tidak bisa
+          // dipaksa ke In_Progress — jangan biarkan order-tiket inkonsisten diam-diam.
+          const allowedTicketNext = {
+            'Queue': ['Diagnosing', 'Cancelled', 'Completed', 'In_Progress', 'Waiting_Part'],
+            'Diagnosing': ['Waiting_Part', 'In_Progress', 'Cancelled', 'Queue', 'Completed'],
+            'Waiting_Part': ['In_Progress', 'Cancelled', 'Queue', 'Diagnosing', 'Completed'],
+            'In_Progress': ['Completed', 'Waiting_Part', 'Cancelled', 'Queue', 'Diagnosing'],
+            'Completed': ['Picked_Up', 'In_Progress', 'Queue', 'Diagnosing', 'Waiting_Part'],
+            'Cancelled': ['Queue', 'Diagnosing', 'Waiting_Part', 'In_Progress'],
+            'Picked_Up': []
+          }[ticket.status] || [];
+          if (allowedTicketNext.includes('In_Progress')) {
+            await ticket.updateStatus('In_Progress');
+          } else {
+            console.error(`[Order] Tiket ${ticket.ticket_number} status ${ticket.status} tidak bisa ke In_Progress — order tetap Picked_Up tanpa ubah tiket`);
+          }
         } catch (statusErr) {
           console.error(`[Order] Gagal update status tiket servis ${ticket._id}: ${statusErr.message}`);
         }

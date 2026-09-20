@@ -89,6 +89,16 @@ exports.createSchedule = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'User ini sudah memiliki jadwal piket di hari tersebut' });
     }
 
+    // Pastikan user ada dan aktif — jangan buat jadwal untuk user fiktif/nonaktif.
+    const User = require('../models/User');
+    const targetUser = await User.findById(user).select('name username role isActive').lean();
+    if (!targetUser) {
+      return res.status(400).json({ success: false, message: 'User tidak ditemukan' });
+    }
+    if (!targetUser.isActive) {
+      return res.status(400).json({ success: false, message: 'User sudah nonaktif' });
+    }
+
     const schedule = await DutySchedule.create({
       user,
       day: day.toLowerCase()

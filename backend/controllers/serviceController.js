@@ -347,6 +347,11 @@ exports.getTicketById = async (req, res, next) => {
 exports.updateStatus = async (req, res, next) => {
   try {
     const { status, payment_method } = req.body;
+    // Status wajib ada dan dikenal — undefined/typo jadi 400, bukan 500 via throw transisi.
+    const KNOWN_STATUSES = ['Queue', 'Diagnosing', 'Waiting_Part', 'In_Progress', 'Completed', 'Cancelled', 'Picked_Up'];
+    if (!status || !KNOWN_STATUSES.includes(status)) {
+      return res.status(400).json({ success: false, message: 'Status tiket tidak valid' });
+    }
     const ticket = await ServiceTicket.findById(req.params.id);
     if (!ticket) return res.status(404).json({ success: false, message: 'Tiket servis tidak ditemukan' });
 
@@ -417,11 +422,13 @@ exports.addPartToService = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Tiket servis tidak ditemukan' });
     }
 
-    // 2. Validasi status tiket — diperlonggar: hanya Picked_Up yang dilarang tambah part
-    if (['Picked_Up'].includes(ticket.status)) {
+    // 2. Validasi status tiket — part hanya boleh ditambah ke tiket AKTIF.
+    // Completed/Picked_Up/Cancelled adalah final: nota sudah terbit / email terkirim,
+    // biaya tidak boleh berubah lagi.
+    if (['Picked_Up', 'Completed', 'Cancelled'].includes(ticket.status)) {
       return res.status(400).json({
         success: false,
-        message: `Tidak dapat menambah part ke tiket yang sudah diambil (Picked_Up)`
+        message: `Tidak dapat menambah part ke tiket berstatus ${ticket.status} (tiket final)`
       });
     }
 
@@ -473,8 +480,8 @@ exports.removePartFromService = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Tiket servis tidak ditemukan' });
     }
 
-    if (['Picked_Up'].includes(ticket.status)) {
-      return res.status(400).json({ success: false, message: 'Tidak dapat menghapus part dari tiket yang sudah diambil' });
+    if (['Picked_Up', 'Completed', 'Cancelled'].includes(ticket.status)) {
+      return res.status(400).json({ success: false, message: 'Tidak dapat menghapus part dari tiket final (biaya sudah final)' });
     }
 
     const part = ticket.parts_used.id(part_id);
@@ -629,8 +636,14 @@ exports.updateTicketDetails = async (req, res, next) => {
         }
             // Bila nomor HP diubah, validasi ulang ke WAHA sebelum disimpan.
             // Nomor invalid tanpa override -> 422, tanpa tulis DB.
+            // Strip field WA dari input mentah DULU — client tidak boleh memalsukan
+            // badge validitas; hanya nilai hasil cek server yang berlaku.
             const newPhone = customerData && customerData.phone !== undefined ? customerData.phone : undefined;
             const oldPhone = ticket.customer && ticket.customer.phone ? String(ticket.customer.phone) : '';
+            delete customerData.is_wa_valid;
+            delete customerData.wa_status;
+            delete customerData.wa_checked_at;
+            delete customerData.wa_override_confirmed;
             if (newPhone !== undefined && String(newPhone) !== oldPhone) {
                 const waCheck = await assertWAValidOrOverride(newPhone, {
                     required: false,
@@ -753,11 +766,19 @@ exports.resendWANotification = async (req, res, next) => {
     if (result && result.success) {
       res.status(200).json({ success: true, message: 'Notifikasi WA berhasil dikirim ulang' });
     } else {
+      // Jangan bocorkan detail internal WAHA (details mentah) ke client.
       const errorMsg = result?.error || 'Gagal terhubung ke server WhatsApp';
-      res.status(500).json({ 
-        success: false, 
-        message: `Gagal mengirim ulang notifikasi WA: ${errorMsg}`,
-        details: result
+      if (result && result.error) {
+        SystemLog.create({
+          level: 'WARN',
+          source: 'WhatsAppService',
+          message: 'Gagal kirim ulang notifikasi WA',
+          details: { ticket_id: ticket._id, error: result.error }
+        }).catch(() => {});
+      }
+      res.status(500).json({
+        success: false,
+        message: `Gagal mengirim ulang notifikasi WA: ${errorMsg}`
       });
     }
   } catch (error) {
@@ -789,10 +810,17 @@ exports.notifyTeknisi = async (req, res, next) => {
       res.status(200).json({ success: true, message: 'Notifikasi WA berhasil dikirim ke teknisi' });
     } else {
       const errorMsg = result?.error || 'Gagal terhubung ke server WhatsApp';
+      if (result && result.error) {
+        SystemLog.create({
+          level: 'WARN',
+          source: 'WhatsAppService',
+          message: 'Gagal kirim notifikasi ke teknisi',
+          details: { ticket_id: ticket._id, error: result.error }
+        }).catch(() => {});
+      }
       res.status(500).json({
         success: false,
-        message: `Gagal mengirim notifikasi ke teknisi: ${errorMsg}`,
-        details: result
+        message: `Gagal mengirim notifikasi ke teknisi: ${errorMsg}`
       });
     }
   } catch (error) {
@@ -808,16 +836,24 @@ exports.claimWarranty = async (req, res, next) => {
     const oldTicket = await ServiceTicket.findById(req.params.id).lean();
     if (!oldTicket) return res.status(404).json({ success: false, message: 'Tiket asal tidak ditemukan' });
 
+    // Garansi hanya untuk tiket yang sudah diambil pelanggan (alur selesai penuh).
+    // Klaim dari Queue/Cancelled/In_Progress tidak masuk akal — tolak 400.
+    if (oldTicket.status !== 'Picked_Up') {
+      return res.status(400).json({ success: false, message: 'Klaim garansi hanya untuk tiket yang sudah diambil (Picked_Up)' });
+    }
+
     // Cek apakah masih dalam masa garansi
     if (!oldTicket.warranty_expires_at || new Date() > oldTicket.warranty_expires_at) {
       return res.status(400).json({ success: false, message: 'Masa garansi telah habis' });
     }
 
-    const ticket_number = await ServiceTicket.generateTicketNumber();
-    
+    // Bangun nomor garansi dari nomor tiket asal via regex agar tidak pecah
+    // bila format berubah (sebelumnya split('-')[1]/[2] bisa jadi undefined).
+    const nomorMatch = String(oldTicket.ticket_number || '').match(/^([A-Z]+)-(\d+)-(\d+)$/i);
+    const grsNomor = nomorMatch ? `GRS-${nomorMatch[2]}-${nomorMatch[3]}` : `GRS-${new Date().getFullYear()}-${Date.now().toString().slice(-4)}`;
     // Buat tiket baru dengan data dari tiket lama
     const newTicket = new ServiceTicket({
-      ticket_number: `GRS-${ticket_number.split('-')[1]}-${ticket_number.split('-')[2]}`, // Contoh: GRS-2026-0001
+      ticket_number: grsNomor,
       customer: oldTicket.customer,
       device: oldTicket.device,
       technician: oldTicket.technician,
@@ -827,7 +863,17 @@ exports.claimWarranty = async (req, res, next) => {
       klaim_dari_id: oldTicket._id
     });
 
-    await newTicket.save();
+    try {
+      await newTicket.save();
+    } catch (saveError) {
+      if (saveError && saveError.code === 11000) {
+        // Collision nomor (klaim ganda tiket yang sama) — retry dengan sufiks unik.
+        newTicket.ticket_number = `${grsNomor}-R${Date.now().toString().slice(-4)}`;
+        await newTicket.save();
+      } else {
+        throw saveError;
+      }
+    }
     res.status(201).json({ success: true, message: 'Tiket klaim garansi berhasil dibuat', data: newTicket });
   } catch (error) {
     next(error);

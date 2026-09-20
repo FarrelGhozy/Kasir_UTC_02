@@ -1046,6 +1046,8 @@ describe('ServiceController', () => {
       const futureDate = new Date();
       futureDate.setDate(futureDate.getDate() + 5);
       const ticket = await createServiceTicket({
+        status: 'Picked_Up',
+        payment_method: 'Cash',
         warranty_expires_at: futureDate
       });
 
@@ -1078,6 +1080,8 @@ describe('ServiceController', () => {
       const pastDate = new Date();
       pastDate.setDate(pastDate.getDate() - 5);
       const ticket = await createServiceTicket({
+        status: 'Picked_Up',
+        payment_method: 'Cash',
         warranty_expires_at: pastDate
       });
 

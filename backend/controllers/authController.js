@@ -71,6 +71,10 @@ exports.register = async (req, res, next) => {
       }
     });
   } catch (error) {
+    // Race dua request username sama: findOne lolos dua-duanya, satu kena unique index.
+    if (error && error.code === 11000) {
+      return res.status(409).json({ success: false, message: 'Nama pengguna sudah digunakan' });
+    }
     next(error);
   }
 };
@@ -143,6 +147,9 @@ exports.login = async (req, res, next) => {
 exports.getMe = async (req, res, next) => {
   try {
     const user = await User.findById(req.user.id).lean();
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Pengguna tidak ditemukan' });
+    }
 
     res.status(200).json({
       success: true,
@@ -217,6 +224,19 @@ exports.updateUser = async (req, res, next) => {
       });
     }
 
+    // Cegah admin mengunci diri sendiri / sistem: tidak boleh ubah role
+    // atau nonaktifkan akun sendiri, dan tidak boleh menonaktifkan admin terakhir.
+    const isSelf = req.user && String(req.params.id) === String(req.user.id);
+    if (isSelf && ((role && role !== user.role) || (isActive !== undefined && !isActive))) {
+      return res.status(400).json({ success: false, message: 'Tidak dapat mengubah peran/menonaktifkan akun sendiri' });
+    }
+    if (isActive !== undefined && !isActive && user.role === 'admin') {
+      const otherActiveAdmins = await User.countDocuments({ role: 'admin', isActive: true, _id: { $ne: user._id } });
+      if (otherActiveAdmins === 0) {
+        return res.status(400).json({ success: false, message: 'Tidak dapat menonaktifkan admin terakhir yang aktif' });
+      }
+    }
+
     if (name) user.name = name;
     // Nomor HP diubah -> validasi ulang ke WAHA sebelum disimpan.
     if (phone !== undefined && String(phone) !== String(user.phone || '')) {
@@ -243,7 +263,11 @@ exports.updateUser = async (req, res, next) => {
     const resetSesi = (role && role !== user.role) ||
       (isActive !== undefined && isActive !== user.isActive);
     if (role) user.role = role;
-    if (isActive !== undefined) user.isActive = isActive;
+    if (isActive !== undefined) {
+      user.isActive = isActive;
+      // Sinkron status string: login hanya cek isActive.
+      user.status = isActive ? 'active' : 'inactive';
+    }
     if (resetSesi) user.tokenVersion = (user.tokenVersion || 0) + 1;
 
     await user.save();
@@ -312,6 +336,16 @@ exports.deleteUser = async (req, res, next) => {
         success: false,
         message: 'Pengguna tidak ditemukan'
       });
+    }
+
+    if (req.user && String(req.params.id) === String(req.user.id)) {
+      return res.status(400).json({ success: false, message: 'Tidak dapat menonaktifkan akun sendiri' });
+    }
+    if (user.role === 'admin') {
+      const otherActiveAdmins = await User.countDocuments({ role: 'admin', isActive: true, _id: { $ne: user._id } });
+      if (otherActiveAdmins === 0) {
+        return res.status(400).json({ success: false, message: 'Tidak dapat menonaktifkan admin terakhir yang aktif' });
+      }
     }
 
     user.isActive = false;
