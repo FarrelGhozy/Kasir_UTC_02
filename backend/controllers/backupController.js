@@ -38,9 +38,16 @@ exports.exportData = async (req, res, next) => {
 };
 
 /**
- * @desc    Import/Restore system data (AMAN: insert dulu baru delete)
+ * @desc    Import/Restore system data
  * @route   POST /api/admin/backup/import
  * @access  Private (Admin)
+ *
+ * Urutan: validasi format backup DULU (sebelum hapus apa pun), baru
+ * deleteMany + insertMany. Validasi-dulu mencegah kasus paling umum
+ * (file korup/format salah) menghapus seluruh data toko.
+ * Catatan: delete+insert tidak transaksional — bila proses mati di
+ * tengah insert, sebagian data bisa hilang. Jangan restore dari file
+ * yang belum lolos validasi di atas.
  */
 exports.importData = async (req, res, next) => {
   try {
@@ -52,6 +59,21 @@ exports.importData = async (req, res, next) => {
 
     if (!data.users || !data.items) {
       return res.status(400).json({ success: false, message: 'Format file backup tidak valid' });
+    }
+
+    // Validasi format backup DULU sebelum menghapus apa pun:
+    // setiap dokumen harus objek polos (bukan null/array/string).
+    const koleksi = ['users', 'items', 'service_tickets', 'transactions', 'special_orders', 'system_logs'];
+    for (const key of koleksi) {
+      if (data[key] !== undefined && data[key] !== null) {
+        if (!Array.isArray(data[key])) {
+          return res.status(400).json({ success: false, message: `Format file backup tidak valid (bagian '${key}' harus array)` });
+        }
+        const rusak = data[key].find(d => !d || typeof d !== 'object' || Array.isArray(d));
+        if (rusak !== undefined) {
+          return res.status(400).json({ success: false, message: `Format file backup tidak valid (ada dokumen rusak di '${key}')` });
+        }
+      }
     }
 
     const currentAdmin = await User.findById(req.user.id).select('+password').lean();

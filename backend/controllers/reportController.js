@@ -4,10 +4,26 @@ const ServiceTicket = require('../models/ServiceTicket');
 const Item = require('../models/Item');
 
 /**
- * Validasi parameter tanggal, lempar error 400 jika format tidak valid
+ * Validasi parameter tanggal, lempar error 400 jika format tidak valid.
+ * Menerima YYYY-MM-DD (divalidasi kalender agar 2026-13-45 / 2025-02-30
+ * ditolak, bukan roll-over diam-diam) atau ISO datetime penuh.
  */
+const CALENDAR_DATE_REGEX = /^(\d{4})-(\d{2})-(\d{2})$/;
 function validateDateParam(dateStr, paramName) {
   if (!dateStr) return null;
+  if (CALENDAR_DATE_REGEX.test(dateStr)) {
+    const [, ys, ms, ds] = dateStr.match(CALENDAR_DATE_REGEX);
+    const y = Number(ys); const m = Number(ms); const d = Number(ds);
+    if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+      const check = new Date(y, m - 1, d);
+      if (check.getFullYear() === y && check.getMonth() === m - 1 && check.getDate() === d) {
+        return new Date(y, m - 1, d);
+      }
+    }
+    const err = new Error(`Parameter '${paramName}' tidak valid (gunakan tanggal kalender YYYY-MM-DD)`);
+    err.statusCode = 400;
+    throw err;
+  }
   const date = new Date(dateStr);
   if (isNaN(date.getTime())) {
     const err = new Error(`Parameter '${paramName}' tidak valid`);
@@ -128,12 +144,15 @@ exports.getDailyRevenue = async (req, res, next) => {
     let startOfDay, endOfDay, resultDate;
 
     if (date) {
-      // Parse string YYYY-MM-DD langsung (timezone-agnostic)
-      const p = date.split('-');
-      const y = parseInt(p[0]), m = parseInt(p[1]) - 1, d = parseInt(p[2]);
+      // Validasi kalender ketat: 2026-13-45 / 2025-02-30 ditolak 400,
+      // bukan roll-over diam-diam ke bulan berikutnya.
+      const validated = validateDateParam(date, 'date');
+      const y = validated.getFullYear();
+      const m = validated.getMonth();
+      const d = validated.getDate();
       startOfDay = new Date(Date.UTC(y, m, d - 1, 17, 0, 0, 0));
       endOfDay = new Date(Date.UTC(y, m, d, 16, 59, 59, 999));
-      resultDate = date;
+      resultDate = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
     } else {
       // Hari ini dalam WIB: hitung dari UTC
       const today = new Date();
@@ -352,11 +371,12 @@ exports.getRevenueByRange = async (req, res, next) => {
       });
     }
 
-    // Parse tanggal langsung dari string YYYY-MM-DD (timezone-agnostic)
-    const sp = start_date.split('-');
-    const ep = end_date.split('-');
-    const sy = parseInt(sp[0]), sm = parseInt(sp[1]) - 1, sd = parseInt(sp[2]);
-    const ey = parseInt(ep[0]), em = parseInt(ep[1]) - 1, ed = parseInt(ep[2]);
+    // Validasi kalender ketat: tanggal tak-kalendar (2026-13-45, 2025-02-30)
+    // ditolak 400, bukan roll-over diam-diam ke tanggal lain.
+    const startValidated = validateDateParam(start_date, 'start_date');
+    const endValidated = validateDateParam(end_date, 'end_date');
+    const sy = startValidated.getFullYear(), sm = startValidated.getMonth(), sd = startValidated.getDate();
+    const ey = endValidated.getFullYear(), em = endValidated.getMonth(), ed = endValidated.getDate();
 
     // Konversi ke UTC bounds untuk timezone Asia/Jakarta (WIB, UTC+7)
     // 00:00 WIB = prev day 17:00 UTC, 23:59:59 WIB = same day 16:59:59 UTC

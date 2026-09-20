@@ -80,10 +80,10 @@ exports.createTicket = async (req, res, next) => {
 
     // Jika data datang dari FormData, biasanya dikirim sebagai string JSON
     if (typeof customer === 'string') {
-        try { customer = JSON.parse(customer); } catch (e) { console.log('Customer is not a JSON string'); }
+        try { customer = JSON.parse(customer); } catch (e) { return res.status(400).json({ success: false, message: 'Format data pelanggan tidak valid (JSON rusak)' }); }
     }
     if (typeof device === 'string') {
-        try { device = JSON.parse(device); } catch (e) { console.log('Device is not a JSON string'); }
+        try { device = JSON.parse(device); } catch (e) { return res.status(400).json({ success: false, message: 'Format data perangkat tidak valid (JSON rusak)' }); }
     }
 
     // FALLBACK: Jika customer/device masih kosong, coba ambil langsung dari body (format flat)
@@ -258,11 +258,26 @@ exports.getAllTickets = async (req, res, next) => {
       filter['history.created_at'] = {};
       if (start_date) {
         const parts = start_date.split('-');
-        filter['history.created_at'].$gte = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        if (parts.length !== 3) {
+          return res.status(400).json({ success: false, message: "Parameter 'start_date' tidak valid (gunakan YYYY-MM-DD)" });
+        }
+        const sy = parseInt(parts[0], 10), sm = parseInt(parts[1], 10) - 1, sd = parseInt(parts[2], 10);
+        const check = new Date(sy, sm, sd);
+        if (isNaN(check.getTime()) || check.getFullYear() !== sy || check.getMonth() !== sm || check.getDate() !== sd) {
+          return res.status(400).json({ success: false, message: "Parameter 'start_date' tidak valid (gunakan tanggal kalender YYYY-MM-DD)" });
+        }
+        filter['history.created_at'].$gte = check;
       }
       if (end_date) {
         const parts = end_date.split('-');
-        const end = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        if (parts.length !== 3) {
+          return res.status(400).json({ success: false, message: "Parameter 'end_date' tidak valid (gunakan YYYY-MM-DD)" });
+        }
+        const ey = parseInt(parts[0], 10), em = parseInt(parts[1], 10) - 1, ed = parseInt(parts[2], 10);
+        const end = new Date(ey, em, ed);
+        if (isNaN(end.getTime()) || end.getFullYear() !== ey || end.getMonth() !== em || end.getDate() !== ed) {
+          return res.status(400).json({ success: false, message: "Parameter 'end_date' tidak valid (gunakan tanggal kalender YYYY-MM-DD)" });
+        }
         end.setHours(23, 59, 59, 999);
         filter['history.created_at'].$lte = end;
       }
@@ -488,12 +503,15 @@ exports.removePartFromService = async (req, res, next) => {
 exports.updateServiceFee = async (req, res, next) => {
   try {
     const { service_fee } = req.body;
-    if (service_fee < 0) return res.status(400).json({ success: false, message: 'Biaya tidak boleh negatif' });
+    const fee = Number(service_fee);
+    if (service_fee === undefined || service_fee === null || service_fee === '' || !Number.isFinite(fee) || fee < 0) {
+      return res.status(400).json({ success: false, message: 'Biaya jasa harus angka non-negatif' });
+    }
 
     const ticket = await ServiceTicket.findById(req.params.id);
     if (!ticket) return res.status(404).json({ success: false, message: 'Tiket tidak ditemukan' });
 
-    ticket.service_fee = service_fee;
+    ticket.service_fee = fee;
     await ticket.save();
 
     res.status(200).json({ success: true, message: 'Biaya jasa diperbarui', data: ticket });
@@ -603,8 +621,12 @@ exports.updateTicketDetails = async (req, res, next) => {
     }
 
     if (customer) {
+        let customerData;
         try {
-            const customerData = typeof customer === 'string' ? JSON.parse(customer) : customer;
+            customerData = typeof customer === 'string' ? JSON.parse(customer) : customer;
+        } catch (e) {
+            return res.status(400).json({ success: false, message: 'Format data pelanggan tidak valid (JSON rusak)' });
+        }
             // Bila nomor HP diubah, validasi ulang ke WAHA sebelum disimpan.
             // Nomor invalid tanpa override -> 422, tanpa tulis DB.
             const newPhone = customerData && customerData.phone !== undefined ? customerData.phone : undefined;
@@ -612,7 +634,7 @@ exports.updateTicketDetails = async (req, res, next) => {
             if (newPhone !== undefined && String(newPhone) !== oldPhone) {
                 const waCheck = await assertWAValidOrOverride(newPhone, {
                     required: false,
-                    override: req.body.wa_override_confirmed === true,
+                    override: req.body.wa_override_confirmed === true || req.body.wa_override_confirmed === 'true',
                     logContext: { by: req.user && (req.user.username || req.user.id), source: 'updateTicketDetails', ticket_number: ticket.ticket_number }
                 });
                 if (!waCheck.allowed) {
@@ -628,23 +650,21 @@ exports.updateTicketDetails = async (req, res, next) => {
                 customerData.wa_checked_at = new Date();
             }
             ticket.customer = { ...ticket.customer.toObject(), ...customerData };
-        } catch (e) {
-            console.error('Error parsing customer in update:', e);
-        }
     }
     
     // Update device fields
     if (device) {
+        let deviceData;
         try {
-            const deviceData = typeof device === 'string' ? JSON.parse(device) : device;
+            deviceData = typeof device === 'string' ? JSON.parse(device) : device;
+        } catch (e) {
+            return res.status(400).json({ success: false, message: 'Format data perangkat tidak valid (JSON rusak)' });
+        }
             // Ensure photos object exists
             if (!ticket.device.photos) {
                 ticket.device.photos = { front: '', back: '', left: '', right: '' };
             }
             ticket.device = { ...ticket.device.toObject(), ...deviceData, photos: ticket.device.photos };
-        } catch (e) {
-            console.error('Error parsing device in update:', e);
-        }
     }
 
     // Handling photos updates if uploaded

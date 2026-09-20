@@ -10,7 +10,7 @@ exports.createOrder = async (req, res, next) => {
     let { customer, item_name, item_description, estimated_price, down_payment, handled_by_id, notes, service_ticket } = req.body;
 
     if (typeof customer === 'string') {
-      try { customer = JSON.parse(customer); } catch (e) { console.log('Customer is not a JSON string'); }
+      try { customer = JSON.parse(customer); } catch (e) { return res.status(400).json({ success: false, message: 'Format data pelanggan tidak valid (JSON rusak)' }); }
     }
 
     let handled_by = undefined;
@@ -91,16 +91,24 @@ exports.createOrder = async (req, res, next) => {
 exports.getAllOrders = async (req, res, next) => {
   try {
     const { status, customer_phone, service_ticket, page = 1, limit = 20 } = req.query;
+    const VALID_ORDER_STATUSES = ['Pending', 'Searching', 'Ordered', 'Arrived', 'Picked_Up', 'Cancelled'];
     const filter = {};
-    if (status) filter.status = status;
+    if (status) {
+      if (!VALID_ORDER_STATUSES.includes(status)) {
+        return res.status(400).json({ success: false, message: 'Status pesanan tidak valid' });
+      }
+      filter.status = status;
+    }
     if (customer_phone) filter['customer.phone'] = customer_phone;
     if (service_ticket) filter.service_ticket = service_ticket;
 
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
+    const skip = (pageNum - 1) * limitNum;
     let orders = await SpecialOrder.find(filter)
       .sort({ 'history.created_at': -1 })
       .skip(skip)
-      .limit(parseInt(limit))
+      .limit(limitNum)
       .lean();
 
     orders = orders.map(o => ({
@@ -114,8 +122,8 @@ exports.getAllOrders = async (req, res, next) => {
       success: true,
       data: orders,
       pagination: {
-        current_page: parseInt(page),
-        total_pages: Math.ceil(total / parseInt(limit)),
+        current_page: pageNum,
+        total_pages: Math.ceil(total / limitNum),
         total_records: total
       }
     });
@@ -172,7 +180,7 @@ exports.updateOrderDetails = async (req, res, next) => {
     let { customer, item_name, item_description, estimated_price, down_payment, handled_by_id, notes } = req.body;
 
     if (typeof customer === 'string') {
-      try { customer = JSON.parse(customer); } catch (e) { console.log('Customer is not a JSON string'); }
+      try { customer = JSON.parse(customer); } catch (e) { return res.status(400).json({ success: false, message: 'Format data pelanggan tidak valid (JSON rusak)' }); }
     }
     
     const order = await SpecialOrder.findById(req.params.id);

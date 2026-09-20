@@ -662,7 +662,7 @@ describe('ServiceController', () => {
 
       expect(res.status).toHaveBeenCalledWith(400);
       expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ message: 'Biaya tidak boleh negatif' })
+        expect.objectContaining({ message: 'Biaya jasa harus angka non-negatif' })
       );
     });
 

@@ -19,6 +19,9 @@ exports.downloadServiceNota = async (req, res, next) => {
     }
 
     const type = req.query.type || 'payment';
+    if (type !== 'entry' && type !== 'payment') {
+      return res.status(400).json({ success: false, message: "Parameter type tidak valid. Gunakan 'entry' atau 'payment'" });
+    }
     let pdfBuffer;
     if (type === 'entry') {
       pdfBuffer = await pdfService.generateServiceEntryNota(ticket);
@@ -48,6 +51,9 @@ exports.downloadOrderNota = async (req, res, next) => {
     }
 
     const type = req.query.type || 'payment';
+    if (type !== 'entry' && type !== 'payment') {
+      return res.status(400).json({ success: false, message: "Parameter type tidak valid. Gunakan 'entry' atau 'payment'" });
+    }
     let pdfBuffer;
     if (type === 'entry') {
       pdfBuffer = await pdfService.generateOrderEntryNota(order);

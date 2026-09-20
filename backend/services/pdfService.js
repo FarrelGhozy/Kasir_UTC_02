@@ -56,7 +56,8 @@ const PAGE = {
 const CONTENT_WIDTH = PAGE.width - PAGE.margin * 2;
 
 async function generateServiceNota(ticket) {
-  return new Promise(async (resolve, reject) => {
+  return new Promise((resolve, reject) => {
+    (async () => {
     try {
       const doc = new PDFDocument({
         size: [PAGE.width, PAGE.height],
@@ -97,11 +98,13 @@ async function generateServiceNota(ticket) {
     } catch (err) {
       reject(err);
     }
+    })().catch(reject);
   });
 }
 
 async function generateOrderNota(order) {
-  return new Promise(async (resolve, reject) => {
+  return new Promise((resolve, reject) => {
+    (async () => {
     try {
       const doc = new PDFDocument({
         size: [PAGE.width, PAGE.height],
@@ -139,6 +142,7 @@ async function generateOrderNota(order) {
     } catch (err) {
       reject(err);
     }
+    })().catch(reject);
   });
 }
 
@@ -497,7 +501,8 @@ function formatCurrency(amount) {
 }
 
 async function generateServiceEntryNota(ticket) {
-  return new Promise(async (resolve, reject) => {
+  return new Promise((resolve, reject) => {
+    (async () => {
     try {
       const doc = new PDFDocument({
         size: [PAGE.width, PAGE.height],
@@ -534,11 +539,13 @@ async function generateServiceEntryNota(ticket) {
     } catch (err) {
       reject(err);
     }
+    })().catch(reject);
   });
 }
 
 async function generateOrderEntryNota(order) {
-  return new Promise(async (resolve, reject) => {
+  return new Promise((resolve, reject) => {
+    (async () => {
     try {
       const doc = new PDFDocument({
         size: [PAGE.width, PAGE.height],
@@ -574,6 +581,7 @@ async function generateOrderEntryNota(order) {
     } catch (err) {
       reject(err);
     }
+    })().catch(reject);
   });
 }
 

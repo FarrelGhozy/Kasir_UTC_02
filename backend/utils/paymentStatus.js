@@ -51,13 +51,17 @@ function getOrderRemaining(order) {
 
 /**
  * Tentukan apakah pesanan sudah LUNAS.
- * Lunas jika sisa 0 (DP penuh) ATAU flag manual 'Lunas' (sisa dilunasi saat ambil).
+ * Lunas jika sisa 0 (DP penuh, estimasi > 0) ATAU flag manual 'Lunas'
+ * (sisa dilunasi saat ambil). Estimasi 0 (gratis/belum ada harga) TIDAK
+ * otomatis Lunas — konsisten dengan pre-save SpecialOrder yang mensyaratkan
+ * estimasi > 0 sebelum auto-Lunas.
  * @param {Object} order Dokumen pesanan
  * @returns {Boolean} true jika lunas
  */
 function isOrderPaid(order) {
   if (!order) return false;
   if (order.payment_status === 'Lunas') return true;
+  if ((Number(order.estimated_price) || 0) <= 0) return false;
   return getOrderRemaining(order) === 0;
 }
 
@@ -67,7 +71,9 @@ function isOrderPaid(order) {
  * @returns {String} 'Lunas' | 'Belum Lunas'
  */
 function getOrderPaymentStatus(order) {
+  if (!order) return 'Belum Lunas';
   if (order.payment_status === 'Lunas') return 'Lunas';
+  if ((Number(order.estimated_price) || 0) <= 0) return 'Belum Lunas';
   if (getOrderRemaining(order) === 0) return 'Lunas';
   return 'Belum Lunas';
 }

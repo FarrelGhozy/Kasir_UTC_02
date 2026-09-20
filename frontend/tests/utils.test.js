@@ -72,9 +72,12 @@ describe('formatCurrency(amount)', () => {
     expect(formatCurrency(null)).toBe('Rp\u00a00');
   });
 
-  it('menangani undefined (menjadi NaN)', () => {
-    const result = formatCurrency(undefined);
-    expect(result).toContain('NaN');
+  it('menangani undefined dengan mengembalikan "Rp 0"', () => {
+    expect(formatCurrency(undefined)).toBe('Rp\u00a00');
+  });
+
+  it('menangani NaN dengan mengembalikan "Rp 0"', () => {
+    expect(formatCurrency(NaN)).toBe('Rp\u00a00');
   });
 });
 
@@ -134,9 +137,8 @@ describe('formatDate(date)', () => {
     expect(formatDate('')).toBe('-');
   });
 
-  it('menangani tanggal tidak valid', () => {
-    const result = formatDate('not-a-date');
-    expect(result).toContain('Invalid');
+  it('mengembalikan "-" untuk tanggal tidak valid', () => {
+    expect(formatDate('not-a-date')).toBe('-');
   });
 });
 
@@ -161,9 +163,8 @@ describe('formatDateTime(date)', () => {
     expect(formatDateTime(undefined)).toBe('-');
   });
 
-  it('menangani tanggal tidak valid', () => {
-    const result = formatDateTime('bukan-tanggal');
-    expect(result).toContain('Invalid');
+  it('mengembalikan "-" untuk tanggal tidak valid', () => {
+    expect(formatDateTime('bukan-tanggal')).toBe('-');
   });
 });
 
@@ -192,9 +193,8 @@ describe('toLocalDateString(date)', () => {
     expect(toLocalDateString('')).toBe('');
   });
 
-  it('menghasilkan "NaN-NaN-NaN" untuk tanggal tidak valid', () => {
-    const result = toLocalDateString('bukan-tanggal');
-    expect(result).toMatch(/^N+aN-N+aN-N+aN$/);
+  it('mengembalikan string kosong untuk tanggal tidak valid', () => {
+    expect(toLocalDateString('bukan-tanggal')).toBe('');
   });
 
   it('menangani timestamp number', () => {

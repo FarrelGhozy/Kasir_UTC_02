@@ -1,6 +1,7 @@
 // public/js/modules/inventory.js - Modul Manajemen Gudang (Inventaris) - REVISI
 
 import api, { formatCurrency, showToast, confirmDialog, setupCurrencyInput, parseCurrencyValue, escapeHTML, loadScript } from '../api.js';
+import auth from '../auth.js';
 
 class Inventory {
     constructor() {
@@ -261,6 +262,20 @@ class Inventory {
             this.renderTable();
         } catch (error) {
             showToast(error.message, 'error');
+            const tbody = document.getElementById('inventory-table-body');
+            if (tbody) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="text-center text-danger py-5">
+                            <i class="bi bi-exclamation-triangle fs-1 d-block mb-2 opacity-50"></i>
+                            Gagal memuat data: ${escapeHTML(error.message || 'kesalahan jaringan')}
+                            <div><button class="btn btn-sm btn-outline-primary mt-2" id="inventory-retry-btn">Coba lagi</button></div>
+                        </td>
+                    </tr>
+                `;
+                const retry = document.getElementById('inventory-retry-btn');
+                if (retry) retry.addEventListener('click', () => this.loadItems());
+            }
         }
     }
 
@@ -297,6 +312,9 @@ class Inventory {
             const isLowStock = item.stock <= item.min_stock_alert;
             const isMediumStock = item.stock <= item.min_stock_alert * 2;
             const rowClass = isLowStock ? 'table-danger' : isMediumStock ? 'table-warning' : '';
+            // Hapus permanen hanya untuk admin (backend DELETE /inventory/:id admin-only);
+            // peran lain tetap bisa edit + sesuaikan stok.
+            const canDelete = auth.hasRole && auth.hasRole('admin');
 
             const stockBadge = isLowStock 
                 ? '<span class="badge bg-danger">Menipis</span>'
@@ -339,13 +357,14 @@ class Inventory {
                                     aria-label="Edit barang">
                                 <i class="bi bi-pencil"></i>
                             </button>
+                            ${canDelete ? `
                             <button class="btn btn-outline-danger btn-action-delete"
                                     data-id="${item._id}"
                                     data-name="${safeName}"
                                     title="Hapus"
                                     aria-label="Hapus barang">
                                 <i class="bi bi-trash"></i>
-                            </button>
+                            </button>` : ''}
                         </div>
                     </td>
                 </tr>

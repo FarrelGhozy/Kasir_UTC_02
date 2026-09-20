@@ -159,13 +159,29 @@ exports.getAllTransactions = async (req, res, next) => {
     if (start_date || end_date) {
       filter.date = {};
       if (start_date) {
-        // Parse string YYYY-MM-DD sebagai local date (bukan UTC)
+        // Parse string YYYY-MM-DD sebagai local date (bukan UTC);
+        // tanggal tak-kalendar ditolak 400, bukan roll-over diam-diam.
         const parts = start_date.split('-');
-        filter.date.$gte = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        if (parts.length !== 3) {
+          return res.status(400).json({ success: false, message: "Parameter 'start_date' tidak valid (gunakan YYYY-MM-DD)" });
+        }
+        const sy = parseInt(parts[0], 10), sm = parseInt(parts[1], 10) - 1, sd = parseInt(parts[2], 10);
+        const check = new Date(sy, sm, sd);
+        if (isNaN(check.getTime()) || check.getFullYear() !== sy || check.getMonth() !== sm || check.getDate() !== sd) {
+          return res.status(400).json({ success: false, message: "Parameter 'start_date' tidak valid (gunakan tanggal kalender YYYY-MM-DD)" });
+        }
+        filter.date.$gte = check;
       }
       if (end_date) {
         const parts = end_date.split('-');
-        const end = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        if (parts.length !== 3) {
+          return res.status(400).json({ success: false, message: "Parameter 'end_date' tidak valid (gunakan YYYY-MM-DD)" });
+        }
+        const ey = parseInt(parts[0], 10), em = parseInt(parts[1], 10) - 1, ed = parseInt(parts[2], 10);
+        const end = new Date(ey, em, ed);
+        if (isNaN(end.getTime()) || end.getFullYear() !== ey || end.getMonth() !== em || end.getDate() !== ed) {
+          return res.status(400).json({ success: false, message: "Parameter 'end_date' tidak valid (gunakan tanggal kalender YYYY-MM-DD)" });
+        }
         end.setHours(23, 59, 59, 999);
         filter.date.$lte = end;
       }

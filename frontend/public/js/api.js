@@ -649,11 +649,13 @@ export function loadScript(src) {
  * Format mata uang ke Rupiah Indonesia
  */
 export function formatCurrency(amount) {
+    const num = Number(amount);
+    if (!Number.isFinite(num)) return 'Rp\u00a00';
     return new Intl.NumberFormat('id-ID', {
         style: 'currency',
         currency: 'IDR',
         minimumFractionDigits: 0
-    }).format(amount);
+    }).format(num);
 }
 
 /**
@@ -662,6 +664,7 @@ export function formatCurrency(amount) {
 export function toLocalDateString(date) {
     if (!date) return '';
     const d = new Date(date);
+    if (isNaN(d.getTime())) return '';
     const year = d.getFullYear();
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
@@ -673,7 +676,9 @@ export function toLocalDateString(date) {
  */
 export function formatDate(date) {
     if (!date) return '-';
-    return new Date(date).toLocaleDateString('id-ID', {
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return '-';
+    return d.toLocaleDateString('id-ID', {
         year: 'numeric',
         month: 'long',
         day: 'numeric'
@@ -685,7 +690,9 @@ export function formatDate(date) {
  */
 export function formatDateTime(date) {
     if (!date) return '-';
-    return new Date(date).toLocaleString('id-ID', {
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return '-';
+    return d.toLocaleString('id-ID', {
         year: 'numeric',
         month: 'long',
         day: 'numeric',

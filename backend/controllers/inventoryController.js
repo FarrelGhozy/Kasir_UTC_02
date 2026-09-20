@@ -294,28 +294,57 @@ exports.importItems = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Data barang tidak valid' });
     }
 
+    const MAX_IMPORT_ROWS = 1000;
+    if (items.length === 0 || items.length > MAX_IMPORT_ROWS) {
+      return res.status(400).json({ success: false, message: `Jumlah baris import harus 1-${MAX_IMPORT_ROWS}` });
+    }
+
+    // Normalisasi + validasi tiap baris SEBELUM bulkWrite:
+    // SKU dinormalisasi ke uppercase (skema menyimpan uppercase),
+    // baris tanpa sku/nama/kategori-valid/harga-negatif ditolak dan dihitung gagal.
+    const VALID_CATEGORIES = ['Sparepart', 'Accessory', 'Software', 'Service', 'Other'];
+    const normalized = [];
+    let invalidCount = 0;
+    for (const item of items) {
+      const sku = String(item.sku || '').trim().toUpperCase();
+      const name = String(item.name || '').trim();
+      const category = item.category || 'Other';
+      const purchase = Number(item.purchase_price);
+      const selling = Number(item.selling_price);
+      const stock = item.stock !== undefined && item.stock !== '' ? Number(item.stock) : 0;
+      const minAlert = item.min_stock_alert !== undefined && item.min_stock_alert !== '' ? Number(item.min_stock_alert) : 5;
+      const valid =
+        sku && name &&
+        VALID_CATEGORIES.includes(category) &&
+        Number.isFinite(purchase) && purchase >= 0 &&
+        Number.isFinite(selling) && selling >= purchase &&
+        Number.isInteger(stock) && stock >= 0 &&
+        Number.isInteger(minAlert) && minAlert >= 0;
+      if (!valid) { invalidCount++; continue; }
+      normalized.push({ sku, name, category, purchase_price: purchase, selling_price: selling, stock, min_stock_alert: minAlert });
+    }
+
     // Build bulkWrite operations — 1 round-trip ke MongoDB
-    const operations = items
-      .filter(item => item.sku && item.name)
+    // (is Active TIDAK disentuh agar barang discontinued tidak reaktif diam-diam)
+    const operations = normalized
       .map(item => ({
         updateOne: {
           filter: { sku: item.sku },
           update: {
             $set: {
               name: item.name,
-              category: item.category || 'Other',
-              purchase_price: Number(item.purchase_price) || 0,
-              selling_price: Number(item.selling_price) || 0,
-              stock: item.stock !== undefined && item.stock !== '' && !isNaN(Number(item.stock)) ? Number(item.stock) : 0,
-              min_stock_alert: Number(item.min_stock_alert) || 5,
-              isActive: true
+              category: item.category,
+              purchase_price: item.purchase_price,
+              selling_price: item.selling_price,
+              stock: item.stock,
+              min_stock_alert: item.min_stock_alert
             }
           },
           upsert: true
         }
       }));
 
-    const failedCount = items.length - operations.length;
+    const failedCount = invalidCount;
 
     if (operations.length === 0) {
       return res.status(400).json({

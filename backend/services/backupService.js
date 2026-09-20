@@ -28,7 +28,7 @@ class BackupService {
       fs.mkdirSync(this.backupDir, { recursive: true, mode: 0o700 });
       console.log('[BackupService] Folder backup dibuat:', this.backupDir);
     } else {
-      try { fs.chmodSync(this.backupDir, 0o700); } catch (_) {}
+      try { fs.chmodSync(this.backupDir, 0o700); } catch (_) { /* direktori milik proses lain — abaikan */ }
     }
 
     this.runBackup();
@@ -56,7 +56,7 @@ class BackupService {
           message: 'Gagal menjalankan backup otomatis',
           details: { error: error.message }
         });
-      } catch (_) {}
+      } catch (_) { /* DB mungkin sudah mati saat backup gagal — log console di atas cukup */ }
     }
   }
 

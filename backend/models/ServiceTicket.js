@@ -17,7 +17,7 @@ const customerSchema = new mongoose.Schema({
         // Jika kosong, anggap valid (karena opsional)
         if (!v) return true;
         // Validasi nomor telepon Indonesia: diawali 0, 62, atau +62, diikuti 8-13 digit
-        return /^(\+62|62|0)[0-9]{8,13}$/.test(v.replace(/[\s\-]/g, ''));
+        return /^(\+62|62|0)[0-9]{8,13}$/.test(v.replace(/[\s-]/g, ''));
       },
       message: 'Format nomor telepon tidak valid. Gunakan format: 08xx-xxxx-xxxx atau +628xx-xxxx-xxxx'
     }
