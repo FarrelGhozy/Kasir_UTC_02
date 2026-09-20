@@ -9,13 +9,24 @@ exports.protect = async (req, res, next) => {
   try {
     let token;
 
-    // Cek token di headers
+    // Cek token di headers (Authorization: Bearer xxx)
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
       const parts = req.headers.authorization.split(' ');
       if (parts.length !== 2 || !parts[1]) {
         return res.status(401).json({ success: false, message: 'Format token tidak valid' });
       }
       token = parts[1];
+    }
+
+    // Fallback: token via query string ?token=xxx — dibutuhkan untuk <img src>
+    // yang tidak bisa mengirim header Authorization. Hanya dipakai bila header tidak ada
+    // agar header tetap menjadi sumber utama dan prioritas.
+    if (!token && req.query && req.query.token) {
+      const raw = Array.isArray(req.query.token) ? req.query.token[0] : req.query.token;
+      if (typeof raw === 'string' && raw.trim()) {
+        const trimmed = raw.trim();
+        token = trimmed.startsWith('Bearer ') ? trimmed.slice(7).trim() : trimmed;
+      }
     }
 
     if (!token) {

@@ -365,6 +365,46 @@ class API {
     async getWAHAStatus() {
         return this.get('/waha-status');
     }
+
+    /**
+     * Buat URL ter-autentikasi untuk <img src> / window.open yang tidak bisa kirim header.
+     * Menambahkan ?token=JWT bila URL belum memiliki token, sehingga request GET
+     * ke /api/uploads/:filename bisa melewati protect via query fallback.
+     */
+    getAuthUrl(url) {
+        if (!url) return '';
+        const token = this.getToken();
+        if (!token) return url;
+        try {
+            const u = new URL(url, window.location.origin);
+            if (u.searchParams.has('token')) return u.toString();
+            u.searchParams.set('token', token);
+            return u.toString();
+        } catch {
+            const sep = url.includes('?') ? '&' : '?';
+            return `${url}${sep}token=${encodeURIComponent(token)}`;
+        }
+    }
+}
+
+/**
+ * Helper standalone untuk modul yang tidak pakai instance api (parity dengan api.getAuthUrl)
+ * @param {string} url
+ * @returns {string}
+ */
+export function getAuthImageUrl(url) {
+    if (!url) return '';
+    const token = (typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null);
+    if (!token) return url;
+    try {
+        const u = new URL(url, window.location.origin);
+        if (u.searchParams.has('token')) return u.toString();
+        u.searchParams.set('token', token);
+        return u.toString();
+    } catch {
+        const sep = url.includes('?') ? '&' : '?';
+        return `${url}${sep}token=${encodeURIComponent(token)}`;
+    }
 }
 
 /**

@@ -221,3 +221,79 @@ describe('auth - authorize middleware', () => {
     );
   });
 });
+
+describe('auth - protect via query token (untuk <img src>)', () => {
+  beforeEach(() => {
+    process.env.JWT_SECRET = 'test-jwt-secret-key';
+  });
+
+  it('should accept token via query ?token=xxx ketika header tidak ada', async () => {
+    const { token } = await buatUserDanToken({ role: 'kasir' });
+    const req = { headers: {}, query: { token } };
+    const res = mockRes();
+    const next = jest.fn();
+    await protect(req, res, next);
+    expect(next).toHaveBeenCalled();
+    expect(req.user).toBeDefined();
+    expect(req.user.role).toBe('kasir');
+  });
+
+  it('should accept token via query dengan prefix Bearer', async () => {
+    const { token } = await buatUserDanToken({ role: 'teknisi' });
+    const req = { headers: {}, query: { token: `Bearer ${token}` } };
+    const res = mockRes();
+    const next = jest.fn();
+    await protect(req, res, next);
+    expect(next).toHaveBeenCalled();
+  });
+
+  it('should prefer header token dibanding query token', async () => {
+    const { token: headerToken } = await buatUserDanToken({ role: 'admin' });
+    const { token: queryToken } = await buatUserDanToken({ role: 'kasir' });
+    const req = { headers: { authorization: `Bearer ${headerToken}` }, query: { token: queryToken } };
+    const res = mockRes();
+    const next = jest.fn();
+    await protect(req, res, next);
+    expect(next).toHaveBeenCalled();
+    expect(req.user.role).toBe('admin');
+  });
+
+  it('should handle query token sebagai array (ambil elemen pertama)', async () => {
+    const { token } = await buatUserDanToken({ role: 'kasir' });
+    const req = { headers: {}, query: { token: [token, 'other'] } };
+    const res = mockRes();
+    const next = jest.fn();
+    await protect(req, res, next);
+    expect(next).toHaveBeenCalled();
+  });
+
+  it('should return 401 jika query token kosong/string kosong', async () => {
+    const req = { headers: {}, query: { token: '   ' } };
+    const res = mockRes();
+    const next = jest.fn();
+    await protect(req, res, next);
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it('should return 401 jika query token invalid', async () => {
+    const req = { headers: {}, query: { token: 'invalid.token.here' } };
+    const res = mockRes();
+    const next = jest.fn();
+    await protect(req, res, next);
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it('should return 401 jika query token kedaluwarsa atau versi sesi tidak cocok', async () => {
+    const { user, token } = await buatUserDanToken({ role: 'kasir' });
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
+    await user.save();
+    const req = { headers: {}, query: { token } };
+    const res = mockRes();
+    const next = jest.fn();
+    await protect(req, res, next);
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(next).not.toHaveBeenCalled();
+  });
+});

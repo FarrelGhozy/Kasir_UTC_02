@@ -1,4 +1,4 @@
-import api, { formatCurrency, formatDateTime, showToast, setupCurrencyInput, parseCurrencyValue, calculateElapsedTime, validateWhatsApp, checkWARealtime, setupPhoneRealtimeValidation, escapeHTML, confirmDialog, isWARejection } from '../api.js';
+import api, { formatCurrency, formatDateTime, showToast, setupCurrencyInput, parseCurrencyValue, calculateElapsedTime, validateWhatsApp, checkWARealtime, setupPhoneRealtimeValidation, escapeHTML, confirmDialog, isWARejection, getAuthImageUrl } from '../api.js';
 
 class Order {
     constructor() {
@@ -273,7 +273,7 @@ class Order {
                                 <div>
                                     <h6 class="fw-bold mb-0 text-primary">${escapeHTML(o.item_name)}</h6>
                                     <small class="text-muted">#${o.order_number} | ${formatDateTime(o.createdAt)}</small>
-                                    ${o.photo ? `<a href="${escapeHTML(o.photo)}" target="_blank" class="d-block small mt-1"><i class="bi bi-image me-1"></i>Lihat Foto</a>` : ''}
+                                    ${o.photo ? `<a href="${escapeHTML(getAuthImageUrl(o.photo))}" target="_blank" class="d-block small mt-1"><i class="bi bi-image me-1"></i>Lihat Foto</a>` : ''}
                                 </div>
                                 <div class="text-end">
                                     <span class="badge ${badgeClass}">${o.status}</span>

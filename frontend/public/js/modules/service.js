@@ -1,6 +1,6 @@
 // public/js/modules/service.js - Modul Manajemen Servis (FIXED: Add Part & Detail View)
 
-import api, { formatCurrency, formatDateTime, showToast, showError, setupCurrencyInput, parseCurrencyValue, calculateElapsedTime, validateWhatsApp, checkWARealtime, setupPhoneRealtimeValidation, escapeHTML, loadScript, confirmDialog, toLocalDateString, isWARejection } from '../api.js';
+import api, { formatCurrency, formatDateTime, showToast, showError, setupCurrencyInput, parseCurrencyValue, calculateElapsedTime, validateWhatsApp, checkWARealtime, setupPhoneRealtimeValidation, escapeHTML, loadScript, confirmDialog, toLocalDateString, isWARejection, getAuthImageUrl } from '../api.js';
 
 /**
  * Helper class for Pattern Lock UI
@@ -1113,7 +1113,7 @@ class Service {
                             </div>
                             <div class="col-5 text-end">
                                 ${t.device.photos && t.device.photos.front ? `
-                                    <img src="${t.device.photos.front}" class="rounded-3 shadow-sm border" style="width: 100%; max-width: 160px; height: 100px; object-fit: cover; cursor: pointer;" onclick="window.open('${t.device.photos.front}', '_blank')">
+                                    <img src="${getAuthImageUrl(t.device.photos.front)}" class="rounded-3 shadow-sm border" style="width: 100%; max-width: 160px; height: 100px; object-fit: cover; cursor: pointer;" onclick="window.open('${getAuthImageUrl(t.device.photos.front)}', '_blank')">
                                 ` : `
                                     <div class="bg-light rounded-3 border d-flex align-items-center justify-content-center ms-auto" style="width: 100%; max-width: 160px; height: 100px;">
                                         <i class="bi bi-image text-muted fs-1"></i>
@@ -1141,7 +1141,7 @@ class Service {
                                     </div>
                                     <div class="col-4 text-end">
                                         ${t.payment_proof ? `
-                                            <img src="${t.payment_proof}" class="rounded border shadow-sm" style="width: 40px; height: 40px; object-fit: cover; cursor: pointer;" onclick="window.open('${t.payment_proof}', '_blank')" title="Lihat Bukti Bayar">
+                                            <img src="${getAuthImageUrl(t.payment_proof)}" class="rounded border shadow-sm" style="width: 40px; height: 40px; object-fit: cover; cursor: pointer;" onclick="window.open('${getAuthImageUrl(t.payment_proof)}', '_blank')" title="Lihat Bukti Bayar">
                                         ` : `
                                             <div class="text-muted" style="font-size:0.6rem">No Proof</div>
                                         `}
@@ -1390,7 +1390,7 @@ class Service {
                     <div class="border rounded p-1 text-center bg-white h-100">
                         <small class="d-block text-muted extra-small uppercase">${side}</small>
                         ${photos[side] ? `
-                            <img src="${photos[side]}" class="img-fluid rounded mt-1" style="max-height: 50px; cursor: pointer;" onclick="window.open('${photos[side]}', '_blank')">
+                            <img src="${getAuthImageUrl(photos[side])}" class="img-fluid rounded mt-1" style="max-height: 50px; cursor: pointer;" onclick="window.open('${getAuthImageUrl(photos[side])}', '_blank')">
                         ` : `<div class="py-2"><i class="bi bi-image text-light fs-4"></i></div>`}
                     </div>
                 </div>
@@ -1819,7 +1819,7 @@ class Service {
                                     <div class="border rounded p-1 bg-white text-center">
                                         <small class="d-block text-muted extra-small uppercase mb-1">${side}</small>
                                         ${t.device.photos && t.device.photos[side] ? `
-                                            <img src="${t.device.photos[side]}" class="img-fluid rounded" style="max-height: 120px; object-fit: contain; cursor: pointer;" onclick="window.open('${t.device.photos[side]}', '_blank')">
+                                            <img src="${getAuthImageUrl(t.device.photos[side])}" class="img-fluid rounded" style="max-height: 120px; object-fit: contain; cursor: pointer;" onclick="window.open('${getAuthImageUrl(t.device.photos[side])}', '_blank')">
                                         ` : `
                                             <div class="py-3 text-light"><i class="bi bi-image fs-2"></i></div>
                                         `}
