@@ -17,5 +17,11 @@ module.exports = {
     '!tests/**',
     '!test_*.js',
     '!seed*.js'
-  ]
+  ],
+  coverageThreshold: {
+    global: {
+      statements: 80,
+      lines: 80
+    }
+  }
 };

@@ -129,6 +129,7 @@ describe('backupService doBackup & listBackups & getBackupFile', () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'backup-test-'));
     const origDir = backupService.backupDir;
     backupService.backupDir = tmpDir;
+    let stream = null;
     try {
       await backupService.doBackup();
       const list = backupService.listBackups();
@@ -136,23 +137,82 @@ describe('backupService doBackup & listBackups & getBackupFile', () => {
       const p = backupService.getBackupFilePath(filename);
       expect(p).toBe(path.join(tmpDir, filename));
       expect(fs.existsSync(p)).toBe(true);
-      const stream = await backupService.getBackupFileStream(filename);
+      stream = await backupService.getBackupFileStream(filename);
       expect(stream).not.toBeNull();
       expect(typeof stream.pipe).toBe('function');
-      stream.destroy();
+      // Tunggu stream benar-benar terbuka lalu tutup bersih agar tidak bocor
+      // error async (ENOENT) ke test berikutnya setelah tmpDir dihapus.
+      await new Promise((resolve) => {
+        stream.on('error', () => resolve());
+        stream.on('open', () => {
+          stream.close(() => resolve());
+        });
+      });
+      stream = null;
       expect(backupService.getBackupFilePath('../../etc/passwd')).toBeNull();
       await expect(backupService.getBackupFileStream('../../etc/passwd')).resolves.toBeNull();
+    } finally {
+      if (stream) {
+        try { stream.on('error', () => {}); stream.destroy(); } catch (_) {}
+      }
+      backupService.backupDir = origDir;
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('restoreFromFile mengembalikan data users/items yang sempat dihapus', async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'backup-test-'));
+    const origDir = backupService.backupDir;
+    backupService.backupDir = tmpDir;
+    try {
+      const admin = await createAdmin();
+      const item = await createItem();
+      await backupService.doBackup();
+      const list = backupService.listBackups();
+      expect(list.length).toBe(1);
+      // Hapus semua data lalu restore dari file backup
+      await User.deleteMany({});
+      await Item.deleteMany({});
+      expect(await User.countDocuments()).toBe(0);
+      expect(await Item.countDocuments()).toBe(0);
+      await backupService.restoreFromFile(list[0].filename, admin._id);
+      expect(await User.countDocuments()).toBeGreaterThanOrEqual(1);
+      const restoredItem = await Item.findOne({ sku: item.sku }).lean();
+      expect(restoredItem).toBeTruthy();
+      expect(restoredItem.name).toBe(item.name);
     } finally {
       backupService.backupDir = origDir;
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
   });
 
-  it('MY_SIMPLE_RESTORE', async () => {
-    expect(true).toBe(true);
-  });
-
-  it('MY_SIMPLE_CLEANUP', async () => {
-    expect(true).toBe(true);
+  it('cleanupOld menghapus file lebih tua dari retensi tapi menyisakan minimal 1 file', async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'backup-test-'));
+    const origDir = backupService.backupDir;
+    const origRetention = backupService.RETENTION_DAYS;
+    backupService.backupDir = tmpDir;
+    try {
+      await createItem();
+      await backupService.doBackup();
+      let list = backupService.listBackups();
+      expect(list.length).toBe(1);
+      // Duplikat jadi 2 file: satu dibuat tua (40 hari lalu), satu tetap baru
+      const freshFile = path.join(tmpDir, list[0].filename);
+      const oldName = 'backup_2000-01-01T00-00-00.json.gz';
+      const oldFile = path.join(tmpDir, oldName);
+      fs.copyFileSync(freshFile, oldFile);
+      const oldTime = new Date(Date.now() - 40 * 24 * 60 * 60 * 1000);
+      fs.utimesSync(oldFile, oldTime, oldTime);
+      expect(backupService.listBackups().length).toBe(2);
+      await backupService.cleanupOld();
+      const after = backupService.listBackups();
+      expect(after.length).toBe(1);
+      expect(after[0].filename).toBe(list[0].filename);
+      expect(fs.existsSync(oldFile)).toBe(false);
+    } finally {
+      backupService.backupDir = origDir;
+      backupService.RETENTION_DAYS = origRetention;
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
   });
 });
