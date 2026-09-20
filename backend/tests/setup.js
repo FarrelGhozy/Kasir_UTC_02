@@ -17,6 +17,11 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
+  // Reset factory counter untuk determinisme antar test case
+  try {
+    const { resetCounter } = require('./helpers/factory');
+    if (typeof resetCounter === 'function') resetCounter();
+  } catch (_) {}
   if (mongoose.connection.db) {
     const collections = await mongoose.connection.db.collections();
     for (const col of collections) {

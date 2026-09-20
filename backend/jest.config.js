@@ -9,6 +9,13 @@ module.exports = {
     'controllers/**/*.js',
     'middleware/**/*.js',
     'services/**/*.js',
-    '!node_modules/**'
+    'utils/**/*.js',
+    'bot/**/*.js',
+    'routes/**/*.js',
+    'config/**/*.js',
+    '!node_modules/**',
+    '!tests/**',
+    '!test_*.js',
+    '!seed*.js'
   ]
 };

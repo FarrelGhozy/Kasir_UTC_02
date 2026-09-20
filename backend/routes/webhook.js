@@ -30,12 +30,13 @@ function isAlreadyProcessed(msgId) {
 }
 
 // Bersihin cache setiap 30 detik
-setInterval(() => {
+const _interval = setInterval(() => {
   const now = Date.now();
   for (const [key, time] of processedMessages) {
     if (now - time > DEDUP_TTL) processedMessages.delete(key);
   }
 }, 30_000);
+if (_interval.unref) _interval.unref();
 
 function validateWebhookAuth(req) {
   const secret = process.env.WAHA_WEBHOOK_SECRET;
@@ -137,5 +138,14 @@ router.post('/waha-webhook', async (req, res) => {
     res.status(200).send('OK');
   }
 });
+
+router.getMessageId = getMessageId;
+router.isAlreadyProcessed = isAlreadyProcessed;
+router.validateWebhookAuth = validateWebhookAuth;
+router.normalizeWAHA = normalizeWAHA;
+router.extractMessageText = extractMessageText;
+router.processedMessages = processedMessages;
+router.DEDUP_TTL = DEDUP_TTL;
+router._interval = _interval;
 
 module.exports = router;

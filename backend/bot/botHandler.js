@@ -121,4 +121,4 @@ async function handleIncomingMessage(payload) {
   }
 }
 
-module.exports = { handleIncomingMessage };
+module.exports = { handleIncomingMessage, _clearCache: () => { cachedTechnicianPhones = null; lastFetch = 0; } };

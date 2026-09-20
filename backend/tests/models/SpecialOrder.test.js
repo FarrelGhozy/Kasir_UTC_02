@@ -2,15 +2,8 @@ const mongoose = require('mongoose');
 const SpecialOrder = require('../../models/SpecialOrder');
 
 describe('SpecialOrder - Status Transitions', () => {
-  const validTransitions = {
-    'Pending': ['Searching', 'Cancelled'],
-    'Searching': ['Ordered', 'Cancelled'],
-    'Ordered': ['Arrived', 'Cancelled'],
-    'Arrived': ['Picked_Up', 'Cancelled'],
-    'Picked_Up': ['Cancelled'],
-    'Cancelled': ['Pending']
-  };
-
+  // Single source of truth: import dari model (SpecialOrder.validTransitions)
+  const validTransitions = SpecialOrder.validTransitions;
   const allStatuses = Object.keys(validTransitions);
 
   for (const [from, allowed] of Object.entries(validTransitions)) {
@@ -32,7 +25,7 @@ describe('SpecialOrder - Status Transitions', () => {
     }
 
     const invalid = allStatuses.filter(s => !allowed.includes(s) && s !== from);
-    for (const to of invalid.slice(0, 2)) {
+    for (const to of invalid) {
       it(`${from} → ${to} should throw error`, async () => {
         const order = await SpecialOrder.create({
           order_number: `ORD-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,

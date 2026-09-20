@@ -1,12 +1,11 @@
 const axios = require('axios');
 const { normalizeIDPhone } = require('../utils/phone');
 
-const WAHA_BASE_URL = process.env.WAHA_URL;
-const WAHA_SESSION = process.env.WAHA_SESSION || 'default';
-const WAHA_API_KEY = process.env.WAHA_API_KEY;
-
 async function sendReply(phone, text) {
   try {
+    const WAHA_BASE_URL = process.env.WAHA_URL;
+    const WAHA_API_KEY = process.env.WAHA_API_KEY;
+    const WAHA_SESSION = process.env.WAHA_SESSION || 'default';
     if (!WAHA_BASE_URL || !WAHA_API_KEY) {
       console.error('[Bot] WAHA_BASE_URL atau WAHA_API_KEY tidak dikonfigurasi');
       return;
@@ -39,6 +38,9 @@ async function sendReply(phone, text) {
 
 async function markChatUnread(phone) {
   try {
+    const WAHA_BASE_URL = process.env.WAHA_URL;
+    const WAHA_API_KEY = process.env.WAHA_API_KEY;
+    const WAHA_SESSION = process.env.WAHA_SESSION || 'default';
     if (!WAHA_BASE_URL || !WAHA_API_KEY) return;
     let chatId = normalizeIDPhone(phone);
     if (!chatId.includes('@')) {

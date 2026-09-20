@@ -7,11 +7,15 @@ const Transaction = require('../../models/Transaction');
 
 const counter = { val: 1 };
 
+function resetCounter() {
+  counter.val = 1;
+}
+
 async function createUser(overrides = {}) {
   const c = counter.val++;
   return User.create({
     name: `Test User ${c}`,
-    username: `testuser_${c}_${Date.now()}`,
+    username: `testuser_${c}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
     password: 'password123',
     role: 'kasir',
     ...overrides
@@ -19,15 +23,18 @@ async function createUser(overrides = {}) {
 }
 
 async function createAdmin() {
-  return createUser({ role: 'admin', username: `admin_${Date.now()}` });
+  const c = counter.val++;
+  return createUser({ role: 'admin', username: `admin_${c}_${Date.now()}_${Math.random().toString(36).slice(2, 4)}` });
 }
 
 async function createKasir() {
-  return createUser({ role: 'kasir', username: `kasir_${Date.now()}` });
+  const c = counter.val++;
+  return createUser({ role: 'kasir', username: `kasir_${c}_${Date.now()}_${Math.random().toString(36).slice(2, 4)}` });
 }
 
 async function createTeknisi() {
-  return createUser({ role: 'teknisi', username: `teknisi_${Date.now()}`, phone: '08123456789' });
+  const c = counter.val++;
+  return createUser({ role: 'teknisi', username: `teknisi_${c}_${Date.now()}_${Math.random().toString(36).slice(2, 4)}`, phone: '08123456789' });
 }
 
 async function createItem(overrides = {}) {
@@ -94,5 +101,6 @@ async function createTransaction(overrides = {}) {
 
 module.exports = {
   createUser, createAdmin, createKasir, createTeknisi,
-  createItem, createServiceTicket, createSpecialOrder, createTransaction
+  createItem, createServiceTicket, createSpecialOrder, createTransaction,
+  counter, resetCounter
 };

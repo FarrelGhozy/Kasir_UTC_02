@@ -32,16 +32,8 @@ describe('ServiceTicket - Ticket Number Generation', () => {
 });
 
 describe('ServiceTicket - Status Transitions', () => {
-  const transitions = {
-    'Queue':        ['Diagnosing', 'Cancelled', 'Completed', 'In_Progress', 'Waiting_Part'],
-    'Diagnosing':   ['Waiting_Part', 'In_Progress', 'Cancelled', 'Queue', 'Completed'],
-    'Waiting_Part': ['In_Progress', 'Cancelled', 'Queue', 'Diagnosing', 'Completed'],
-    'In_Progress':  ['Completed', 'Waiting_Part', 'Cancelled', 'Queue', 'Diagnosing'],
-    'Completed':    ['Picked_Up', 'In_Progress', 'Queue', 'Diagnosing', 'Waiting_Part'],
-    'Cancelled':    ['Queue', 'Diagnosing', 'Waiting_Part', 'In_Progress'],
-    'Picked_Up':    []
-  };
-
+  // Single source of truth: import dari model
+  const transitions = ServiceTicket.validTransitions;
   const allStatuses = Object.keys(transitions);
 
   for (const [from, allowed] of Object.entries(transitions)) {
@@ -60,7 +52,7 @@ describe('ServiceTicket - Status Transitions', () => {
     }
 
     const invalid = allStatuses.filter(s => !allowed.includes(s) && s !== from);
-    for (const to of invalid.slice(0, 2)) {
+    for (const to of invalid) {
       it(`${from} → ${to} should throw error`, async () => {
         const ticket = await ServiceTicket.create({
           ticket_number: `SRV-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,

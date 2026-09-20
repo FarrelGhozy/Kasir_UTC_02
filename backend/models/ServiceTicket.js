@@ -320,18 +320,20 @@ serviceTicketSchema.methods.addPart = async function(itemId, quantity) {
   return this;
 };
 
+// Valid state transitions map — single source of truth untuk test & controller
+serviceTicketSchema.statics.validTransitions = {
+  'Queue':        ['Diagnosing', 'Cancelled', 'Completed', 'In_Progress', 'Waiting_Part'],
+  'Diagnosing':   ['Waiting_Part', 'In_Progress', 'Cancelled', 'Queue', 'Completed'],
+  'Waiting_Part': ['In_Progress', 'Cancelled', 'Queue', 'Diagnosing', 'Completed'],
+  'In_Progress':  ['Completed', 'Waiting_Part', 'Cancelled', 'Queue', 'Diagnosing'],
+  'Completed':    ['Picked_Up', 'In_Progress', 'Queue', 'Diagnosing', 'Waiting_Part'],
+  'Cancelled':    ['Queue', 'Diagnosing', 'Waiting_Part', 'In_Progress'], // Allow reopening cancelled
+  'Picked_Up':    [], // Keep Picked_Up as terminal for now to avoid stock/payment confusion
+};
+
 // Method instance untuk update status dengan validasi alur state machine
 serviceTicketSchema.methods.updateStatus = async function(newStatus, paymentMethod = null, paymentProof = null) {
-  const validTransitions = {
-    'Queue':        ['Diagnosing', 'Cancelled', 'Completed', 'In_Progress', 'Waiting_Part'],
-    'Diagnosing':   ['Waiting_Part', 'In_Progress', 'Cancelled', 'Queue', 'Completed'],
-    'Waiting_Part': ['In_Progress', 'Cancelled', 'Queue', 'Diagnosing', 'Completed'],
-    'In_Progress':  ['Completed', 'Waiting_Part', 'Cancelled', 'Queue', 'Diagnosing'],
-    'Completed':    ['Picked_Up', 'In_Progress', 'Queue', 'Diagnosing', 'Waiting_Part'],
-    'Cancelled':    ['Queue', 'Diagnosing', 'Waiting_Part', 'In_Progress'], // Allow reopening cancelled
-    'Picked_Up':    [], // Keep Picked_Up as terminal for now to avoid stock/payment confusion
-  };
-
+  const validTransitions = this.constructor.validTransitions;
   const allowedNext = validTransitions[this.status];
   if (!allowedNext) {
     throw new Error(`Status saat ini tidak dikenali: ${this.status}`);
