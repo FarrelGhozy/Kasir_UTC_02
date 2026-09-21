@@ -661,27 +661,56 @@ const api = new API(API_BASE_URL);
 export default api;
 
 /**
- * Dynamic script loader — load CDN script hanya saat dibutuhkan
+ * Dynamic script loader — load script hanya saat dibutuhkan.
+ * Menunggu event load asli bila tag sudah ada (aman dipanggil paralel),
+ * dilengkapi timeout agar kegagalan CDN tidak menggantung selamanya.
  * @param {string} src - URL script
+ * @param {number} timeoutMs - Batas waktu tunggu (default 15000ms)
  * @returns {Promise<void>}
  */
-export function loadScript(src) {
+export function loadScript(src, timeoutMs = 15000) {
   return new Promise((resolve, reject) => {
+    const fail = (msg) => reject(new Error(msg));
+    const timer = setTimeout(() => fail(`Gagal memuat script (timeout ${timeoutMs}ms): ${src}`), timeoutMs);
+
+    const onLoad = (s) => { clearTimeout(timer); s.dataset.loaded = 'true'; resolve(); };
+    const onError = () => { clearTimeout(timer); fail(`Gagal memuat script: ${src}`); };
+
     const existing = document.querySelector(`script[src="${src}"]`);
     if (existing) {
       // Tag sudah ada tapi belum tentu selesai dimuat (race saat dipanggil paralel) —
       // tunggu event load aslinya, jangan langsung resolve.
-      if (existing.dataset.loaded === 'true') return resolve();
-      existing.addEventListener('load', () => resolve(), { once: true });
-      existing.addEventListener('error', () => reject(new Error(`Gagal memuat script: ${src}`)), { once: true });
+      if (existing.dataset.loaded === 'true') { clearTimeout(timer); return resolve(); }
+      existing.addEventListener('load', () => onLoad(existing), { once: true });
+      existing.addEventListener('error', onError, { once: true });
       return;
     }
     const s = document.createElement('script');
     s.src = src;
-    s.onload = () => { s.dataset.loaded = 'true'; resolve(); };
-    s.onerror = () => reject(new Error(`Gagal memuat script: ${src}`));
+    s.onload = () => onLoad(s);
+    s.onerror = onError;
     document.head.appendChild(s);
   });
+}
+
+/**
+ * Coba muat script dari daftar sumber berurutan (fallback CDN -> lokal).
+ * Mengembalikan sumber yang berhasil, melempar error gabungan bila semua gagal.
+ * @param {string[]} sources - Daftar URL script, dicoba satu per satu
+ * @param {number} timeoutMs - Timeout per sumber
+ * @returns {Promise<string>} URL sumber yang berhasil dimuat
+ */
+export async function loadScriptWithFallback(sources, timeoutMs = 15000) {
+  const errors = [];
+  for (const src of sources) {
+    try {
+      await loadScript(src, timeoutMs);
+      return src;
+    } catch (err) {
+      errors.push(`${src} (${err.message})`);
+    }
+  }
+  throw new Error(`Semua sumber script gagal dimuat:\n- ${errors.join('\n- ')}`);
 }
 
 // ==================== FUNGSI UTILITAS ====================

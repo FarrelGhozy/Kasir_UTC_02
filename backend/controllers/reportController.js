@@ -60,6 +60,14 @@ exports.getFullRecap = async (req, res, next) => {
   try {
     const { range = 'all' } = req.query;
 
+    // Whitelist range: selain '30days'/'all' ditolak 400 agar tidak jadi dump diam-diam.
+    if (!['all', '30days'].includes(range)) {
+      return res.status(400).json({
+        success: false,
+        message: "Parameter 'range' tidak valid (gunakan 'all' atau '30days')"
+      });
+    }
+
     const thirtyDaysAgo = range === '30days' ? (() => {
       const d = new Date();
       d.setDate(d.getDate() - 30);
@@ -71,18 +79,25 @@ exports.getFullRecap = async (req, res, next) => {
     const svcMatch = buildReportPipeline(thirtyDaysAgo, null, { status: 'Picked_Up' });
 
     // 1. Ambil semua data inventaris (selalu semua data untuk stok saat ini)
-    const inventory = await Item.find({ isActive: true }).sort({ category: 1, name: 1 }).lean();
+    // Projection: hanya kolom yang dipakai PDF rekap (hemat memori range=all).
+    const inventory = await Item.find({ isActive: true })
+      .select('sku name category purchase_price selling_price stock')
+      .sort({ category: 1, name: 1 }).lean();
 
-    // 2. Ambil tiket servis sesuai filter
-    const services = await ServiceTicket.find(svcMatch).sort({ 'history.picked_up_at': -1 }).lean();
+    // 2. Ambil tiket servis sesuai filter (tanpa foto & histori panjang)
+    const services = await ServiceTicket.find(svcMatch)
+      .select('ticket_number customer.name device.symptoms technician.name status total_cost history.picked_up_at')
+      .sort({ 'history.picked_up_at': -1 }).lean();
 
     // 3. Ambil transaksi ritel sesuai filter
-    const transactions = await Transaction.find(txnMatch).sort({ date: -1 }).lean();
+    const transactions = await Transaction.find(txnMatch)
+      .select('invoice_no date cashier_name items.name items.qty payment_method grand_total')
+      .sort({ date: -1 }).lean();
 
-    // 4. Hitung ringkasan statistik
-    const totalInventoryValue = inventory.reduce((sum, item) => sum + (item.stock * item.purchase_price), 0);
-    const totalServiceRevenue = services.reduce((sum, s) => sum + s.total_cost, 0);
-    const totalRetailRevenue = transactions.reduce((sum, t) => sum + t.grand_total, 0);
+    // 4. Hitung ringkasan statistik (Number() agar dok legacy berlubang tidak jadi NaN)
+    const totalInventoryValue = inventory.reduce((sum, item) => sum + ((Number(item.stock) || 0) * (Number(item.purchase_price) || 0)), 0);
+    const totalServiceRevenue = services.reduce((sum, s) => sum + (Number(s.total_cost) || 0), 0);
+    const totalRetailRevenue = transactions.reduce((sum, t) => sum + (Number(t.grand_total) || 0), 0);
 
     // 5. Ambil data untuk grafik (tren pendapatan)
     const serviceTrends = await ServiceTicket.aggregate([

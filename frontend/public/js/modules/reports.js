@@ -1,7 +1,185 @@
 // public/js/modules/reports.js - Modul Laporan & Analitik
 
-import api, { formatCurrency, formatDate, formatDateTime, loadScript, showToast, escapeHTML, toLocalDateString } from '../api.js';
+import api, { formatCurrency, formatDate, formatDateTime, loadScriptWithFallback, showToast, escapeHTML, toLocalDateString } from '../api.js';
 import auth from '../auth.js';
+
+// --- Pustaka PDF (dimuat dinamis + fallback agar imun terhadap blokir CDN/adblock) ---
+const PDF_VENDOR_DIR = 'vendor/';
+const PDF_SOURCES = {
+    jspdf: [
+        `${PDF_VENDOR_DIR}jspdf.umd.min.js`,
+        'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+        'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js',
+        'https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js'
+    ],
+    autotable: [
+        `${PDF_VENDOR_DIR}jspdf.plugin.autotable.min.js`,
+        'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js',
+        'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js',
+        'https://unpkg.com/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js'
+    ],
+    chart: [
+        `${PDF_VENDOR_DIR}chart.umd.min.js`,
+        'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js',
+        'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js',
+        'https://unpkg.com/chart.js@4.4.1/dist/chart.umd.min.js'
+    ]
+};
+
+// Batas baris per tabel agar PDF puluhan ribu baris tidak membekukan tab browser.
+const MAX_TABLE_ROWS = 2000;
+
+/**
+ * Pastikan jsPDF + plugin autotable tersedia dan terverifikasi.
+ * Urutan SEQUENSIAL (jspdf dulu, baru autotable) — plugin butuh window.jspdf
+ * sudah ada. Promise.all paralel adalah akar 'doc.autoTable is not a function'.
+ */
+export async function ensurePdfLibraries() {
+    if (typeof window === 'undefined') throw new Error('Fungsi PDF hanya dapat dijalankan di browser.');
+    if (!window.jspdf || typeof window.jspdf.jsPDF !== 'function') {
+        await loadScriptWithFallback(PDF_SOURCES.jspdf);
+    }
+    if (!hasAutoTable()) {
+        await loadScriptWithFallback(PDF_SOURCES.autotable);
+    }
+    assertPdfLibsReady();
+    // Chart.js opsional: grafik dilewati bila gagal, tabel tetap dicetak.
+    if (typeof Chart === 'undefined') {
+        try {
+            await loadScriptWithFallback(PDF_SOURCES.chart);
+        } catch (err) {
+            console.warn('Chart.js gagal dimuat, grafik dilewati:', err.message);
+        }
+    }
+}
+
+function hasAutoTable() {
+    return !!(window.jspdf && window.jspdf.jsPDF && window.jspdf.jsPDF.API
+        && typeof window.jspdf.jsPDF.API.autoTable === 'function');
+}
+
+/**
+ * Validasi akhir sebelum generate: melempar pesan ramah bila plugin tabel hilang
+ * (mis. diblokir adblock) agar tidak crash misterius di tengah jalan.
+ */
+export function assertPdfLibsReady() {
+    if (typeof window === 'undefined' || !window.jspdf || typeof window.jspdf.jsPDF !== 'function') {
+        throw new Error('Pustaka jsPDF gagal dimuat. Periksa koneksi internet atau nonaktifkan pemblokir iklan lalu coba lagi.');
+    }
+    if (!hasAutoTable()) {
+        throw new Error('Plugin tabel PDF gagal dimuat (kemungkinan diblokir pemblokir iklan). Nonaktifkan pemblokir iklan lalu coba lagi.');
+    }
+}
+
+/**
+ * Validasi payload rekap dari server sebelum digambar ke PDF.
+ */
+export function assertRecapPayload(data) {
+    if (!data || typeof data !== 'object' || !data.summary) {
+        throw new Error('Data rekap dari server tidak lengkap.');
+    }
+}
+
+/**
+ * Metadata kop laporan (nomor, periode, pencetak) — diekstrak agar bisa di-unit-test.
+ */
+export function buildRecapMeta(range, adminName) {
+    const now = new Date();
+    const is30 = range === '30days';
+    const start = new Date(now);
+    if (is30) start.setDate(start.getDate() - 30);
+    return {
+        rangeTitle: is30 ? 'REKAPITULASI DATA (30 HARI TERAKHIR)' : 'REKAPITULASI SELURUH DATA',
+        periodText: is30 ? `${formatDate(start)} – ${formatDate(now)}` : 'Seluruh periode tercatat',
+        reportNo: `RECAP/${is30 ? '30H' : 'ALL'}/${toLocalDateString(now).replace(/-/g, '')}`,
+        adminName: adminName || 'Administrator',
+        printedAt: formatDateTime(now)
+    };
+}
+
+/**
+ * Nama file PDF memakai tanggal lokal WIB (bukan UTC agar tidak off-by-one).
+ * Range disanitasi agar aman dari filename-injection via console/global.
+ */
+export function buildRecapFilename(range, now = new Date()) {
+    const safe = String(range ?? '').replace(/[^a-z0-9_-]/gi, '').slice(0, 16) || 'all';
+    const dateStr = toLocalDateString(now).replace(/-/g, '');
+    return `Laporan_Rekap_UTC_${safe}_${dateStr}.pdf`;
+}
+
+/**
+ * Baris tabel inventaris — null-safe (data legacy/import bisa berlubang).
+ */
+export function buildInventoryRows(inventory) {
+    const list = Array.isArray(inventory) ? inventory : [];
+    if (list.length === 0) {
+        return [[{ content: 'Tidak ada data inventaris', colSpan: 6, styles: { halign: 'center' } }]];
+    }
+    return list.map((i) => {
+        const stock = Number(i?.stock) || 0;
+        const buy = Number(i?.purchase_price) || 0;
+        return [
+            i?.sku ?? '-',
+            i?.name ?? '-',
+            i?.category ?? '-',
+            formatCurrency(i?.selling_price),
+            stock,
+            formatCurrency(stock * buy)
+        ];
+    });
+}
+
+/**
+ * Baris tabel servis — null-safe untuk customer/device/technician yang hilang.
+ */
+export function buildServiceRows(services) {
+    const list = Array.isArray(services) ? services : [];
+    if (list.length === 0) {
+        return [[{ content: 'Tidak ada data servis pada periode ini', colSpan: 7, styles: { halign: 'center' } }]];
+    }
+    return list.map((s) => ([
+        s?.ticket_number ?? '-',
+        formatDate(s?.history?.picked_up_at),
+        s?.customer?.name ?? '-',
+        s?.device?.symptoms ?? '-',
+        s?.technician?.name ?? '-',
+        s?.status ?? '-',
+        formatCurrency(s?.total_cost)
+    ]));
+}
+
+/**
+ * Baris tabel transaksi ritel — null-safe untuk items yang hilang/kosong.
+ */
+export function buildTransactionRows(transactions) {
+    const list = Array.isArray(transactions) ? transactions : [];
+    if (list.length === 0) {
+        return [[{ content: 'Tidak ada data transaksi pada periode ini', colSpan: 6, styles: { halign: 'center' } }]];
+    }
+    return list.map((t) => {
+        const items = Array.isArray(t?.items) ? t.items : [];
+        const desc = items.map((i) => `${i?.name ?? '?'} (x${i?.qty ?? 0})`).join(', ') || '-';
+        return [
+            t?.invoice_no ?? '-',
+            formatDate(t?.date),
+            t?.cashier_name ?? '-',
+            desc,
+            t?.payment_method ?? '-',
+            formatCurrency(t?.grand_total)
+        ];
+    });
+}
+
+/**
+ * Potong baris tabel agar PDF raksasa tidak OOM; sertakan catatan sisa baris.
+ */
+export function limitRecapRows(rows, total) {
+    if (rows.length <= MAX_TABLE_ROWS) return { body: rows, note: '' };
+    return {
+        body: rows.slice(0, MAX_TABLE_ROWS),
+        note: `Menampilkan ${MAX_TABLE_ROWS} dari ${total} baris — gunakan menu Backup untuk arsip data penuh.`
+    };
+}
 
 class Reports {
     constructor() {
@@ -464,6 +642,10 @@ class Reports {
 
     downloadFullRecap() {
         const modalEl = document.getElementById('recapRangeModal');
+        if (!modalEl || typeof bootstrap === 'undefined' || !bootstrap.Modal) {
+            showToast('Komponen dialog gagal dimuat. Muat ulang halaman lalu coba lagi.', 'error');
+            return;
+        }
         const existingModal = bootstrap.Modal.getInstance(modalEl);
         if (existingModal) existingModal.dispose();
         const modal = new bootstrap.Modal(modalEl);
@@ -471,277 +653,338 @@ class Reports {
     }
 
     async processFullRecap(range) {
-        // Dynamic load jspdf & chart.js hanya saat dibutuhkan
-        if (typeof window.jspdf === 'undefined') {
-            await Promise.all([
-                loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'),
-                loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js')
-            ]);
-        }
-        if (typeof Chart === 'undefined') {
-            await loadScript('https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js');
-        }
         const modalEl = document.getElementById('recapRangeModal');
-        const modal = bootstrap.Modal.getInstance(modalEl);
-        if (modal) modal.hide();
+        try {
+            const modal = modalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal
+                ? bootstrap.Modal.getInstance(modalEl)
+                : null;
+            if (modal) modal.hide();
+        } catch (_) { /* abaikan — modal tidak kritis untuk PDF */ }
 
         const btn = document.getElementById('download-full-recap-btn');
-        const originalContent = btn.innerHTML;
-        btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Menghasilkan PDF...';
+        const originalContent = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Menghasilkan PDF...';
+        }
 
         try {
-            const response = await api.get(`/reports/full-recap?range=${range}`);
+            // 1. Pastikan pustaka PDF siap (sekuensial + fallback; Chart.js opsional).
+            await ensurePdfLibraries();
+
+            // Whitelist di sisi klien (defense-in-depth; server juga menolak 400).
+            if (!['all', '30days'].includes(range)) {
+                throw new Error("Parameter 'range' tidak valid (gunakan 'all' atau '30days')");
+            }
+
+            // 2. Ambil data rekap dari server.
+            const response = await api.get(`/reports/full-recap?range=${encodeURIComponent(range)}`);
             const data = response.data;
+            assertRecapPayload(data);
+
             const adminName = auth.getUser()?.name || 'Administrator';
-            
+            const meta = buildRecapMeta(range, adminName);
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF('p', 'mm', 'a4');
-            const pageWidth = doc.internal.pageSize.getWidth();
-            
-            // 1. Header (KOP Laporan)
-            doc.setFillColor(13, 110, 253); // Primary color
-            doc.rect(0, 0, pageWidth, 40, 'F');
-            
-            doc.setTextColor(255, 255, 255);
-            doc.setFontSize(22);
-            doc.setFont('helvetica', 'bold');
-            doc.text('BENGKEL UTC', 15, 18);
-            
-            doc.setFontSize(10);
+
+            // 3. Susun halaman PDF per bagian (helper kecil agar mudah dites).
+            this.drawRecapHeader(doc, meta);
+            this.drawRecapSummary(doc, data.summary);
+            await this.drawRecapCharts(doc, data);
+            this.drawRecapTable(doc, 'DATA INVENTARIS (STOK GUDANG)', 'inventaris', buildInventoryRows(data.inventory), data.inventory?.length ?? 0);
+            this.drawRecapTable(doc, 'DATA DETAIL SERVIS (WORKSHOP)', 'servis', buildServiceRows(data.services), data.services?.length ?? 0);
+            this.drawRecapTable(doc, 'DATA TRANSAKSI RITEL (POS)', 'transaksi', buildTransactionRows(data.transactions), data.transactions?.length ?? 0);
+            this.drawRecapFooter(doc, meta);
+
+            // 4. Simpan PDF — nama file tanggal WIB.
+            doc.save(buildRecapFilename(range));
+            showToast('PDF berhasil diunduh', 'success');
+        } catch (error) {
+            console.error('PDF Generation Error:', error);
+            showToast('Gagal menghasilkan PDF: ' + error.message, 'error');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalContent;
+            }
+        }
+    }
+
+    drawRecapHeader(doc, meta) {
+        const pageWidth = doc.internal.pageSize.getWidth();
+        doc.setFillColor(13, 110, 253);
+        doc.rect(0, 0, pageWidth, 44, 'F');
+
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(22);
+        doc.setFont('helvetica', 'bold');
+        doc.text('BENGKEL UTC', 15, 17);
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text('Sistem Manajemen Bengkel & Workshop Terpadu', 15, 24);
+        doc.text('Jl. Raya Unida No. 1, Ponorogo, Jawa Timur', 15, 29);
+        doc.text(`No. Laporan: ${meta.reportNo}`, 15, 34);
+        doc.text(`Periode: ${meta.periodText}`, 15, 39);
+
+        doc.setFontSize(13);
+        doc.setFont('helvetica', 'bold');
+        doc.text(meta.rangeTitle, pageWidth - 15, 18, { align: 'right' });
+
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Dicetak oleh: ${meta.adminName}`, pageWidth - 15, 27, { align: 'right' });
+        doc.text(`Tanggal Cetak: ${meta.printedAt}`, pageWidth - 15, 32, { align: 'right' });
+        doc.text('Unida Technology Centre', pageWidth - 15, 37, { align: 'right' });
+    }
+
+    drawRecapSummary(doc, summary) {
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const s = summary || {};
+        let y = 58;
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('RINGKASAN EKSEKUTIF', 15, y);
+
+        y += 8;
+        const summaryItems = [
+            { label: 'Item Inventaris', value: String(s.inventory_items ?? 0), color: [240, 240, 240] },
+            { label: 'Nilai Stok (HPP)', value: formatCurrency(s.total_inventory_value), color: [240, 240, 240] },
+            { label: `Tiket Servis (${s.total_service_tickets ?? 0})`, value: formatCurrency(s.total_service_revenue), color: [255, 243, 205] },
+            { label: `Transaksi Ritel (${s.total_retail_transactions ?? 0})`, value: formatCurrency(s.total_retail_revenue), color: [209, 231, 221] }
+        ];
+
+        let cardX = 15;
+        const cardWidth = (pageWidth - 40) / 2;
+        summaryItems.forEach((item, index) => {
+            if (index === 2) { cardX = 15; y += 25; }
+
+            doc.setFillColor(...item.color);
+            doc.roundedRect(cardX, y, cardWidth, 20, 2, 2, 'F');
+            doc.setDrawColor(200, 200, 200);
+            doc.roundedRect(cardX, y, cardWidth, 20, 2, 2, 'D');
+
+            doc.setFontSize(8);
             doc.setFont('helvetica', 'normal');
-            doc.text('Sistem Manajemen Bengkel & Workshop Terpadu', 15, 25);
-            doc.text('Jl. Raya Unida No. 1, Ponorogo, Jawa Timur', 15, 30);
-            
-            doc.setFontSize(14);
-            const title = range === '30days' ? 'REKAPITULASI DATA (30 HARI TERAKHIR)' : 'REKAPITULASI SELURUH DATA';
-            doc.text(title, pageWidth - 15, 20, { align: 'right' });
-            
+            doc.setTextColor(100, 100, 100);
+            doc.text(item.label, cardX + cardWidth / 2, y + 7, { align: 'center' });
+
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(0, 0, 0);
+            doc.text(String(item.value), cardX + cardWidth / 2, y + 14, { align: 'center' });
+
+            cardX += cardWidth + 10;
+        });
+
+        y += 25;
+        doc.setFillColor(13, 110, 253);
+        doc.roundedRect(15, y, pageWidth - 30, 15, 2, 2, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.text('TOTAL PENDAPATAN BERSIH', 25, y + 9.5);
+        doc.setFontSize(14);
+        doc.text(formatCurrency(s.grand_total_revenue), pageWidth - 25, y + 10, { align: 'right' });
+    }
+
+    async drawRecapCharts(doc, data) {
+        const svcRevenue = Number(data.summary?.total_service_revenue) || 0;
+        const retailRevenue = Number(data.summary?.total_retail_revenue) || 0;
+        let y = 143;
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('VISUALISASI DATA', 15, y);
+
+        if (typeof Chart === 'undefined' || (svcRevenue === 0 && retailRevenue === 0)) {
             doc.setFontSize(9);
-            doc.text(`Dicetak oleh: ${adminName}`, pageWidth - 15, 28, { align: 'right' });
-            doc.text(`Tanggal Cetak: ${formatDateTime(new Date())}`, pageWidth - 15, 33, { align: 'right' });
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(100, 100, 100);
+            doc.text('Grafik tidak tersedia (pustaka grafik gagal dimuat atau belum ada pendapatan).', 15, y + 8);
+            return;
+        }
 
-            // 2. Executive Summary (Cards)
-            let y = 55;
-            doc.setTextColor(0, 0, 0);
-            doc.setFontSize(12);
-            doc.setFont('helvetica', 'bold');
-            doc.text('RINGKASAN EKSEKUTIF', 15, y);
-            
-            y += 8;
-            const summaryItems = [
-                { label: 'Item Inventaris', value: data.summary.inventory_items, color: [240, 240, 240] },
-                { label: 'Nilai Stok (HPP)', value: formatCurrency(data.summary.total_inventory_value), color: [240, 240, 240] },
-                { label: 'Total Servis', value: data.summary.total_service_tickets, color: [240, 240, 240] },
-                { label: 'Pendapatan Servis', value: formatCurrency(data.summary.total_service_revenue), color: [255, 243, 205] },
-                { label: 'Pendapatan Ritel', value: formatCurrency(data.summary.total_retail_revenue), color: [209, 231, 221] }
-            ];
+        const trends = data.trends || {};
+        const svcTrend = Array.isArray(trends.services) ? trends.services : [];
+        const retailTrend = Array.isArray(trends.retail) ? trends.retail : [];
 
-            let cardX = 15;
-            const cardWidth = (pageWidth - 40) / 3;
-            summaryItems.forEach((item, index) => {
-                if (index === 3) { cardX = 15; y += 25; }
-                
-                doc.setFillColor(...item.color);
-                doc.roundedRect(cardX, y, cardWidth, 20, 2, 2, 'F');
-                doc.setDrawColor(200, 200, 200);
-                doc.roundedRect(cardX, y, cardWidth, 20, 2, 2, 'D');
-                
-                doc.setFontSize(8);
-                doc.setFont('helvetica', 'normal');
-                doc.setTextColor(100, 100, 100);
-                doc.text(item.label, cardX + cardWidth/2, y + 7, { align: 'center' });
-                
-                doc.setFontSize(10);
-                doc.setFont('helvetica', 'bold');
-                doc.setTextColor(0, 0, 0);
-                doc.text(String(item.value), cardX + cardWidth/2, y + 14, { align: 'center' });
-                
-                cardX += cardWidth + 5;
-            });
+        const pieImg = await this.generateChartImage('hiddenPieChart', 'pie', {
+            labels: ['Servis', 'Ritel'],
+            datasets: [{
+                data: [svcRevenue, retailRevenue],
+                backgroundColor: ['#ffc107', '#198754']
+            }]
+        });
+        if (pieImg) doc.addImage(pieImg, 'PNG', 15, y + 5, 60, 60);
 
-            // Total Akhir Box
-            y += 25;
-            doc.setFillColor(13, 110, 253);
-            doc.roundedRect(15, y, pageWidth - 30, 15, 2, 2, 'F');
-            doc.setTextColor(255, 255, 255);
-            doc.setFontSize(11);
-            doc.text('TOTAL PENDAPATAN BERSIH', 25, y + 9.5);
-            doc.setFontSize(14);
-            doc.text(formatCurrency(data.summary.grand_total_revenue), pageWidth - 25, y + 10, { align: 'right' });
+        const sortedDates = [...new Set([
+            ...svcTrend.map((t) => t?._id).filter(Boolean),
+            ...retailTrend.map((t) => t?._id).filter(Boolean)
+        ])].sort();
 
-            // 3. Grafik Visualisasi
-            y += 30;
-            doc.setTextColor(0, 0, 0);
-            doc.setFontSize(12);
-            doc.setFont('helvetica', 'bold');
-            doc.text('VISUALISASI DATA', 15, y);
-            
-            // Pie Chart Image
-            const pieChartData = {
-                labels: ['Servis', 'Ritel'],
-                datasets: [{
-                    data: [data.summary.total_service_revenue, data.summary.total_retail_revenue],
-                    backgroundColor: ['#ffc107', '#198754']
-                }]
-            };
-            const pieImg = await this.generateChartImage('hiddenPieChart', 'pie', pieChartData);
-            doc.addImage(pieImg, 'PNG', 15, y + 5, 60, 60);
-            
-            // Line Chart Image (Trend)
-            const sortedDates = [...new Set([
-                ...data.trends.services.map(t => t._id),
-                ...data.trends.retail.map(t => t._id)
-            ])].sort();
-            
-            const lineChartData = {
-                labels: sortedDates.map(d => formatDate(d)),
+        if (sortedDates.length > 0) {
+            const lineImg = await this.generateChartImage('hiddenLineChart', 'line', {
+                labels: sortedDates.map((d) => formatDate(d)),
                 datasets: [
                     {
                         label: 'Servis',
-                        data: sortedDates.map(d => data.trends.services.find(t => t._id === d)?.amount || 0),
+                        data: sortedDates.map((d) => svcTrend.find((t) => t?._id === d)?.amount || 0),
                         borderColor: '#ffc107',
                         fill: false
                     },
                     {
                         label: 'Ritel',
-                        data: sortedDates.map(d => data.trends.retail.find(t => t._id === d)?.amount || 0),
+                        data: sortedDates.map((d) => retailTrend.find((t) => t?._id === d)?.amount || 0),
                         borderColor: '#198754',
                         fill: false
                     }
                 ]
-            };
-            const lineImg = await this.generateChartImage('hiddenLineChart', 'line', lineChartData);
-            doc.addImage(lineImg, 'PNG', 85, y + 10, 110, 50);
-            
-            doc.setFontSize(8);
-            doc.text('Proporsi Pendapatan', 45, y + 70, { align: 'center' });
-            doc.text('Tren Pendapatan Harian', 140, y + 70, { align: 'center' });
+            });
+            if (lineImg) doc.addImage(lineImg, 'PNG', 85, y + 10, 110, 50);
+        }
 
-            // 4. Detailed Tables
-            // Page 2: Inventory
-            doc.addPage();
-            doc.setFontSize(14);
-            doc.setFont('helvetica', 'bold');
-            doc.text('DATA INVENTARIS (STOK GUDANG)', 15, 20);
-            
-            doc.autoTable({
-                startY: 25,
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(100, 100, 100);
+        doc.text('Proporsi Pendapatan', 45, y + 70, { align: 'center' });
+        doc.text('Tren Pendapatan Harian', 140, y + 70, { align: 'center' });
+    }
+
+    drawRecapTable(doc, title, kind, rows, total) {
+        const configs = {
+            inventaris: {
                 head: [['SKU', 'Nama Barang', 'Kategori', 'Harga Jual', 'Stok', 'Nilai Stok']],
-                body: data.inventory.map(i => [
-                    i.sku,
-                    i.name,
-                    i.category,
-                    formatCurrency(i.selling_price),
-                    i.stock,
-                    formatCurrency(i.stock * i.purchase_price)
-                ]),
-                headStyles: { fillColor: [50, 50, 50] },
+                fill: [50, 50, 50],
                 styles: { fontSize: 8 },
-                columnStyles: {
-                    3: { halign: 'right' },
-                    4: { halign: 'center' },
-                    5: { halign: 'right' }
-                }
-            });
-
-            // Page 3: Services
-            doc.addPage();
-            doc.text('DATA DETAIL SERVIS (WORKSHOP)', 15, 20);
-            doc.autoTable({
-                startY: 25,
+                columns: { 3: { halign: 'right' }, 4: { halign: 'center' }, 5: { halign: 'right' } }
+            },
+            servis: {
                 head: [['Tiket', 'Tanggal', 'Pelanggan', 'Keluhan', 'Teknisi', 'Status', 'Total']],
-                body: data.services.map(s => [
-                    s.ticket_number,
-                    formatDate(s.history?.picked_up_at),
-                    s.customer.name,
-                    s.device.symptoms,
-                    s.technician.name,
-                    s.status,
-                    formatCurrency(s.total_cost)
-                ]),
-                headStyles: { fillColor: [255, 193, 7] },
+                fill: [180, 130, 0],
                 styles: { fontSize: 7 },
-                columnStyles: { 6: { halign: 'right' } }
-            });
-
-            // Page 4: Transactions
-            doc.addPage();
-            doc.text('DATA TRANSAKSI RITEL (POS)', 15, 20);
-            doc.autoTable({
-                startY: 25,
+                columns: { 6: { halign: 'right' } }
+            },
+            transaksi: {
                 head: [['Invoice', 'Tanggal', 'Kasir', 'Barang Terjual', 'Metode', 'Total']],
-                body: data.transactions.map(t => [
-                    t.invoice_no,
-                    formatDate(t.date),
-                    t.cashier_name,
-                    t.items.map(i => `${i.name} (x${i.qty})`).join(', '),
-                    t.payment_method,
-                    formatCurrency(t.grand_total)
-                ]),
-                headStyles: { fillColor: [25, 135, 84] },
+                fill: [25, 135, 84],
                 styles: { fontSize: 7 },
-                columnStyles: { 5: { halign: 'right' } }
-            });
+                columns: { 5: { halign: 'right' } }
+            }
+        };
+        const cfg = configs[kind] || configs.inventaris;
+        const { body, note } = limitRecapRows(rows, total);
 
-            // Save PDF — nama file tanggal WIB
-            const nowWIB = toLocalDateString(new Date());
-            const dateStr = nowWIB.replace(/-/g, '');
-            doc.save(`Laporan_Rekap_UTC_${range}_${dateStr}.pdf`);
-            showToast('PDF berhasil diunduh', 'success');
+        doc.addPage();
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(13);
+        doc.setFont('helvetica', 'bold');
+        doc.text(title, 15, 20);
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(100, 100, 100);
+        doc.text(`Jumlah data: ${total} baris`, 15, 26);
 
-        } catch (error) {
-            console.error('PDF Generation Error:', error);
-            showToast('Gagal menghasilkan PDF: ' + error.message, 'error');
-        } finally {
-            btn.disabled = false;
-            btn.innerHTML = originalContent;
+        doc.autoTable({
+            startY: 30,
+            head: cfg.head,
+            body,
+            headStyles: { fillColor: cfg.fill },
+            styles: { ...cfg.styles, cellPadding: 2, overflow: 'linebreak' },
+            columnStyles: cfg.columns
+        });
+
+        if (note) {
+            doc.setFontSize(8);
+            doc.setTextColor(150, 80, 0);
+            doc.text(note, 15, doc.lastAutoTable.finalY + 8);
         }
     }
 
+    drawRecapFooter(doc, meta) {
+        const pageCount = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            const w = doc.internal.pageSize.getWidth();
+            const h = doc.internal.pageSize.getHeight();
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(120, 120, 120);
+            doc.text(`${meta.reportNo} — Halaman ${i} dari ${pageCount}`, 15, h - 10);
+            doc.text('Dokumen internal Bengkel UTC', w - 15, h - 10, { align: 'right' });
+        }
+        doc.setPage(pageCount);
+        doc.setFontSize(10);
+        doc.setTextColor(0, 0, 0);
+        const h = doc.internal.pageSize.getHeight();
+        doc.text('Ponorogo, ____________________', 130, h - 45);
+        doc.text(`(${meta.adminName})`, 130, h - 25);
+        doc.setFontSize(8);
+        doc.setTextColor(100, 100, 100);
+        doc.text('Penanggung jawab laporan', 130, h - 20);
+    }
+
     async generateChartImage(canvasId, type, data) {
-        const canvas = document.getElementById(canvasId);
-        const ctx = canvas.getContext('2d');
-        
-        // Clear previous chart
-        const existingChart = Chart.getChart(canvas);
-        if (existingChart) existingChart.destroy();
-        
-        return new Promise((resolve) => {
-            new Chart(ctx, {
-                type: type,
-                data: data,
-                options: {
-                    responsive: false,
-                    animation: false,
-                    plugins: {
-                        legend: {
-                            display: type === 'pie',
-                            position: 'bottom',
-                            labels: { font: { size: 14 } }
-                        }
-                    },
-                    scales: type === 'line' ? {
-                        y: { beginAtZero: true }
-                    } : {}
-                },
-                plugins: [{
-                    id: 'background-white',
-                    beforeDraw: (chart) => {
-                        const { ctx } = chart;
-                        ctx.save();
-                        ctx.fillStyle = 'white';
-                        ctx.fillRect(0, 0, chart.width, chart.height);
-                        ctx.restore();
+        try {
+            if (typeof Chart === 'undefined') return null;
+            const canvas = document.getElementById(canvasId);
+            if (!canvas || typeof canvas.getContext !== 'function') return null;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return null;
+
+            const existingChart = typeof Chart.getChart === 'function' ? Chart.getChart(canvas) : null;
+            if (existingChart) existingChart.destroy();
+
+            return await new Promise((resolve) => {
+                try {
+                    new Chart(ctx, {
+                        type,
+                        data,
+                        options: {
+                            responsive: false,
+                            animation: false,
+                            plugins: {
+                                legend: {
+                                    display: type === 'pie',
+                                    position: 'bottom',
+                                    labels: { font: { size: 14 } }
+                                }
+                            },
+                            scales: type === 'line' ? {
+                                y: { beginAtZero: true }
+                            } : {}
+                        },
+                        plugins: [{
+                            id: 'background-white',
+                            beforeDraw: (chart) => {
+                                const { ctx: c } = chart;
+                                c.save();
+                                c.fillStyle = 'white';
+                                c.fillRect(0, 0, chart.width, chart.height);
+                                c.restore();
+                            }
+                        }]
+                    });
+                } catch (err) {
+                    console.warn('Gagal membuat grafik, dilewati:', err.message);
+                    resolve(null);
+                    return;
+                }
+
+                setTimeout(() => {
+                    try {
+                        resolve(canvas.toDataURL('image/png', 1.0));
+                    } catch (err) {
+                        console.warn('Gagal membaca grafik, dilewati:', err.message);
+                        resolve(null);
                     }
-                }]
+                }, 100);
             });
-            
-            // Give it a tiny bit of time to ensure draw is complete
-            setTimeout(() => {
-                resolve(canvas.toDataURL('image/png', 1.0));
-            }, 100);
-        });
+        } catch (err) {
+            console.warn('Grafik dilewati:', err.message);
+            return null;
+        }
     }
 }
 
